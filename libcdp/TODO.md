@@ -41,6 +41,10 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 **Granular (CDP: `brassage`, `grain`, `texture`):**
 - [x] `brassage` - Granular resynthesis with pitch/time params
 - [x] `freeze` - Segment repetition with crossfade
+- [x] `grain_cloud` - Grain cloud generation from amplitude-detected grains
+- [x] `grain_extend` - Extend duration using grain repetition
+- [x] `texture_simple` - Simple texture layering with pitch/amp/spatial variation
+- [x] `texture_multi` - Multi-layer grouped texture generation
 
 **Core (from original libcdp):**
 - [x] `gain`, `gain_db` - Amplitude adjustment
@@ -80,16 +84,7 @@ Useful audio processing functions not derived from CDP algorithms.
 
 Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 
-### Priority 1: Granular/Texture (CDP: `grain`, `texture`, `newtex`)
-
-| CDP Tool | Algorithm | Description |
-|----------|-----------|-------------|
-| `grain` | Grain cloud | Basic granular synthesis |
-| `grainex` | Extended grain | More grain parameters |
-| `texture` | Multi-layer texture | Complex layered granular |
-| `newtex` | New texture | Updated texture algorithm |
-
-### Priority 2: Morphing/Combining (CDP: `morph`, `combine`)
+### Priority 1: Morphing/Combining (CDP: `morph`, `combine`)
 
 | CDP Tool | Algorithm | Description |
 |----------|-----------|-------------|
@@ -97,7 +92,7 @@ Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 | `newmorph` | New morph | Updated morph algorithm |
 | `combine` | Spectral combine | Cross-synthesis (amp/freq mixing) |
 
-### Priority 3: Analysis (CDP: `pitch`, `formants`, `get_partials`)
+### Priority 2: Analysis (CDP: `pitch`, `formants`, `get_partials`)
 
 | CDP Tool | Algorithm | Description |
 |----------|-----------|-------------|
@@ -105,7 +100,7 @@ Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 | `formants` | Formant analysis | Extract formant frequencies |
 | `get_partials` | Partial tracking | Extract sinusoidal partials |
 
-### Priority 4: Additional Spectral (CDP: `focus`, `hilite`, `specfold`)
+### Priority 3: Additional Spectral (CDP: `focus`, `hilite`, `specfold`)
 
 | CDP Tool | Algorithm | Description |
 |----------|-----------|-------------|
@@ -114,7 +109,7 @@ Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 | `specfold` | Spectral fold | Fold spectrum at frequency |
 | `speclean` | Spectral clean | Remove spectral noise |
 
-### Priority 5: Experimental (CDP: `strange`, `fractal`, `crystal`)
+### Priority 4: Experimental (CDP: `strange`, `fractal`, `crystal`)
 
 | CDP Tool | Algorithm | Description |
 |----------|-----------|-------------|

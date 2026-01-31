@@ -1433,5 +1433,139 @@ class TestLimiter:
             assert abs(result[i]) <= threshold_lin + 0.001
 
 
+class TestGrainCloud:
+    """Test grain cloud generation (CDP: grain)."""
+
+    @pytest.fixture
+    def short_sound(self):
+        """Create a short sound with amplitude variations for grain detection."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate) *
+            (0.5 + 0.5 * math.sin(2 * math.pi * 10 * i / sample_rate))  # AM modulation
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_cloud_runs(self, short_sound):
+        """Grain cloud should run without error."""
+        result = pycdp.grain_cloud(short_sound, duration=1.0, density=10.0, seed=42)
+        assert result.frame_count > 0
+
+    def test_grain_cloud_duration(self, short_sound):
+        """Grain cloud should respect duration parameter."""
+        duration = 2.0
+        result = pycdp.grain_cloud(short_sound, duration=duration, density=10.0, seed=42)
+        expected_samples = int(duration * short_sound.sample_rate)
+        assert abs(result.frame_count - expected_samples) < 100
+
+    def test_grain_cloud_reproducible(self, short_sound):
+        """Same seed should produce same result."""
+        result1 = pycdp.grain_cloud(short_sound, duration=0.5, density=10.0, seed=12345)
+        result2 = pycdp.grain_cloud(short_sound, duration=0.5, density=10.0, seed=12345)
+        # First few samples should be identical
+        for i in range(min(100, result1.sample_count, result2.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], abs=1e-6)
+
+
+class TestGrainExtend:
+    """Test grain extend (CDP: grainex extend)."""
+
+    @pytest.fixture
+    def short_sound(self):
+        """Create a short sound for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_extend_runs(self, short_sound):
+        """Grain extend should run without error."""
+        result = pycdp.grain_extend(short_sound, extension=1.0)
+        assert result.frame_count > 0
+
+    def test_grain_extend_increases_length(self, short_sound):
+        """Grain extend should increase duration."""
+        extension = 1.0
+        result = pycdp.grain_extend(short_sound, extension=extension)
+        # Output should be longer than input by approximately extension amount
+        input_duration = short_sound.frame_count / short_sound.sample_rate
+        output_duration = result.frame_count / result.sample_rate
+        assert output_duration >= input_duration
+
+
+class TestTextureSimple:
+    """Test simple texture generation (CDP: texture SIMPLE_TEX)."""
+
+    @pytest.fixture
+    def short_sound(self):
+        """Create a short sound for texture source."""
+        import math
+        sample_rate = 44100
+        duration = 0.2
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_texture_simple_runs(self, short_sound):
+        """Texture simple should run without error."""
+        result = pycdp.texture_simple(short_sound, duration=1.0, density=5.0, seed=42)
+        assert result.frame_count > 0
+
+    def test_texture_simple_stereo_output(self, short_sound):
+        """Texture simple should produce stereo output."""
+        result = pycdp.texture_simple(short_sound, duration=1.0, density=5.0, seed=42)
+        assert result.channels == 2
+
+    def test_texture_simple_duration(self, short_sound):
+        """Texture simple should respect duration."""
+        duration = 2.0
+        result = pycdp.texture_simple(short_sound, duration=duration, density=5.0, seed=42)
+        expected_samples = int(duration * short_sound.sample_rate)
+        assert abs(result.frame_count - expected_samples) < 100
+
+
+class TestTextureMulti:
+    """Test multi-layer texture generation (CDP: texture GROUPS)."""
+
+    @pytest.fixture
+    def short_sound(self):
+        """Create a short sound for texture source."""
+        import math
+        sample_rate = 44100
+        duration = 0.2
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_texture_multi_runs(self, short_sound):
+        """Texture multi should run without error."""
+        result = pycdp.texture_multi(short_sound, duration=1.0, density=2.0, seed=42)
+        assert result.frame_count > 0
+
+    def test_texture_multi_stereo_output(self, short_sound):
+        """Texture multi should produce stereo output."""
+        result = pycdp.texture_multi(short_sound, duration=1.0, density=2.0, seed=42)
+        assert result.channels == 2
+
+    def test_texture_multi_groups(self, short_sound):
+        """Texture multi should support different group sizes."""
+        result1 = pycdp.texture_multi(short_sound, duration=1.0, density=2.0, group_size=2, seed=42)
+        result2 = pycdp.texture_multi(short_sound, duration=1.0, density=2.0, group_size=8, seed=42)
+        # Both should produce output
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

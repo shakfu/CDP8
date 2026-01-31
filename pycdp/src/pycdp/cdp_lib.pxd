@@ -228,3 +228,40 @@ cdef extern from "cdp_granular.h":
                                     double pitch_scatter,
                                     double amp_cut,
                                     double gain)
+
+    cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double gate,
+                                         double grainsize_ms,
+                                         double density,
+                                         double duration,
+                                         double scatter,
+                                         unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          double grainsize_ms,
+                                          double trough,
+                                          double extension,
+                                          double start_time,
+                                          double end_time)
+
+    cdp_lib_buffer* cdp_lib_texture_simple(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double duration,
+                                            double density,
+                                            double pitch_range,
+                                            double amp_range,
+                                            double spatial_range,
+                                            unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_texture_multi(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double duration,
+                                           double density,
+                                           int group_size,
+                                           double group_spread,
+                                           double pitch_range,
+                                           double pitch_center,
+                                           double amp_decay,
+                                           unsigned int seed)

@@ -99,6 +99,10 @@ from pycdp._core import (
     # Granular operations
     brassage,
     freeze,
+    grain_cloud,
+    grain_extend,
+    texture_simple,
+    texture_multi,
 )
 
 __all__ = [
@@ -190,6 +194,10 @@ __all__ = [
     # Granular operations
     "brassage",
     "freeze",
+    "grain_cloud",
+    "grain_extend",
+    "texture_simple",
+    "texture_multi",
 ]
 
 __version__ = version()

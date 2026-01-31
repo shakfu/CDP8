@@ -1335,6 +1335,43 @@ cdef extern from "cdp_granular.h":
                                     double amp_cut,
                                     double gain)
 
+    cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double gate,
+                                         double grainsize_ms,
+                                         double density,
+                                         double duration,
+                                         double scatter,
+                                         unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          double grainsize_ms,
+                                          double trough,
+                                          double extension,
+                                          double start_time,
+                                          double end_time)
+
+    cdp_lib_buffer* cdp_lib_texture_simple(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double duration,
+                                            double density,
+                                            double pitch_range,
+                                            double amp_range,
+                                            double spatial_range,
+                                            unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_texture_multi(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double duration,
+                                           double density,
+                                           int group_size,
+                                           double group_spread,
+                                           double pitch_range,
+                                           double pitch_center,
+                                           double amp_decay,
+                                           unsigned int seed)
+
 
 # Global CDP library context (lazily initialized)
 cdef cdp_lib_ctx* _cdp_lib_ctx = NULL
@@ -2576,6 +2613,171 @@ def freeze(Buffer buf not None, double start_time, double end_time,
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Freeze failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_cloud(Buffer buf not None, double gate=0.1, double grainsize_ms=50.0,
+                double density=10.0, double duration=0.0, double scatter=0.3,
+                unsigned int seed=0):
+    """Generate grain cloud from source audio (CDP: grain).
+
+    Extracts grains based on amplitude threshold and generates a cloud
+    by placing them at random or regular intervals.
+
+    Args:
+        buf: Input Buffer.
+        gate: Amplitude threshold for grain detection (0.0 to 1.0). Default 0.1.
+        grainsize_ms: Target grain size in milliseconds. Default 50.0.
+        density: Grain density (grains per second). Default 10.0.
+        duration: Output duration in seconds (0 = same as input). Default 0.
+        scatter: Position scatter amount (0.0 to 1.0). Default 0.3.
+        seed: Random seed (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with grain cloud.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_cloud(
+        ctx, input_buf, gate, grainsize_ms, density, duration, scatter, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain cloud failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_extend(Buffer buf not None, double grainsize_ms=15.0, double trough=0.3,
+                 double extension=1.0, double start_time=0.0, double end_time=0.0):
+    """Extend audio duration using grain repetition (CDP: grainex extend).
+
+    Finds grains in source and extends duration by repeating grains
+    with variations.
+
+    Args:
+        buf: Input Buffer.
+        grainsize_ms: Window size to detect grains (milliseconds). Default 15.0.
+        trough: Acceptable trough height relative to peaks (0.0 to 1.0). Default 0.3.
+        extension: How much duration to add (seconds). Default 1.0.
+        start_time: Start of grain material in source (seconds). Default 0.0.
+        end_time: End of grain material in source (seconds, 0 = end). Default 0.0.
+
+    Returns:
+        New Buffer with extended audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_extend(
+        ctx, input_buf, grainsize_ms, trough, extension, start_time, end_time)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain extend failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def texture_simple(Buffer buf not None, double duration=5.0, double density=5.0,
+                   double pitch_range=6.0, double amp_range=0.3,
+                   double spatial_range=0.8, unsigned int seed=0):
+    """Generate simple texture (CDP: texture SIMPLE_TEX).
+
+    Creates texture by layering source at multiple transpositions
+    and time offsets.
+
+    Args:
+        buf: Input Buffer.
+        duration: Output duration in seconds. Default 5.0.
+        density: Events per second. Default 5.0.
+        pitch_range: Pitch range in semitones (symmetric around 0). Default 6.0.
+        amp_range: Amplitude variation (0.0 to 1.0). Default 0.3.
+        spatial_range: Stereo spread (0.0 to 1.0, 0 = mono center). Default 0.8.
+        seed: Random seed (0 = use time). Default 0.
+
+    Returns:
+        New stereo Buffer with texture.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_texture_simple(
+        ctx, input_buf, duration, density, pitch_range, amp_range, spatial_range, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Texture simple failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def texture_multi(Buffer buf not None, double duration=5.0, double density=2.0,
+                  int group_size=4, double group_spread=0.2,
+                  double pitch_range=8.0, double pitch_center=0.0,
+                  double amp_decay=0.3, unsigned int seed=0):
+    """Generate multi-layer texture (CDP: texture GROUPS).
+
+    Creates complex texture with grouped events and decorations.
+
+    Args:
+        buf: Input Buffer.
+        duration: Output duration in seconds. Default 5.0.
+        density: Groups per second. Default 2.0.
+        group_size: Average notes per group (1-16). Default 4.
+        group_spread: Time spread within group (seconds). Default 0.2.
+        pitch_range: Pitch range in semitones. Default 8.0.
+        pitch_center: Center pitch offset in semitones. Default 0.0.
+        amp_decay: Amplitude decay through group (0.0 to 1.0). Default 0.3.
+        seed: Random seed (0 = use time). Default 0.
+
+    Returns:
+        New stereo Buffer with multi-layer texture.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_texture_multi(
+        ctx, input_buf, duration, density, group_size, group_spread,
+        pitch_range, pitch_center, amp_decay, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Texture multi failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)

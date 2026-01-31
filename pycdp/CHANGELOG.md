@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (CDP Algorithm Ports)
 - **Filtering:** `filter_bandpass`, `filter_notch` - spectral bandpass and notch filters
+- **Granular:** `grain_cloud` - grain cloud generation from amplitude-detected grains (CDP: grain)
+- **Granular:** `grain_extend` - extend duration using grain repetition (CDP: grainex extend)
+- **Texture:** `texture_simple` - simple texture layering (CDP: texture SIMPLE_TEX)
+- **Texture:** `texture_multi` - multi-layer grouped texture (CDP: texture GROUPS)
 
 ### Added (Non-CDP Additions)
 Standard DSP functions not derived from CDP algorithms:

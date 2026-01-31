@@ -72,6 +72,115 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
                                 double amp_cut,
                                 double gain);
 
+/*
+ * Generate grain cloud from source audio (CDP: grain)
+ *
+ * Extracts grains based on amplitude threshold and generates a cloud
+ * by placing them at random or regular intervals.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   gate: Amplitude threshold for grain detection (0.0 to 1.0)
+ *   grainsize_ms: Target grain size in milliseconds
+ *   density: Grain density (grains per second)
+ *   duration: Output duration in seconds (0 = same as input)
+ *   scatter: Position scatter amount (0.0 to 1.0)
+ *   seed: Random seed (0 = use time)
+ *
+ * Returns: New buffer with grain cloud, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double gate,
+                                     double grainsize_ms,
+                                     double density,
+                                     double duration,
+                                     double scatter,
+                                     unsigned int seed);
+
+/*
+ * Extend audio duration using grain repetition (CDP: grainex extend)
+ *
+ * Finds grains in source and extends duration by repeating grains
+ * with variations.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   grainsize_ms: Window size to detect grains (milliseconds)
+ *   trough: Acceptable trough height relative to peaks (0.0 to 1.0)
+ *   extension: How much duration to add (seconds)
+ *   start_time: Start of grain material in source (seconds)
+ *   end_time: End of grain material in source (seconds)
+ *
+ * Returns: New buffer with extended audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double grainsize_ms,
+                                      double trough,
+                                      double extension,
+                                      double start_time,
+                                      double end_time);
+
+/*
+ * Generate simple texture (CDP: texture SIMPLE_TEX)
+ *
+ * Creates texture by layering source at multiple transpositions
+ * and time offsets.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   duration: Output duration in seconds
+ *   density: Events per second
+ *   pitch_range: Pitch range in semitones (symmetric around 0)
+ *   amp_range: Amplitude variation (0.0 to 1.0)
+ *   spatial_range: Stereo spread (0.0 to 1.0, 0 = mono center)
+ *   seed: Random seed (0 = use time)
+ *
+ * Returns: New stereo buffer with texture, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_texture_simple(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double duration,
+                                        double density,
+                                        double pitch_range,
+                                        double amp_range,
+                                        double spatial_range,
+                                        unsigned int seed);
+
+/*
+ * Generate multi-layer texture (CDP: texture GROUPS)
+ *
+ * Creates complex texture with grouped events and decorations.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   duration: Output duration in seconds
+ *   density: Events per second
+ *   group_size: Average notes per group (1-16)
+ *   group_spread: Time spread within group (seconds)
+ *   pitch_range: Pitch range in semitones
+ *   pitch_center: Center pitch offset in semitones
+ *   amp_decay: Amplitude decay through group (0.0 to 1.0)
+ *   seed: Random seed (0 = use time)
+ *
+ * Returns: New buffer with multi-layer texture, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_texture_multi(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double duration,
+                                       double density,
+                                       int group_size,
+                                       double group_spread,
+                                       double pitch_range,
+                                       double pitch_center,
+                                       double amp_decay,
+                                       unsigned int seed);
+
 #ifdef __cplusplus
 }
 #endif
