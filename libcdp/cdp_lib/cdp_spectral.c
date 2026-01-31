@@ -33,9 +33,10 @@ static void apply_window(float *data, int size) {
  */
 static void cartesian_to_polar(float *real, float *imag, float *amp, float *freq,
                                 int num_bins, float sample_rate, int fft_size,
-                                float *last_phase) {
+                                int hop_size, float *last_phase) {
     float freq_per_bin = sample_rate / fft_size;
-    float expect = 2.0f * (float)M_PI / (fft_size / 4);  /* Expected phase increment */
+    /* Expected phase increment per bin per hop */
+    float expect = 2.0f * (float)M_PI * hop_size / fft_size;
 
     for (int i = 0; i < num_bins; i++) {
         float r = real[i];
@@ -62,9 +63,9 @@ static void cartesian_to_polar(float *real, float *imag, float *amp, float *freq
  */
 static void polar_to_cartesian(float *amp, float *freq, float *real, float *imag,
                                 int num_bins, float sample_rate, int fft_size,
-                                float *synth_phase) {
+                                int hop_size, float *synth_phase) {
     float freq_per_bin = sample_rate / fft_size;
-    float expect = 2.0f * (float)M_PI / (fft_size / 4);
+    float expect = 2.0f * (float)M_PI * hop_size / fft_size;
 
     for (int i = 0; i < num_bins; i++) {
         float freq_dev = freq[i] / freq_per_bin - i;
@@ -188,7 +189,7 @@ cdp_spectral_data* cdp_spectral_analyze(const float *audio, size_t num_samples,
         float *freq = result->frames[frame].data + num_bins;
 
         cartesian_to_polar(real, imag, amp, freq, num_bins,
-                           (float)sample_rate, fft_size, last_phase);
+                           (float)sample_rate, fft_size, hop_size, last_phase);
     }
 
     free(real);
@@ -238,7 +239,7 @@ float* cdp_spectral_synthesize(const cdp_spectral_data *spectral,
         memset(imag, 0, fft_size * sizeof(float));
 
         polar_to_cartesian(amp, freq, real, imag, num_bins,
-                           spectral->sample_rate, fft_size, synth_phase);
+                           spectral->sample_rate, fft_size, hop_size, synth_phase);
 
         /* Mirror for negative frequencies */
         for (int i = 1; i < num_bins - 1; i++) {
@@ -545,13 +546,14 @@ cdp_spectral_data* cdp_spectral_filter_lowpass(const cdp_spectral_data *input,
     if (attenuation > 1.0f) attenuation = 1.0f;
 
     int num_bins = input->num_bins;
+    float freq_per_bin = input->sample_rate / input->fft_size;
 
     for (int frame = 0; frame < output->num_frames; frame++) {
         float *amp = output->frames[frame].data;
-        float *freq = output->frames[frame].data + num_bins;
 
         for (int bin = 0; bin < num_bins; bin++) {
-            if (freq[bin] > cutoff_freq) {
+            float bin_freq = bin * freq_per_bin;
+            if (bin_freq > cutoff_freq) {
                 amp[bin] *= attenuation;
             }
         }
@@ -573,13 +575,14 @@ cdp_spectral_data* cdp_spectral_filter_highpass(const cdp_spectral_data *input,
     if (attenuation > 1.0f) attenuation = 1.0f;
 
     int num_bins = input->num_bins;
+    float freq_per_bin = input->sample_rate / input->fft_size;
 
     for (int frame = 0; frame < output->num_frames; frame++) {
         float *amp = output->frames[frame].data;
-        float *freq = output->frames[frame].data + num_bins;
 
         for (int bin = 0; bin < num_bins; bin++) {
-            if (freq[bin] < cutoff_freq) {
+            float bin_freq = bin * freq_per_bin;
+            if (bin_freq < cutoff_freq) {
                 amp[bin] *= attenuation;
             }
         }

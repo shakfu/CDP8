@@ -17,20 +17,28 @@ All core audio processing functions are now native - no subprocess overhead.
 - [x] `spectral_stretch` - Differential frequency stretching
 - [x] `filter_lowpass` - Spectral lowpass filter
 - [x] `filter_highpass` - Spectral highpass filter
+- [x] `filter_bandpass` - Spectral bandpass filter
+- [x] `filter_notch` - Spectral notch (band-reject) filter
 
-**Envelope Operations:**
+**Envelope & Dynamics:**
 - [x] `dovetail` - Fade in/out envelopes (linear/exponential)
 - [x] `tremolo` - LFO amplitude modulation
 - [x] `attack` - Attack transient reshaping
+- [x] `gate` - Noise gate with attack/release/hold
 
 **Distortion:**
 - [x] `distort_overload` - Soft/hard clipping
 - [x] `distort_reverse` - Reverse wavecycles (zero-crossing based)
 - [x] `distort_fractal` - Recursive wavecycle overlay
 - [x] `distort_shuffle` - Segment rearrangement
+- [x] `bitcrush` - Bit depth and sample rate reduction
+- [x] `ring_mod` - Ring modulation (carrier multiply)
 
-**Reverb:**
+**Reverb & Spatial:**
 - [x] `reverb` - FDN reverb (8 comb + 4 allpass filters)
+- [x] `delay` - Feedback delay with mix control
+- [x] `chorus` - Modulated delay (LFO-based)
+- [x] `flanger` - Short modulated delay with feedback
 
 **Granular:**
 - [x] `brassage` - Granular resynthesis with pitch/time params
@@ -55,8 +63,6 @@ All core audio processing functions are now native - no subprocess overhead.
 
 | Algorithm | Description | Notes |
 |-----------|-------------|-------|
-| Bandpass filter | Pass frequency band | Combine LP + HP |
-| Notch filter | Remove narrow band | Spectral notch |
 | Parametric EQ | Boost/cut with Q | Multiple bands |
 
 ### Priority 2: Additional Envelope & Dynamics
@@ -65,18 +71,10 @@ All core audio processing functions are now native - no subprocess overhead.
 |-----------|-------------|-------|
 | Envelope follow | Extract amplitude envelope | RMS or peak tracking |
 | Envelope apply | Apply envelope to sound | Amplitude modulation |
-| Gate | Silence below threshold | With attack/release |
 | Compressor | Dynamic range compression | Not in CDP |
 | Limiter | Hard/soft limiting | Peak control |
 
-### Priority 3: Additional Distortion
-
-| Algorithm | Description | Notes |
-|-----------|-------------|-------|
-| Bitcrush | Reduce bit depth | Sample rate reduction |
-| Ring modulation | Multiply by carrier | Simple AM |
-
-### Priority 4: Additional Granular & Texture
+### Priority 3: Additional Granular & Texture
 
 | Algorithm | Description | Notes |
 |-----------|-------------|-------|
@@ -84,15 +82,7 @@ All core audio processing functions are now native - no subprocess overhead.
 | Texture | Multi-layer textures | Complex parameter control |
 | Extend | Extend duration | Various algorithms |
 
-### Priority 5: Spatial Effects
-
-| Algorithm | Description | Notes |
-|-----------|-------------|-------|
-| Delay | Echo/delay effects | Feedback delay |
-| Chorus | Modulated delay | Short delay + LFO |
-| Flanger | Short modulated delay | Comb filtering |
-
-### Priority 6: Analysis & Resynthesis
+### Priority 4: Analysis & Resynthesis
 
 | Algorithm | Description | Notes |
 |-----------|-------------|-------|
@@ -102,7 +92,7 @@ All core audio processing functions are now native - no subprocess overhead.
 | Morph | Interpolate between sounds | Spectral interpolation |
 | Cross-synthesis | Combine spectral features | Amp from A, freq from B |
 
-### Priority 7: Synthesis
+### Priority 5: Synthesis
 
 | Algorithm | Description | Notes |
 |-----------|-------------|-------|

@@ -240,6 +240,158 @@ cdp_lib_buffer* cdp_lib_filter_highpass(cdp_lib_ctx* ctx,
                                          double attenuation_db,
                                          int fft_size);
 
+/*
+ * Apply bandpass filter.
+ *
+ * Passes frequencies between low and high cutoffs.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   low_freq: Low cutoff frequency in Hz
+ *   high_freq: High cutoff frequency in Hz
+ *   attenuation_db: Attenuation in dB (negative, e.g. -60)
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with filtered audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_filter_bandpass(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double low_freq,
+                                         double high_freq,
+                                         double attenuation_db,
+                                         int fft_size);
+
+/*
+ * Apply notch (band-reject) filter.
+ *
+ * Attenuates a narrow frequency band.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   center_freq: Center frequency to notch out in Hz
+ *   width_hz: Width of the notch in Hz
+ *   attenuation_db: Attenuation in dB (negative, e.g. -60)
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with filtered audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_filter_notch(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double center_freq,
+                                      double width_hz,
+                                      double attenuation_db,
+                                      int fft_size);
+
+/*
+ * Noise gate - silence audio below threshold.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   threshold_db: Threshold in dB (e.g. -40)
+ *   attack_ms: Attack time in milliseconds
+ *   release_ms: Release time in milliseconds
+ *   hold_ms: Hold time before release in milliseconds
+ *
+ * Returns: New buffer with gated audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_gate(cdp_lib_ctx* ctx,
+                              const cdp_lib_buffer* input,
+                              double threshold_db,
+                              double attack_ms,
+                              double release_ms,
+                              double hold_ms);
+
+/*
+ * Bitcrush - reduce bit depth and/or sample rate.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   bit_depth: Target bit depth (1-16, 16 = no reduction)
+ *   downsample: Downsample factor (1 = none, 2 = half rate, etc.)
+ *
+ * Returns: New buffer with crushed audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_bitcrush(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  int bit_depth,
+                                  int downsample);
+
+/*
+ * Ring modulation - multiply signal by a carrier frequency.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   freq: Carrier frequency in Hz
+ *   mix: Dry/wet mix (0.0 = dry, 1.0 = wet)
+ *
+ * Returns: New buffer with ring-modulated audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_ring_mod(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double freq,
+                                  double mix);
+
+/*
+ * Delay effect with feedback.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   delay_ms: Delay time in milliseconds
+ *   feedback: Feedback amount (0.0 to <1.0)
+ *   mix: Dry/wet mix (0.0 = dry, 1.0 = wet)
+ *
+ * Returns: New buffer with delayed audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_delay(cdp_lib_ctx* ctx,
+                               const cdp_lib_buffer* input,
+                               double delay_ms,
+                               double feedback,
+                               double mix);
+
+/*
+ * Chorus effect - modulated delay for thickening.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   rate: LFO rate in Hz (typically 0.5-5)
+ *   depth_ms: Modulation depth in milliseconds (typically 1-20)
+ *   mix: Dry/wet mix (0.0 = dry, 1.0 = wet)
+ *
+ * Returns: New buffer with chorus effect, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_chorus(cdp_lib_ctx* ctx,
+                                const cdp_lib_buffer* input,
+                                double rate,
+                                double depth_ms,
+                                double mix);
+
+/*
+ * Flanger effect - short modulated delay with feedback.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   rate: LFO rate in Hz (typically 0.1-2)
+ *   depth_ms: Modulation depth in milliseconds (typically 1-10)
+ *   feedback: Feedback amount (-0.95 to 0.95)
+ *   mix: Dry/wet mix (0.0 = dry, 1.0 = wet)
+ *
+ * Returns: New buffer with flanger effect, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_flanger(cdp_lib_ctx* ctx,
+                                 const cdp_lib_buffer* input,
+                                 double rate,
+                                 double depth_ms,
+                                 double feedback,
+                                 double mix);
+
 #ifdef __cplusplus
 }
 #endif

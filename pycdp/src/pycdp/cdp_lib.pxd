@@ -75,6 +75,56 @@ cdef extern from "cdp_lib.h":
                                              double attenuation_db,
                                              int fft_size)
 
+    cdp_lib_buffer* cdp_lib_filter_bandpass(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             double low_freq,
+                                             double high_freq,
+                                             double attenuation_db,
+                                             int fft_size)
+
+    cdp_lib_buffer* cdp_lib_filter_notch(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          double center_freq,
+                                          double width_hz,
+                                          double attenuation_db,
+                                          int fft_size)
+
+    cdp_lib_buffer* cdp_lib_gate(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double threshold_db,
+                                  double attack_ms,
+                                  double release_ms,
+                                  double hold_ms)
+
+    cdp_lib_buffer* cdp_lib_bitcrush(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      int bit_depth,
+                                      int downsample)
+
+    cdp_lib_buffer* cdp_lib_ring_mod(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double freq,
+                                      double mix)
+
+    cdp_lib_buffer* cdp_lib_delay(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double delay_ms,
+                                   double feedback,
+                                   double mix)
+
+    cdp_lib_buffer* cdp_lib_chorus(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    double rate,
+                                    double depth_ms,
+                                    double mix)
+
+    cdp_lib_buffer* cdp_lib_flanger(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double rate,
+                                     double depth_ms,
+                                     double feedback,
+                                     double mix)
+
 cdef extern from "cdp_envelope.h":
     int CDP_FADE_LINEAR
     int CDP_FADE_EXPONENTIAL

@@ -1181,6 +1181,56 @@ cdef extern from "cdp_lib.h":
                                              double attenuation_db,
                                              int fft_size)
 
+    cdp_lib_buffer* cdp_lib_filter_bandpass(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             double low_freq,
+                                             double high_freq,
+                                             double attenuation_db,
+                                             int fft_size)
+
+    cdp_lib_buffer* cdp_lib_filter_notch(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          double center_freq,
+                                          double width_hz,
+                                          double attenuation_db,
+                                          int fft_size)
+
+    cdp_lib_buffer* cdp_lib_gate(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double threshold_db,
+                                  double attack_ms,
+                                  double release_ms,
+                                  double hold_ms)
+
+    cdp_lib_buffer* cdp_lib_bitcrush(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      int bit_depth,
+                                      int downsample)
+
+    cdp_lib_buffer* cdp_lib_ring_mod(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double freq,
+                                      double mix)
+
+    cdp_lib_buffer* cdp_lib_delay(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double delay_ms,
+                                   double feedback,
+                                   double mix)
+
+    cdp_lib_buffer* cdp_lib_chorus(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    double rate,
+                                    double depth_ms,
+                                    double mix)
+
+    cdp_lib_buffer* cdp_lib_flanger(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double rate,
+                                     double depth_ms,
+                                     double feedback,
+                                     double mix)
+
 cdef extern from "cdp_envelope.h":
     int CDP_FADE_LINEAR
     int CDP_FADE_EXPONENTIAL
@@ -1583,6 +1633,326 @@ def filter_highpass(Buffer buf not None, double cutoff_freq,
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Highpass filter failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def filter_bandpass(Buffer buf not None, double low_freq, double high_freq,
+                    double attenuation_db=-60, int fft_size=1024):
+    """Apply bandpass filter (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        low_freq: Low cutoff frequency in Hz.
+        high_freq: High cutoff frequency in Hz.
+        attenuation_db: Attenuation in dB (negative). Default -60.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with filtered audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if low_freq <= 0:
+        raise ValueError("low_freq must be positive")
+    if high_freq <= low_freq:
+        raise ValueError("high_freq must be greater than low_freq")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_filter_bandpass(
+        ctx, input_buf, low_freq, high_freq, attenuation_db, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Bandpass filter failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def filter_notch(Buffer buf not None, double center_freq, double width_hz,
+                 double attenuation_db=-60, int fft_size=1024):
+    """Apply notch (band-reject) filter (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        center_freq: Center frequency to notch out in Hz.
+        width_hz: Width of the notch in Hz.
+        attenuation_db: Attenuation in dB (negative). Default -60.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with filtered audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if center_freq <= 0:
+        raise ValueError("center_freq must be positive")
+    if width_hz <= 0:
+        raise ValueError("width_hz must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_filter_notch(
+        ctx, input_buf, center_freq, width_hz, attenuation_db, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Notch filter failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def gate(Buffer buf not None, double threshold_db, double attack_ms=1.0,
+         double release_ms=50.0, double hold_ms=10.0):
+    """Apply noise gate (native implementation).
+
+    Silences audio below threshold with attack/release envelope.
+
+    Args:
+        buf: Input Buffer.
+        threshold_db: Threshold in dB (e.g., -40).
+        attack_ms: Attack time in milliseconds. Default 1.0.
+        release_ms: Release time in milliseconds. Default 50.0.
+        hold_ms: Hold time before release in milliseconds. Default 10.0.
+
+    Returns:
+        New Buffer with gated audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_gate(
+        ctx, input_buf, threshold_db, attack_ms, release_ms, hold_ms)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Gate failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def bitcrush(Buffer buf not None, int bit_depth=8, int downsample=1):
+    """Apply bitcrusher effect (native implementation).
+
+    Reduces bit depth and/or sample rate for lo-fi effects.
+
+    Args:
+        buf: Input Buffer.
+        bit_depth: Target bit depth (1-16, 16 = no reduction). Default 8.
+        downsample: Downsample factor (1 = none, 2 = half rate). Default 1.
+
+    Returns:
+        New Buffer with crushed audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if bit_depth < 1 or bit_depth > 16:
+        raise ValueError("bit_depth must be 1-16")
+    if downsample < 1:
+        raise ValueError("downsample must be >= 1")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_bitcrush(
+        ctx, input_buf, bit_depth, downsample)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Bitcrush failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def ring_mod(Buffer buf not None, double freq, double mix=1.0):
+    """Apply ring modulation (native implementation).
+
+    Multiplies signal by a carrier frequency.
+
+    Args:
+        buf: Input Buffer.
+        freq: Carrier frequency in Hz.
+        mix: Dry/wet mix (0.0 = dry, 1.0 = wet). Default 1.0.
+
+    Returns:
+        New Buffer with ring-modulated audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if freq <= 0:
+        raise ValueError("freq must be positive")
+    if mix < 0 or mix > 1:
+        raise ValueError("mix must be 0.0-1.0")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_ring_mod(ctx, input_buf, freq, mix)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Ring modulation failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def delay(Buffer buf not None, double delay_ms, double feedback=0.3, double mix=0.5):
+    """Apply delay effect with feedback (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        delay_ms: Delay time in milliseconds.
+        feedback: Feedback amount (0.0 to <1.0). Default 0.3.
+        mix: Dry/wet mix (0.0 = dry, 1.0 = wet). Default 0.5.
+
+    Returns:
+        New Buffer with delayed audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if delay_ms <= 0:
+        raise ValueError("delay_ms must be positive")
+    if feedback < 0 or feedback >= 1:
+        raise ValueError("feedback must be 0.0 to <1.0")
+    if mix < 0 or mix > 1:
+        raise ValueError("mix must be 0.0-1.0")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_delay(ctx, input_buf, delay_ms, feedback, mix)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Delay failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def chorus(Buffer buf not None, double rate=1.5, double depth_ms=5.0, double mix=0.5):
+    """Apply chorus effect (native implementation).
+
+    Modulated delay for thickening sounds.
+
+    Args:
+        buf: Input Buffer.
+        rate: LFO rate in Hz (typically 0.5-5). Default 1.5.
+        depth_ms: Modulation depth in milliseconds (typically 1-20). Default 5.0.
+        mix: Dry/wet mix (0.0 = dry, 1.0 = wet). Default 0.5.
+
+    Returns:
+        New Buffer with chorus effect.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if rate <= 0:
+        raise ValueError("rate must be positive")
+    if depth_ms <= 0:
+        raise ValueError("depth_ms must be positive")
+    if mix < 0 or mix > 1:
+        raise ValueError("mix must be 0.0-1.0")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_chorus(ctx, input_buf, rate, depth_ms, mix)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Chorus failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def flanger(Buffer buf not None, double rate=0.5, double depth_ms=3.0,
+            double feedback=0.5, double mix=0.5):
+    """Apply flanger effect (native implementation).
+
+    Short modulated delay with feedback for sweeping comb filter.
+
+    Args:
+        buf: Input Buffer.
+        rate: LFO rate in Hz (typically 0.1-2). Default 0.5.
+        depth_ms: Modulation depth in milliseconds (typically 1-10). Default 3.0.
+        feedback: Feedback amount (-0.95 to 0.95). Default 0.5.
+        mix: Dry/wet mix (0.0 = dry, 1.0 = wet). Default 0.5.
+
+    Returns:
+        New Buffer with flanger effect.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if rate <= 0:
+        raise ValueError("rate must be positive")
+    if depth_ms <= 0:
+        raise ValueError("depth_ms must be positive")
+    if feedback < -0.95 or feedback > 0.95:
+        raise ValueError("feedback must be -0.95 to 0.95")
+    if mix < 0 or mix > 1:
+        raise ValueError("mix must be 0.0-1.0")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_flanger(
+        ctx, input_buf, rate, depth_ms, feedback, mix)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Flanger failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)

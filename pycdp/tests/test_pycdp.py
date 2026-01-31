@@ -1021,5 +1021,243 @@ class TestGranular:
         assert result.frame_count < expected_samples * 1.1
 
 
+class TestFilters:
+    """Test bandpass and notch filters."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_filter_bandpass(self, sine_wave):
+        """Bandpass filter should pass frequencies in range."""
+        # 440Hz should pass through 200-800Hz bandpass
+        result = pycdp.filter_bandpass(sine_wave, low_freq=200, high_freq=800)
+        assert result.frame_count > 0
+        # Signal should remain strong since 440Hz is in passband
+        # Note: some amplitude loss from STFT/ISTFT process is expected
+        peak = max(abs(result[i]) for i in range(result.sample_count))
+        assert peak > 0.15  # Significant signal remains
+
+    def test_filter_bandpass_reject(self, sine_wave):
+        """Bandpass filter should attenuate out-of-band frequencies."""
+        # 440Hz should be attenuated by 1000-2000Hz bandpass
+        result = pycdp.filter_bandpass(sine_wave, low_freq=1000, high_freq=2000)
+        assert result.frame_count > 0
+        # Signal should be reduced
+        peak = max(abs(result[i]) for i in range(result.sample_count))
+        assert peak < 0.1  # Signal mostly removed
+
+    def test_filter_notch(self, sine_wave):
+        """Notch filter should remove narrow frequency band."""
+        # Notch at 440Hz should attenuate 440Hz sine
+        result = pycdp.filter_notch(sine_wave, center_freq=440, width_hz=100)
+        assert result.frame_count > 0
+        peak = max(abs(result[i]) for i in range(result.sample_count))
+        assert peak < 0.2  # Signal attenuated
+
+    def test_filter_notch_pass(self, sine_wave):
+        """Notch filter should pass frequencies outside notch."""
+        # Notch at 1000Hz should pass 440Hz sine
+        result = pycdp.filter_notch(sine_wave, center_freq=1000, width_hz=100)
+        assert result.frame_count > 0
+        # Note: some amplitude loss from STFT/ISTFT process is expected
+        peak = max(abs(result[i]) for i in range(result.sample_count))
+        assert peak > 0.15  # Signal mostly preserved
+
+
+class TestGate:
+    """Test noise gate."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_gate(self, sine_wave):
+        """Gate should run without error."""
+        result = pycdp.gate(sine_wave, threshold_db=-20.0)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_gate_silence_quiet(self):
+        """Gate should silence very quiet audio."""
+        # Create very quiet signal
+        samples = array.array('f', [0.001 * i / 1000 for i in range(44100)])
+        buf = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
+        result = pycdp.gate(buf, threshold_db=-20.0)
+        # Most should be gated to zero (threshold is 0.1 amplitude)
+        quiet_count = sum(1 for i in range(result.sample_count) if abs(result[i]) < 0.0001)
+        assert quiet_count > result.sample_count * 0.5
+
+
+class TestBitcrush:
+    """Test bitcrusher effect."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_bitcrush(self, sine_wave):
+        """Bitcrush should run without error."""
+        result = pycdp.bitcrush(sine_wave, bit_depth=8)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_bitcrush_downsample(self, sine_wave):
+        """Bitcrush with downsample should create staircase effect."""
+        result = pycdp.bitcrush(sine_wave, bit_depth=16, downsample=4)
+        assert result.frame_count == sine_wave.frame_count
+        # With downsample=4, every 4 samples should be the same
+        # Check a few sample runs
+        same_count = 0
+        for i in range(0, result.sample_count - 4, 4):
+            if result[i] == result[i + 1] == result[i + 2] == result[i + 3]:
+                same_count += 1
+        assert same_count > 0  # Should have some repeated samples
+
+    def test_bitcrush_invalid_depth(self, sine_wave):
+        """Bitcrush should reject invalid bit depths."""
+        with pytest.raises(ValueError):
+            pycdp.bitcrush(sine_wave, bit_depth=0)
+        with pytest.raises(ValueError):
+            pycdp.bitcrush(sine_wave, bit_depth=17)
+
+
+class TestRingMod:
+    """Test ring modulation."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_ring_mod(self, sine_wave):
+        """Ring modulation should run without error."""
+        result = pycdp.ring_mod(sine_wave, freq=100)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_ring_mod_dry_wet(self, sine_wave):
+        """Ring mod with mix=0 should return dry signal."""
+        result = pycdp.ring_mod(sine_wave, freq=100, mix=0.0)
+        # Should be same as input
+        for i in range(result.sample_count):
+            assert result[i] == pytest.approx(sine_wave[i], abs=1e-6)
+
+
+class TestDelay:
+    """Test delay effect."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_delay(self, sine_wave):
+        """Delay should run without error."""
+        result = pycdp.delay(sine_wave, delay_ms=100)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_delay_with_feedback(self, sine_wave):
+        """Delay with feedback should run without error."""
+        result = pycdp.delay(sine_wave, delay_ms=50, feedback=0.5, mix=0.5)
+        assert result.frame_count == sine_wave.frame_count
+
+
+class TestChorus:
+    """Test chorus effect."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_chorus(self, sine_wave):
+        """Chorus should run without error."""
+        result = pycdp.chorus(sine_wave, rate=1.5, depth_ms=5.0)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_chorus_dry(self, sine_wave):
+        """Chorus with mix=0 should return dry signal."""
+        result = pycdp.chorus(sine_wave, rate=1.5, depth_ms=5.0, mix=0.0)
+        # Should be same as input
+        for i in range(result.sample_count):
+            assert result[i] == pytest.approx(sine_wave[i], abs=1e-6)
+
+
+class TestFlanger:
+    """Test flanger effect."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_flanger(self, sine_wave):
+        """Flanger should run without error."""
+        result = pycdp.flanger(sine_wave, rate=0.5, depth_ms=3.0)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_flanger_with_feedback(self, sine_wave):
+        """Flanger with feedback should run without error."""
+        result = pycdp.flanger(sine_wave, rate=0.3, depth_ms=5.0, feedback=0.7, mix=0.5)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_flanger_dry(self, sine_wave):
+        """Flanger with mix=0 should return dry signal."""
+        result = pycdp.flanger(sine_wave, rate=0.5, depth_ms=3.0, mix=0.0)
+        # Should be same as input
+        for i in range(result.sample_count):
+            assert result[i] == pytest.approx(sine_wave[i], abs=1e-6)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

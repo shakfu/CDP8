@@ -70,6 +70,15 @@ from pycdp._core import (
     spectral_stretch,
     filter_lowpass,
     filter_highpass,
+    filter_bandpass,
+    filter_notch,
+    # Dynamics/effects
+    gate,
+    bitcrush,
+    ring_mod,
+    delay,
+    chorus,
+    flanger,
     # Envelope operations
     dovetail,
     tremolo,
@@ -146,6 +155,15 @@ __all__ = [
     "spectral_stretch",
     "filter_lowpass",
     "filter_highpass",
+    "filter_bandpass",
+    "filter_notch",
+    # Dynamics/effects
+    "gate",
+    "bitcrush",
+    "ring_mod",
+    "delay",
+    "chorus",
+    "flanger",
     # Envelope operations
     "dovetail",
     "tremolo",
