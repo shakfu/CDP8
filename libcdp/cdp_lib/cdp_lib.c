@@ -2393,3 +2393,439 @@ cdp_lib_buffer* cdp_lib_flanger(cdp_lib_ctx* ctx,
 
     return output;
 }
+
+/* =========================================================================
+ * Parametric EQ
+ * ========================================================================= */
+
+cdp_lib_buffer* cdp_lib_eq_parametric(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double center_freq,
+                                       double gain_db,
+                                       double q,
+                                       int fft_size) {
+    if (ctx == NULL || input == NULL) {
+        return NULL;
+    }
+
+    if (center_freq <= 0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "center_freq must be positive");
+        return NULL;
+    }
+
+    if (q <= 0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Q must be positive");
+        return NULL;
+    }
+
+    if (fft_size == 0) fft_size = 1024;
+
+    /* 1. Analyze input */
+    cdp_spectral_data *spectral = cdp_spectral_analyze(
+        input->data, input->length,
+        input->channels, input->sample_rate,
+        fft_size, 3);
+
+    if (spectral == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Spectral analysis failed");
+        return NULL;
+    }
+
+    /* 2. Apply parametric EQ (bell curve) */
+    int num_bins = spectral->num_bins;
+    float freq_per_bin = (float)input->sample_rate / fft_size;
+
+    /* Calculate bandwidth from Q: BW = center_freq / Q */
+    double bandwidth = center_freq / q;
+
+    for (int f = 0; f < spectral->num_frames; f++) {
+        float *amp = spectral->frames[f].data;
+
+        for (int b = 0; b < num_bins; b++) {
+            float bin_freq = b * freq_per_bin;
+
+            /* Bell curve gain calculation */
+            /* Using a Gaussian-like curve centered at center_freq */
+            double freq_ratio = (bin_freq - center_freq) / (bandwidth / 2.0);
+            double bell = exp(-0.5 * freq_ratio * freq_ratio);
+
+            /* Interpolate between unity gain and target gain based on bell shape */
+            double gain_linear = pow(10.0, gain_db / 20.0);
+            double effective_gain = 1.0 + (gain_linear - 1.0) * bell;
+
+            amp[b] *= (float)effective_gain;
+        }
+    }
+
+    /* 3. Synthesize back to audio */
+    size_t out_samples;
+    float *audio = cdp_spectral_synthesize(spectral, &out_samples);
+    cdp_spectral_data_free(spectral);
+
+    if (audio == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Spectral synthesis failed");
+        return NULL;
+    }
+
+    /* 4. Create output buffer */
+    cdp_lib_buffer *output = cdp_lib_buffer_from_data(
+        audio, out_samples, 1, input->sample_rate);
+
+    if (output == NULL) {
+        free(audio);
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Failed to create output buffer");
+        return NULL;
+    }
+
+    return output;
+}
+
+/* =========================================================================
+ * Envelope Follower
+ * ========================================================================= */
+
+cdp_lib_buffer* cdp_lib_envelope_follow(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double attack_ms,
+                                         double release_ms,
+                                         int mode) {
+    if (ctx == NULL || input == NULL) {
+        return NULL;
+    }
+
+    if (attack_ms < 0 || release_ms < 0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Attack and release times must be non-negative");
+        return NULL;
+    }
+
+    /* Convert to mono if stereo */
+    size_t num_frames = input->length / input->channels;
+    float *mono = (float *)malloc(num_frames * sizeof(float));
+    if (mono == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Failed to allocate mono buffer");
+        return NULL;
+    }
+
+    if (input->channels == 1) {
+        memcpy(mono, input->data, num_frames * sizeof(float));
+    } else {
+        for (size_t i = 0; i < num_frames; i++) {
+            float sum = 0;
+            for (int ch = 0; ch < input->channels; ch++) {
+                sum += input->data[i * input->channels + ch];
+            }
+            mono[i] = sum / input->channels;
+        }
+    }
+
+    /* Calculate coefficients */
+    double attack_coef = attack_ms > 0 ?
+        exp(-1.0 / (attack_ms * 0.001 * input->sample_rate)) : 0.0;
+    double release_coef = release_ms > 0 ?
+        exp(-1.0 / (release_ms * 0.001 * input->sample_rate)) : 0.0;
+
+    /* Allocate envelope buffer */
+    float *envelope = (float *)malloc(num_frames * sizeof(float));
+    if (envelope == NULL) {
+        free(mono);
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Failed to allocate envelope buffer");
+        return NULL;
+    }
+
+    /* RMS window size (for RMS mode) */
+    int rms_window = (int)(input->sample_rate * 0.01);  /* 10ms window */
+    if (rms_window < 1) rms_window = 1;
+
+    double env_value = 0.0;
+
+    for (size_t i = 0; i < num_frames; i++) {
+        double input_level;
+
+        if (mode == 1) {
+            /* RMS mode */
+            double sum_sq = 0.0;
+            int count = 0;
+            for (int j = -(rms_window / 2); j <= rms_window / 2; j++) {
+                int idx = (int)i + j;
+                if (idx >= 0 && idx < (int)num_frames) {
+                    sum_sq += mono[idx] * mono[idx];
+                    count++;
+                }
+            }
+            input_level = sqrt(sum_sq / count);
+        } else {
+            /* Peak mode */
+            input_level = fabs(mono[i]);
+        }
+
+        /* Attack/release envelope follower */
+        if (input_level > env_value) {
+            /* Attack */
+            env_value = attack_coef * env_value + (1.0 - attack_coef) * input_level;
+        } else {
+            /* Release */
+            env_value = release_coef * env_value + (1.0 - release_coef) * input_level;
+        }
+
+        envelope[i] = (float)env_value;
+    }
+
+    free(mono);
+
+    /* Create output buffer */
+    cdp_lib_buffer *output = cdp_lib_buffer_from_data(
+        envelope, num_frames, 1, input->sample_rate);
+
+    if (output == NULL) {
+        free(envelope);
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Failed to create output buffer");
+        return NULL;
+    }
+
+    return output;
+}
+
+/* =========================================================================
+ * Envelope Apply
+ * ========================================================================= */
+
+cdp_lib_buffer* cdp_lib_envelope_apply(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        const cdp_lib_buffer* envelope,
+                                        double depth) {
+    if (ctx == NULL || input == NULL || envelope == NULL) {
+        return NULL;
+    }
+
+    if (depth < 0 || depth > 1) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Depth must be 0.0 to 1.0");
+        return NULL;
+    }
+
+    /* Allocate output */
+    cdp_lib_buffer *output = cdp_lib_buffer_create(
+        input->length, input->channels, input->sample_rate);
+
+    if (output == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Failed to allocate output buffer");
+        return NULL;
+    }
+
+    size_t num_frames = input->length / input->channels;
+    size_t env_frames = envelope->length;
+
+    for (size_t i = 0; i < num_frames; i++) {
+        /* Get envelope value (with interpolation if lengths differ) */
+        float env_val;
+        if (env_frames == num_frames) {
+            env_val = envelope->data[i];
+        } else {
+            /* Linear interpolation */
+            double pos = (double)i * (env_frames - 1) / (num_frames - 1);
+            size_t idx = (size_t)pos;
+            double frac = pos - idx;
+            if (idx >= env_frames - 1) {
+                env_val = envelope->data[env_frames - 1];
+            } else {
+                env_val = (float)((1.0 - frac) * envelope->data[idx] +
+                                  frac * envelope->data[idx + 1]);
+            }
+        }
+
+        /* Apply envelope with depth control */
+        float mod = (float)(1.0 - depth + depth * env_val);
+
+        for (int ch = 0; ch < input->channels; ch++) {
+            output->data[i * input->channels + ch] =
+                input->data[i * input->channels + ch] * mod;
+        }
+    }
+
+    return output;
+}
+
+/* =========================================================================
+ * Compressor
+ * ========================================================================= */
+
+cdp_lib_buffer* cdp_lib_compressor(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    double threshold_db,
+                                    double ratio,
+                                    double attack_ms,
+                                    double release_ms,
+                                    double makeup_gain_db) {
+    if (ctx == NULL || input == NULL) {
+        return NULL;
+    }
+
+    if (ratio < 1.0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Ratio must be >= 1.0");
+        return NULL;
+    }
+
+    if (attack_ms < 0 || release_ms < 0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Attack and release times must be non-negative");
+        return NULL;
+    }
+
+    /* Allocate output */
+    cdp_lib_buffer *output = cdp_lib_buffer_create(
+        input->length, input->channels, input->sample_rate);
+
+    if (output == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Failed to allocate output buffer");
+        return NULL;
+    }
+
+    /* Convert threshold to linear */
+    double threshold_lin = pow(10.0, threshold_db / 20.0);
+    double makeup_lin = pow(10.0, makeup_gain_db / 20.0);
+
+    /* Calculate coefficients */
+    double attack_coef = attack_ms > 0 ?
+        exp(-1.0 / (attack_ms * 0.001 * input->sample_rate)) : 0.0;
+    double release_coef = release_ms > 0 ?
+        exp(-1.0 / (release_ms * 0.001 * input->sample_rate)) : 0.0;
+
+    size_t num_frames = input->length / input->channels;
+    int channels = input->channels;
+
+    double env = 0.0;  /* Envelope for gain smoothing */
+
+    for (size_t i = 0; i < num_frames; i++) {
+        /* Find peak across all channels for this frame */
+        float peak = 0.0f;
+        for (int ch = 0; ch < channels; ch++) {
+            float sample = fabsf(input->data[i * channels + ch]);
+            if (sample > peak) peak = sample;
+        }
+
+        /* Calculate gain reduction */
+        double gain_reduction = 1.0;
+        if (peak > threshold_lin) {
+            /* How many dB above threshold */
+            double over_db = 20.0 * log10(peak / threshold_lin);
+            /* Apply ratio: reduce the overage */
+            double reduced_db = over_db / ratio;
+            /* Calculate gain to achieve this reduction */
+            gain_reduction = pow(10.0, (reduced_db - over_db) / 20.0);
+        }
+
+        /* Smooth the gain with attack/release */
+        if (gain_reduction < env) {
+            /* Attack (gain is decreasing = more compression) */
+            env = attack_coef * env + (1.0 - attack_coef) * gain_reduction;
+        } else {
+            /* Release (gain is increasing = less compression) */
+            env = release_coef * env + (1.0 - release_coef) * gain_reduction;
+        }
+
+        /* Apply gain with makeup */
+        float final_gain = (float)(env * makeup_lin);
+
+        for (int ch = 0; ch < channels; ch++) {
+            output->data[i * channels + ch] =
+                input->data[i * channels + ch] * final_gain;
+        }
+    }
+
+    return output;
+}
+
+/* =========================================================================
+ * Limiter
+ * ========================================================================= */
+
+cdp_lib_buffer* cdp_lib_limiter(cdp_lib_ctx* ctx,
+                                 const cdp_lib_buffer* input,
+                                 double threshold_db,
+                                 double attack_ms,
+                                 double release_ms) {
+    if (ctx == NULL || input == NULL) {
+        return NULL;
+    }
+
+    if (attack_ms < 0 || release_ms < 0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Attack and release times must be non-negative");
+        return NULL;
+    }
+
+    /* Allocate output */
+    cdp_lib_buffer *output = cdp_lib_buffer_create(
+        input->length, input->channels, input->sample_rate);
+
+    if (output == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Failed to allocate output buffer");
+        return NULL;
+    }
+
+    /* Convert threshold to linear */
+    double threshold_lin = pow(10.0, threshold_db / 20.0);
+
+    /* Calculate coefficients */
+    double attack_coef = attack_ms > 0 ?
+        exp(-1.0 / (attack_ms * 0.001 * input->sample_rate)) : 0.0;
+    double release_coef = release_ms > 0 ?
+        exp(-1.0 / (release_ms * 0.001 * input->sample_rate)) : 0.0;
+
+    size_t num_frames = input->length / input->channels;
+    int channels = input->channels;
+
+    double gain = 1.0;  /* Current gain */
+
+    for (size_t i = 0; i < num_frames; i++) {
+        /* Find peak across all channels for this frame */
+        float peak = 0.0f;
+        for (int ch = 0; ch < channels; ch++) {
+            float sample = fabsf(input->data[i * channels + ch]);
+            if (sample > peak) peak = sample;
+        }
+
+        /* Calculate required gain to stay under threshold */
+        double target_gain = 1.0;
+        if (peak * gain > threshold_lin) {
+            target_gain = threshold_lin / peak;
+        }
+
+        /* Smooth the gain with attack/release */
+        if (target_gain < gain) {
+            /* Attack (need to reduce gain quickly) */
+            if (attack_ms == 0) {
+                gain = target_gain;  /* Hard limiting */
+            } else {
+                gain = attack_coef * gain + (1.0 - attack_coef) * target_gain;
+            }
+        } else {
+            /* Release (can increase gain) */
+            gain = release_coef * gain + (1.0 - release_coef) * target_gain;
+        }
+
+        /* Ensure we never exceed threshold (hard clip as safety) */
+        for (int ch = 0; ch < channels; ch++) {
+            float sample = input->data[i * channels + ch] * (float)gain;
+            /* Hard clip at threshold as final safety */
+            if (sample > threshold_lin) sample = (float)threshold_lin;
+            if (sample < -threshold_lin) sample = (float)-threshold_lin;
+            output->data[i * channels + ch] = sample;
+        }
+    }
+
+    return output;
+}

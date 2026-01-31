@@ -1231,6 +1231,38 @@ cdef extern from "cdp_lib.h":
                                      double feedback,
                                      double mix)
 
+    cdp_lib_buffer* cdp_lib_eq_parametric(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double center_freq,
+                                           double gain_db,
+                                           double q,
+                                           int fft_size)
+
+    cdp_lib_buffer* cdp_lib_envelope_follow(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             double attack_ms,
+                                             double release_ms,
+                                             int mode)
+
+    cdp_lib_buffer* cdp_lib_envelope_apply(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            const cdp_lib_buffer* envelope,
+                                            double depth)
+
+    cdp_lib_buffer* cdp_lib_compressor(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double threshold_db,
+                                        double ratio,
+                                        double attack_ms,
+                                        double release_ms,
+                                        double makeup_gain_db)
+
+    cdp_lib_buffer* cdp_lib_limiter(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double threshold_db,
+                                     double attack_ms,
+                                     double release_ms)
+
 cdef extern from "cdp_envelope.h":
     int CDP_FADE_LINEAR
     int CDP_FADE_EXPONENTIAL
@@ -1953,6 +1985,220 @@ def flanger(Buffer buf not None, double rate=0.5, double depth_ms=3.0,
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Flanger failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# EQ and Dynamics
+# =============================================================================
+
+def eq_parametric(Buffer buf not None, double center_freq, double gain_db,
+                  double q=1.0, int fft_size=1024):
+    """Apply parametric EQ (native implementation).
+
+    Boost or cut at a specific frequency with adjustable bandwidth (Q).
+
+    Args:
+        buf: Input Buffer.
+        center_freq: Center frequency in Hz.
+        gain_db: Gain in dB (positive = boost, negative = cut).
+        q: Q factor (0.1-10, higher = narrower bandwidth). Default 1.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with EQ applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if center_freq <= 0:
+        raise ValueError("center_freq must be positive")
+    if q <= 0:
+        raise ValueError("q must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_eq_parametric(
+        ctx, input_buf, center_freq, gain_db, q, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Parametric EQ failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def envelope_follow(Buffer buf not None, double attack_ms=10.0,
+                    double release_ms=100.0, str mode="peak"):
+    """Extract amplitude envelope from audio (native implementation).
+
+    Uses peak or RMS detection with attack/release smoothing.
+
+    Args:
+        buf: Input Buffer.
+        attack_ms: Attack time in milliseconds. Default 10.0.
+        release_ms: Release time in milliseconds. Default 100.0.
+        mode: "peak" or "rms". Default "peak".
+
+    Returns:
+        New Buffer containing envelope values (mono).
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if attack_ms < 0:
+        raise ValueError("attack_ms must be non-negative")
+    if release_ms < 0:
+        raise ValueError("release_ms must be non-negative")
+
+    cdef int mode_int = 0 if mode == "peak" else 1
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_envelope_follow(
+        ctx, input_buf, attack_ms, release_ms, mode_int)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Envelope follow failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def envelope_apply(Buffer buf not None, Buffer envelope not None, double depth=1.0):
+    """Apply an envelope to audio (native implementation).
+
+    Multiplies audio by envelope values (amplitude modulation).
+
+    Args:
+        buf: Input Buffer to process.
+        envelope: Envelope Buffer (from envelope_follow or generated).
+        depth: Modulation depth (0.0 = no effect, 1.0 = full). Default 1.0.
+
+    Returns:
+        New Buffer with envelope applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if depth < 0 or depth > 1:
+        raise ValueError("depth must be 0.0 to 1.0")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+    cdef cdp_lib_buffer* env_buf = _buffer_to_cdp_lib(envelope)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_envelope_apply(
+        ctx, input_buf, env_buf, depth)
+
+    cdp_lib_buffer_free(input_buf)
+    cdp_lib_buffer_free(env_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Envelope apply failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def compressor(Buffer buf not None, double threshold_db=-20.0, double ratio=4.0,
+               double attack_ms=10.0, double release_ms=100.0, double makeup_gain_db=0.0):
+    """Apply dynamic range compression (native implementation).
+
+    Reduces the volume of audio above the threshold.
+
+    Args:
+        buf: Input Buffer.
+        threshold_db: Level above which compression starts. Default -20.0.
+        ratio: Compression ratio (e.g., 4.0 = 4:1). Default 4.0.
+        attack_ms: Attack time in milliseconds. Default 10.0.
+        release_ms: Release time in milliseconds. Default 100.0.
+        makeup_gain_db: Makeup gain in dB. Default 0.0.
+
+    Returns:
+        New Buffer with compression applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if ratio < 1.0:
+        raise ValueError("ratio must be >= 1.0")
+    if attack_ms < 0:
+        raise ValueError("attack_ms must be non-negative")
+    if release_ms < 0:
+        raise ValueError("release_ms must be non-negative")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_compressor(
+        ctx, input_buf, threshold_db, ratio, attack_ms, release_ms, makeup_gain_db)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Compressor failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def limiter(Buffer buf not None, double threshold_db=-0.1,
+            double attack_ms=0.0, double release_ms=50.0):
+    """Apply limiting to prevent clipping (native implementation).
+
+    Prevents audio from exceeding the threshold.
+
+    Args:
+        buf: Input Buffer.
+        threshold_db: Maximum level in dB. Default -0.1.
+        attack_ms: Attack time (0 = hard limiting). Default 0.0.
+        release_ms: Release time in milliseconds. Default 50.0.
+
+    Returns:
+        New Buffer with limiting applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if attack_ms < 0:
+        raise ValueError("attack_ms must be non-negative")
+    if release_ms < 0:
+        raise ValueError("release_ms must be non-negative")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_limiter(
+        ctx, input_buf, threshold_db, attack_ms, release_ms)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Limiter failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)

@@ -125,6 +125,38 @@ cdef extern from "cdp_lib.h":
                                      double feedback,
                                      double mix)
 
+    cdp_lib_buffer* cdp_lib_eq_parametric(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double center_freq,
+                                           double gain_db,
+                                           double q,
+                                           int fft_size)
+
+    cdp_lib_buffer* cdp_lib_envelope_follow(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             double attack_ms,
+                                             double release_ms,
+                                             int mode)
+
+    cdp_lib_buffer* cdp_lib_envelope_apply(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            const cdp_lib_buffer* envelope,
+                                            double depth)
+
+    cdp_lib_buffer* cdp_lib_compressor(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double threshold_db,
+                                        double ratio,
+                                        double attack_ms,
+                                        double release_ms,
+                                        double makeup_gain_db)
+
+    cdp_lib_buffer* cdp_lib_limiter(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double threshold_db,
+                                     double attack_ms,
+                                     double release_ms)
+
 cdef extern from "cdp_envelope.h":
     int CDP_FADE_LINEAR
     int CDP_FADE_EXPONENTIAL

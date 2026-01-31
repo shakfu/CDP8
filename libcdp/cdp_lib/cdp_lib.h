@@ -392,6 +392,108 @@ cdp_lib_buffer* cdp_lib_flanger(cdp_lib_ctx* ctx,
                                  double feedback,
                                  double mix);
 
+/*
+ * Parametric EQ - boost or cut at a frequency with adjustable Q.
+ *
+ * Applies a bell-shaped gain curve centered at the specified frequency.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   center_freq: Center frequency in Hz
+ *   gain_db: Gain in dB (positive = boost, negative = cut)
+ *   q: Q factor (0.1 to 10, higher = narrower bandwidth)
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with EQ applied, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_eq_parametric(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double center_freq,
+                                       double gain_db,
+                                       double q,
+                                       int fft_size);
+
+/*
+ * Extract amplitude envelope from audio.
+ *
+ * Uses peak or RMS detection with attack/release smoothing.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   attack_ms: Attack time in milliseconds (how fast envelope rises)
+ *   release_ms: Release time in milliseconds (how fast envelope falls)
+ *   mode: 0 = peak detection, 1 = RMS detection
+ *
+ * Returns: New buffer containing envelope values, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_envelope_follow(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double attack_ms,
+                                         double release_ms,
+                                         int mode);
+
+/*
+ * Apply an envelope to audio (amplitude modulation).
+ *
+ * Multiplies the input audio by the envelope values.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   envelope: Envelope buffer (from envelope_follow or generated)
+ *   depth: Modulation depth (0.0 = no effect, 1.0 = full modulation)
+ *
+ * Returns: New buffer with envelope applied, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_envelope_apply(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        const cdp_lib_buffer* envelope,
+                                        double depth);
+
+/*
+ * Dynamic range compressor.
+ *
+ * Reduces the volume of audio above the threshold.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   threshold_db: Level above which compression starts (e.g., -20)
+ *   ratio: Compression ratio (e.g., 4.0 means 4:1)
+ *   attack_ms: Attack time in milliseconds
+ *   release_ms: Release time in milliseconds
+ *   makeup_gain_db: Makeup gain in dB to compensate for level reduction
+ *
+ * Returns: New buffer with compression applied, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_compressor(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    double threshold_db,
+                                    double ratio,
+                                    double attack_ms,
+                                    double release_ms,
+                                    double makeup_gain_db);
+
+/*
+ * Limiter - prevent audio from exceeding a threshold.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   threshold_db: Maximum level in dB (e.g., -0.1)
+ *   attack_ms: Attack time in milliseconds (0 for hard limiting)
+ *   release_ms: Release time in milliseconds
+ *
+ * Returns: New buffer with limiting applied, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_limiter(cdp_lib_ctx* ctx,
+                                 const cdp_lib_buffer* input,
+                                 double threshold_db,
+                                 double attack_ms,
+                                 double release_ms);
+
 #ifdef __cplusplus
 }
 #endif

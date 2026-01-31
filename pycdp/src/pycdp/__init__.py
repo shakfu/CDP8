@@ -79,6 +79,12 @@ from pycdp._core import (
     delay,
     chorus,
     flanger,
+    # EQ and dynamics
+    eq_parametric,
+    envelope_follow,
+    envelope_apply,
+    compressor,
+    limiter,
     # Envelope operations
     dovetail,
     tremolo,
@@ -164,6 +170,12 @@ __all__ = [
     "delay",
     "chorus",
     "flanger",
+    # EQ and dynamics
+    "eq_parametric",
+    "envelope_follow",
+    "envelope_apply",
+    "compressor",
+    "limiter",
     # Envelope operations
     "dovetail",
     "tremolo",

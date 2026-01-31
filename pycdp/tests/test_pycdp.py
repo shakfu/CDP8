@@ -1259,5 +1259,179 @@ class TestFlanger:
             assert result[i] == pytest.approx(sine_wave[i], abs=1e-6)
 
 
+class TestParametricEQ:
+    """Test parametric EQ."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_eq_parametric_boost(self, sine_wave):
+        """EQ boost should run without error."""
+        result = pycdp.eq_parametric(sine_wave, center_freq=440, gain_db=6.0, q=1.0)
+        assert result.frame_count > 0
+
+    def test_eq_parametric_cut(self, sine_wave):
+        """EQ cut should reduce signal."""
+        result = pycdp.eq_parametric(sine_wave, center_freq=440, gain_db=-12.0, q=1.0)
+        assert result.frame_count > 0
+        # Signal should be reduced
+        peak = max(abs(result[i]) for i in range(result.sample_count))
+        assert peak < 0.4  # Less than original 0.5
+
+    def test_eq_parametric_narrow_q(self, sine_wave):
+        """Narrow Q should affect less of the spectrum."""
+        result = pycdp.eq_parametric(sine_wave, center_freq=440, gain_db=6.0, q=5.0)
+        assert result.frame_count > 0
+
+
+class TestEnvelopeFollow:
+    """Test envelope follower."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_envelope_follow_peak(self, sine_wave):
+        """Envelope follow (peak) should produce mono envelope."""
+        result = pycdp.envelope_follow(sine_wave, attack_ms=1.0, release_ms=50.0, mode="peak")
+        assert result.channels == 1
+        assert result.frame_count == sine_wave.frame_count
+        # Envelope should be non-negative
+        for i in range(result.sample_count):
+            assert result[i] >= 0
+
+    def test_envelope_follow_rms(self, sine_wave):
+        """Envelope follow (RMS) should produce smooth envelope."""
+        result = pycdp.envelope_follow(sine_wave, attack_ms=1.0, release_ms=50.0, mode="rms")
+        assert result.channels == 1
+        assert result.frame_count == sine_wave.frame_count
+
+
+class TestEnvelopeApply:
+    """Test envelope apply."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_envelope_apply(self, sine_wave):
+        """Envelope apply should modulate amplitude."""
+        # Create a simple ramp envelope
+        samples = array.array('f', [i / 22050 for i in range(22050)])
+        envelope = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
+
+        result = pycdp.envelope_apply(sine_wave, envelope, depth=1.0)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_envelope_apply_zero_depth(self, sine_wave):
+        """Envelope apply with depth=0 should not change signal."""
+        envelope = pycdp.envelope_follow(sine_wave, attack_ms=1.0, release_ms=50.0)
+        result = pycdp.envelope_apply(sine_wave, envelope, depth=0.0)
+        # Should be same as input
+        for i in range(min(100, result.sample_count)):
+            assert result[i] == pytest.approx(sine_wave[i], abs=1e-6)
+
+
+class TestCompressor:
+    """Test compressor."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_compressor(self, sine_wave):
+        """Compressor should run without error."""
+        result = pycdp.compressor(sine_wave, threshold_db=-10.0, ratio=4.0)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_compressor_reduces_peaks(self, sine_wave):
+        """Compressor should reduce peaks above threshold."""
+        # Original peak is 0.5 = -6dB
+        # Threshold at -10dB should compress
+        result = pycdp.compressor(sine_wave, threshold_db=-10.0, ratio=4.0,
+                                  attack_ms=0.1, release_ms=50.0)
+        result_peak = max(abs(result[i]) for i in range(result.sample_count))
+        original_peak = max(abs(sine_wave[i]) for i in range(sine_wave.sample_count))
+        # Compressed peak should be lower than original
+        assert result_peak < original_peak
+
+    def test_compressor_with_makeup(self, sine_wave):
+        """Compressor makeup gain should boost output."""
+        result = pycdp.compressor(sine_wave, threshold_db=-10.0, ratio=4.0,
+                                  makeup_gain_db=6.0)
+        assert result.frame_count == sine_wave.frame_count
+
+
+class TestLimiter:
+    """Test limiter."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_limiter(self, sine_wave):
+        """Limiter should run without error."""
+        result = pycdp.limiter(sine_wave, threshold_db=-6.0)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_limiter_caps_peaks(self, sine_wave):
+        """Limiter should cap peaks at threshold."""
+        # Original peak is 0.5 = -6dB
+        # Limit at -12dB = 0.25
+        result = pycdp.limiter(sine_wave, threshold_db=-12.0, attack_ms=0.0, release_ms=50.0)
+        result_peak = max(abs(result[i]) for i in range(result.sample_count))
+        # Peak should be at or below threshold (0.25)
+        assert result_peak <= 0.26  # Small tolerance
+
+    def test_limiter_hard(self, sine_wave):
+        """Hard limiter (attack=0) should strictly limit."""
+        result = pycdp.limiter(sine_wave, threshold_db=-6.0, attack_ms=0.0, release_ms=50.0)
+        threshold_lin = 10 ** (-6.0 / 20.0)  # ~0.5
+        # All samples should be at or below threshold
+        for i in range(result.sample_count):
+            assert abs(result[i]) <= threshold_lin + 0.001
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

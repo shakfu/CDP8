@@ -1,46 +1,44 @@
 # CDP Native Library Integration TODO
 
-This document tracks the remaining CDP algorithms to be integrated as native library functions (no subprocess overhead).
+This document tracks CDP algorithms to be integrated as native library functions (no subprocess overhead).
+
+**Important:** Future development should focus on porting actual CDP algorithms. Non-CDP additions are welcome but should be clearly marked as such.
 
 ## Current Status
 
-### Completed Native Implementations (cdp_lib)
+### Completed: CDP Algorithm Ports
 
-All core audio processing functions are now native - no subprocess overhead.
+Native implementations of actual CDP algorithms (replacing subprocess calls).
 
-**Spectral Processing:**
+**Spectral Processing (CDP: `blur`, `stretch`, `pvoc`, `spec*`):**
 - [x] `time_stretch` - Phase vocoder time stretch
 - [x] `spectral_blur` - Spectral averaging/smearing
 - [x] `modify_speed` - Playback speed change (affects pitch)
 - [x] `pitch_shift` - Pitch shift without changing duration
 - [x] `spectral_shift` - Shift all frequencies by Hz offset
 - [x] `spectral_stretch` - Differential frequency stretching
+
+**Filtering (CDP: `filter`, `filtrage`, `synfilt`):**
 - [x] `filter_lowpass` - Spectral lowpass filter
 - [x] `filter_highpass` - Spectral highpass filter
 - [x] `filter_bandpass` - Spectral bandpass filter
 - [x] `filter_notch` - Spectral notch (band-reject) filter
 
-**Envelope & Dynamics:**
+**Envelope (CDP: `envel`, `tremolo`, `envcut`):**
 - [x] `dovetail` - Fade in/out envelopes (linear/exponential)
 - [x] `tremolo` - LFO amplitude modulation
 - [x] `attack` - Attack transient reshaping
-- [x] `gate` - Noise gate with attack/release/hold
 
-**Distortion:**
+**Distortion (CDP: `distort`, `distortt`, `distcut`, etc.):**
 - [x] `distort_overload` - Soft/hard clipping
 - [x] `distort_reverse` - Reverse wavecycles (zero-crossing based)
 - [x] `distort_fractal` - Recursive wavecycle overlay
 - [x] `distort_shuffle` - Segment rearrangement
-- [x] `bitcrush` - Bit depth and sample rate reduction
-- [x] `ring_mod` - Ring modulation (carrier multiply)
 
-**Reverb & Spatial:**
+**Reverb & Spatial (CDP: `reverb`, `rmverb`, `panorama`):**
 - [x] `reverb` - FDN reverb (8 comb + 4 allpass filters)
-- [x] `delay` - Feedback delay with mix control
-- [x] `chorus` - Modulated delay (LFO-based)
-- [x] `flanger` - Short modulated delay with feedback
 
-**Granular:**
+**Granular (CDP: `brassage`, `grain`, `texture`):**
 - [x] `brassage` - Granular resynthesis with pitch/time params
 - [x] `freeze` - Segment repetition with crossfade
 
@@ -55,51 +53,75 @@ All core audio processing functions are now native - no subprocess overhead.
 - [x] `to_mono`, `to_stereo`, `extract_channel`, `merge_channels`, `split_channels`, `interleave` - Channel operations
 - [x] `read_file`, `write_file` - WAV I/O (float, PCM16, PCM24)
 
+### Completed: Non-CDP Additions
+
+Useful audio processing functions not derived from CDP algorithms.
+
+**Dynamics (standard DSP, not in CDP):**
+- [x] `gate` - Noise gate with attack/release/hold
+- [x] `compressor` - Dynamic range compression
+- [x] `limiter` - Hard/soft limiting
+- [x] `envelope_follow` - Extract amplitude envelope (RMS/peak tracking)
+- [x] `envelope_apply` - Apply envelope to sound
+
+**EQ (standard DSP):**
+- [x] `eq_parametric` - Parametric EQ with Q factor
+
+**Effects (standard DSP):**
+- [x] `bitcrush` - Bit depth and sample rate reduction
+- [x] `ring_mod` - Ring modulation (carrier multiply)
+- [x] `delay` - Feedback delay with mix control
+- [x] `chorus` - Modulated delay (LFO-based)
+- [x] `flanger` - Short modulated delay with feedback
+
 ---
 
-## Future Priorities
+## Future Priorities: CDP Algorithm Ports
 
-### Priority 1: Additional Filtering & EQ
+Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 
-| Algorithm | Description | Notes |
-|-----------|-------------|-------|
-| Parametric EQ | Boost/cut with Q | Multiple bands |
+### Priority 1: Granular/Texture (CDP: `grain`, `texture`, `newtex`)
 
-### Priority 2: Additional Envelope & Dynamics
+| CDP Tool | Algorithm | Description |
+|----------|-----------|-------------|
+| `grain` | Grain cloud | Basic granular synthesis |
+| `grainex` | Extended grain | More grain parameters |
+| `texture` | Multi-layer texture | Complex layered granular |
+| `newtex` | New texture | Updated texture algorithm |
 
-| Algorithm | Description | Notes |
-|-----------|-------------|-------|
-| Envelope follow | Extract amplitude envelope | RMS or peak tracking |
-| Envelope apply | Apply envelope to sound | Amplitude modulation |
-| Compressor | Dynamic range compression | Not in CDP |
-| Limiter | Hard/soft limiting | Peak control |
+### Priority 2: Morphing/Combining (CDP: `morph`, `combine`)
 
-### Priority 3: Additional Granular & Texture
+| CDP Tool | Algorithm | Description |
+|----------|-----------|-------------|
+| `morph` | Spectral morph | Interpolate between sounds |
+| `newmorph` | New morph | Updated morph algorithm |
+| `combine` | Spectral combine | Cross-synthesis (amp/freq mixing) |
 
-| Algorithm | Description | Notes |
-|-----------|-------------|-------|
-| Grain | Basic granular synthesis | Grain cloud generation |
-| Texture | Multi-layer textures | Complex parameter control |
-| Extend | Extend duration | Various algorithms |
+### Priority 3: Analysis (CDP: `pitch`, `formants`, `get_partials`)
 
-### Priority 4: Analysis & Resynthesis
+| CDP Tool | Algorithm | Description |
+|----------|-----------|-------------|
+| `pitch` | Pitch tracking | Extract pitch contour |
+| `formants` | Formant analysis | Extract formant frequencies |
+| `get_partials` | Partial tracking | Extract sinusoidal partials |
 
-| Algorithm | Description | Notes |
-|-----------|-------------|-------|
-| Pitch tracking | Extract pitch contour | Autocorrelation/cepstrum |
-| Formant analysis | Extract formant frequencies | LPC or spectral peaks |
-| Partial tracking | Extract sinusoidal partials | McAulay-Quatieri |
-| Morph | Interpolate between sounds | Spectral interpolation |
-| Cross-synthesis | Combine spectral features | Amp from A, freq from B |
+### Priority 4: Additional Spectral (CDP: `focus`, `hilite`, `specfold`)
 
-### Priority 5: Synthesis
+| CDP Tool | Algorithm | Description |
+|----------|-----------|-------------|
+| `focus` | Spectral focus | Enhance specific frequencies |
+| `hilite` | Spectral highlight | Boost spectral peaks |
+| `specfold` | Spectral fold | Fold spectrum at frequency |
+| `speclean` | Spectral clean | Remove spectral noise |
 
-| Algorithm | Description | Notes |
-|-----------|-------------|-------|
-| Oscillators | Basic waveform generation | Sine, saw, square, etc. |
-| FM synthesis | Frequency modulation | Carrier + modulators |
-| Additive | Sum of sinusoids | Partial specification |
-| Noise | Noise generation | White, pink, brown |
+### Priority 5: Experimental (CDP: `strange`, `fractal`, `crystal`)
+
+| CDP Tool | Algorithm | Description |
+|----------|-----------|-------------|
+| `strange` | Strange attractor | Chaotic modulation |
+| `fractal` | Fractal | Fractal-based processing |
+| `crystal` | Crystal | Crystalline textures |
+| `brownian` | Brownian motion | Random walk modulation |
 
 ---
 
@@ -128,6 +150,13 @@ For each C function:
 1. Add declaration to `cdp_lib.pxd`
 2. Add wrapper function to `_core.pyx`
 3. Export in `__init__.py`
+
+### Porting CDP Algorithms
+When porting a CDP algorithm:
+1. Study the original CDP source code
+2. Understand the algorithm's parameters and behavior
+3. Implement following the architecture above
+4. Test against known CDP outputs where possible
 
 ---
 
