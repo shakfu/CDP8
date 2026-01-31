@@ -1,0 +1,47 @@
+
+
+
+[project]
+name = "pycdp"
+version = "0.1.0"
+description = "Python bindings for CDP audio processing library"
+readme = "README.md"
+license = { text = "LGPL-2.1-or-later" }
+requires-python = ">=3.10"
+keywords = ["audio", "dsp", "signal-processing", "cython"]
+dependencies = []
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Cython",
+    "Typing :: Typed",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.9",
+    "twine>=6.2.0",
+]
+
+[build-system]
+requires = ["scikit-build-core>=0.8", "cython"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+wheel.packages = ["src/pycdp"]
+cmake.args = []
+cmake.define = {}
+cmake.build-type = "Release"
+cmake.source-dir = "."
+sdist.include = []
+sdist.exclude = []
+wheel.exclude = []
+

@@ -1,0 +1,10 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: cdp
+Description: Composers Desktop Project audio processing library
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -lcdp
+Cflags: -I${includedir}
