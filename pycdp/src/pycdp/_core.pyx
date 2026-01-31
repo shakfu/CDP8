@@ -99,6 +99,35 @@ cdef extern from "cdp.h":
     cdp_error cdp_normalize_db(cdp_context* ctx, cdp_buffer* buf, double target_db)
     cdp_error cdp_phase_invert(cdp_context* ctx, cdp_buffer* buf)
 
+    # File I/O
+    cdp_buffer* cdp_read_file(cdp_context* ctx, const char* path)
+    cdp_error cdp_write_file(cdp_context* ctx, const char* path, const cdp_buffer* buf)
+    cdp_error cdp_write_file_pcm16(cdp_context* ctx, const char* path, const cdp_buffer* buf)
+    cdp_error cdp_write_file_pcm24(cdp_context* ctx, const char* path, const cdp_buffer* buf)
+
+    # Spatial/panning operations
+    cdp_buffer* cdp_pan(cdp_context* ctx, const cdp_buffer* buf, double position)
+    cdp_buffer* cdp_pan_envelope(cdp_context* ctx, const cdp_buffer* buf,
+                                  const cdp_breakpoint* points, size_t point_count)
+    cdp_buffer* cdp_mirror(cdp_context* ctx, const cdp_buffer* buf)
+    cdp_buffer* cdp_narrow(cdp_context* ctx, const cdp_buffer* buf, double width)
+
+    # Mixing operations
+    cdp_buffer* cdp_mix2(cdp_context* ctx, const cdp_buffer* a, const cdp_buffer* b,
+                         double gain_a, double gain_b)
+    cdp_buffer* cdp_mix(cdp_context* ctx, cdp_buffer** buffers, const double* gains,
+                        int count)
+
+    # Channel operations
+    cdp_buffer* cdp_to_mono(cdp_context* ctx, const cdp_buffer* buf)
+    cdp_buffer* cdp_to_stereo(cdp_context* ctx, const cdp_buffer* buf)
+    cdp_buffer* cdp_extract_channel(cdp_context* ctx, const cdp_buffer* buf, int channel)
+    cdp_buffer* cdp_merge_channels(cdp_context* ctx, const cdp_buffer* left,
+                                    const cdp_buffer* right)
+    cdp_buffer** cdp_split_channels(cdp_context* ctx, const cdp_buffer* buf,
+                                     int* out_num_channels)
+    cdp_buffer* cdp_interleave(cdp_context* ctx, cdp_buffer** buffers, int num_channels)
+
     # Utilities
     double cdp_gain_to_db(double gain)
     double cdp_db_to_gain(double db)
@@ -482,3 +511,469 @@ def peak(float[::1] samples not None, int sample_rate=44100):
     cdef Buffer buf = Buffer.from_memoryview(samples, 1, sample_rate)
 
     return get_peak(ctx, buf)
+
+
+# =============================================================================
+# File I/O functions
+# =============================================================================
+
+def read_file(str path not None):
+    """Read an audio file into a Buffer.
+
+    Currently supports WAV files (16/24/32-bit PCM and 32-bit float).
+
+    Args:
+        path: Path to audio file.
+
+    Returns:
+        Buffer containing audio data.
+
+    Raises:
+        CDPError: If file cannot be read.
+    """
+    cdef Context ctx = Context()
+    cdef bytes path_bytes = path.encode('utf-8')
+    cdef cdp_buffer* c_buf = cdp_read_file(ctx.ptr(), path_bytes)
+
+    if c_buf is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    # Wrap the C buffer in a Python Buffer object
+    cdef Buffer buf = Buffer()
+    buf._buf = c_buf
+    buf._owns_buffer = True
+    return buf
+
+
+def write_file(str path not None, Buffer buf not None, str format="float"):
+    """Write a Buffer to an audio file.
+
+    Args:
+        path: Path to output file.
+        buf: Buffer to write.
+        format: Output format - "float" (32-bit float), "pcm16", or "pcm24".
+
+    Raises:
+        CDPError: If file cannot be written.
+        ValueError: If format is invalid.
+    """
+    cdef Context ctx = Context()
+    cdef bytes path_bytes = path.encode('utf-8')
+    cdef cdp_error err
+
+    if format == "float":
+        err = cdp_write_file(ctx.ptr(), path_bytes, buf.ptr())
+    elif format == "pcm16":
+        err = cdp_write_file_pcm16(ctx.ptr(), path_bytes, buf.ptr())
+    elif format == "pcm24":
+        err = cdp_write_file_pcm24(ctx.ptr(), path_bytes, buf.ptr())
+    else:
+        raise ValueError(f"Invalid format: {format}. Use 'float', 'pcm16', or 'pcm24'.")
+
+    ctx._check_error(err)
+
+
+# =============================================================================
+# Spatial/panning operations
+# =============================================================================
+
+def pan(Buffer buf not None, double position=0.0):
+    """Pan a mono buffer to stereo with a static pan position.
+
+    Uses CDP's geometric panning model for natural sound positioning.
+
+    Args:
+        buf: Input buffer (must be mono).
+        position: Pan position: -1.0 = left, 0.0 = center, +1.0 = right.
+                  Values beyond -1/+1 simulate sound beyond speakers.
+
+    Returns:
+        New stereo Buffer.
+
+    Raises:
+        CDPError: If input is not mono.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_pan(ctx.ptr(), buf.ptr(), position)
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def pan_envelope(Buffer buf not None, list points not None):
+    """Pan a mono buffer to stereo with time-varying position.
+
+    Uses CDP's geometric panning model with breakpoint-based automation.
+
+    Args:
+        buf: Input buffer (must be mono).
+        points: List of (time, position) tuples defining the pan envelope.
+                Times are in seconds, positions are -1.0 (left) to +1.0 (right).
+                Example: [(0.0, -1.0), (1.0, 0.0), (2.0, 1.0)] pans left to right.
+
+    Returns:
+        New stereo Buffer.
+
+    Raises:
+        CDPError: If input is not mono.
+        ValueError: If points list is empty.
+    """
+    if len(points) == 0:
+        raise ValueError("Points list cannot be empty")
+
+    cdef Context ctx = Context()
+    cdef size_t point_count = len(points)
+    cdef cdp_breakpoint* c_points = <cdp_breakpoint*>malloc(point_count * sizeof(cdp_breakpoint))
+
+    if c_points is NULL:
+        raise MemoryError("Failed to allocate breakpoints")
+
+    cdef size_t i
+    for i in range(point_count):
+        c_points[i].time = points[i][0]
+        c_points[i].value = points[i][1]
+
+    cdef cdp_buffer* c_result = cdp_pan_envelope(ctx.ptr(), buf.ptr(), c_points, point_count)
+    free(c_points)
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def mirror(Buffer buf not None):
+    """Mirror (swap) left and right channels of a stereo buffer.
+
+    Args:
+        buf: Input buffer (must be stereo).
+
+    Returns:
+        New Buffer with swapped channels.
+
+    Raises:
+        CDPError: If input is not stereo.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_mirror(ctx.ptr(), buf.ptr())
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def narrow(Buffer buf not None, double width=1.0):
+    """Narrow or widen stereo image.
+
+    Args:
+        buf: Input buffer (must be stereo).
+        width: Stereo width: 0.0 = mono, 1.0 = unchanged, >1.0 = wider.
+
+    Returns:
+        New Buffer with adjusted stereo width.
+
+    Raises:
+        CDPError: If input is not stereo or width is negative.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_narrow(ctx.ptr(), buf.ptr(), width)
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+# =============================================================================
+# Mixing operations
+# =============================================================================
+
+def mix2(Buffer a not None, Buffer b not None, double gain_a=1.0, double gain_b=1.0):
+    """Mix two buffers together with optional gains.
+
+    Args:
+        a: First buffer.
+        b: Second buffer (must have same channels and sample rate).
+        gain_a: Gain for first buffer (default 1.0).
+        gain_b: Gain for second buffer (default 1.0).
+
+    Returns:
+        New Buffer containing the mix. Length is max of both inputs.
+
+    Raises:
+        CDPError: If buffers are incompatible.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_mix2(ctx.ptr(), a.ptr(), b.ptr(), gain_a, gain_b)
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def mix(list buffers not None, list gains=None):
+    """Mix multiple buffers together with optional gains.
+
+    Args:
+        buffers: List of Buffers to mix (all must have same channels/rate).
+        gains: Optional list of gains (one per buffer). Default is unity gain.
+
+    Returns:
+        New Buffer containing the mix. Length is max of all inputs.
+
+    Raises:
+        CDPError: If buffers are incompatible.
+        ValueError: If buffers list is empty or gains length doesn't match.
+    """
+    if len(buffers) == 0:
+        raise ValueError("Buffer list cannot be empty")
+
+    if gains is not None and len(gains) != len(buffers):
+        raise ValueError("Gains list must have same length as buffers list")
+
+    cdef Context ctx = Context()
+    cdef int count = len(buffers)
+    cdef int i
+    cdef Buffer buf
+    cdef cdp_buffer** c_buffers = <cdp_buffer**>malloc(count * sizeof(cdp_buffer*))
+    cdef double* c_gains = NULL
+
+    if c_buffers is NULL:
+        raise MemoryError("Failed to allocate buffer array")
+
+    if gains is not None:
+        c_gains = <double*>malloc(count * sizeof(double))
+        if c_gains is NULL:
+            free(c_buffers)
+            raise MemoryError("Failed to allocate gains array")
+        for i in range(count):
+            c_gains[i] = gains[i]
+
+    for i in range(count):
+        buf = buffers[i]
+        c_buffers[i] = buf.ptr()
+
+    cdef cdp_buffer* c_result = cdp_mix(ctx.ptr(), c_buffers, c_gains, count)
+
+    free(c_buffers)
+    if c_gains is not NULL:
+        free(c_gains)
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+# =============================================================================
+# Channel operations
+# =============================================================================
+
+def to_mono(Buffer buf not None):
+    """Convert multi-channel buffer to mono by averaging all channels.
+
+    Args:
+        buf: Input buffer (any channel count).
+
+    Returns:
+        New mono Buffer.
+
+    Raises:
+        CDPError: On error.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_to_mono(ctx.ptr(), buf.ptr())
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def to_stereo(Buffer buf not None):
+    """Convert mono buffer to stereo by duplicating the channel.
+
+    Args:
+        buf: Input buffer (must be mono).
+
+    Returns:
+        New stereo Buffer.
+
+    Raises:
+        CDPError: If input is not mono.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_to_stereo(ctx.ptr(), buf.ptr())
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def extract_channel(Buffer buf not None, int channel):
+    """Extract a single channel from a multi-channel buffer.
+
+    Args:
+        buf: Input buffer.
+        channel: Channel index (0-based, 0=left, 1=right for stereo).
+
+    Returns:
+        New mono Buffer containing the extracted channel.
+
+    Raises:
+        CDPError: If channel index is out of range.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_extract_channel(ctx.ptr(), buf.ptr(), channel)
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def merge_channels(Buffer left not None, Buffer right not None):
+    """Merge two mono buffers into a stereo buffer.
+
+    Args:
+        left: Left channel buffer (must be mono).
+        right: Right channel buffer (must be mono, same length and sample rate).
+
+    Returns:
+        New stereo Buffer.
+
+    Raises:
+        CDPError: If inputs are not compatible mono buffers.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_merge_channels(ctx.ptr(), left.ptr(), right.ptr())
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def split_channels(Buffer buf not None):
+    """Split a multi-channel buffer into separate mono buffers.
+
+    Args:
+        buf: Input buffer.
+
+    Returns:
+        List of mono Buffers (one per channel).
+
+    Raises:
+        CDPError: On error.
+    """
+    cdef Context ctx = Context()
+    cdef int num_channels = 0
+    cdef cdp_buffer** c_buffers = cdp_split_channels(ctx.ptr(), buf.ptr(), &num_channels)
+
+    if c_buffers is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    # Wrap each buffer in a Python Buffer object
+    cdef list result = []
+    cdef Buffer pybuf
+    cdef int i
+
+    for i in range(num_channels):
+        pybuf = Buffer()
+        pybuf._buf = c_buffers[i]
+        pybuf._owns_buffer = True
+        result.append(pybuf)
+
+    # Free the array (but not the buffers - they're now owned by Python)
+    free(c_buffers)
+
+    return result
+
+
+def interleave(list buffers not None):
+    """Interleave multiple mono buffers into a single multi-channel buffer.
+
+    Args:
+        buffers: List of mono Buffers (all must have same length and sample rate).
+
+    Returns:
+        New interleaved multi-channel Buffer.
+
+    Raises:
+        CDPError: If buffers are not compatible.
+        ValueError: If list is empty.
+    """
+    if len(buffers) == 0:
+        raise ValueError("Buffer list cannot be empty")
+
+    cdef Context ctx = Context()
+    cdef int num_channels = len(buffers)
+    cdef cdp_buffer** c_buffers = <cdp_buffer**>malloc(num_channels * sizeof(cdp_buffer*))
+
+    if c_buffers is NULL:
+        raise MemoryError("Failed to allocate buffer array")
+
+    cdef int i
+    cdef Buffer b
+    for i in range(num_channels):
+        b = buffers[i]
+        c_buffers[i] = b.ptr()
+
+    cdef cdp_buffer* c_result = cdp_interleave(ctx.ptr(), c_buffers, num_channels)
+    free(c_buffers)
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result

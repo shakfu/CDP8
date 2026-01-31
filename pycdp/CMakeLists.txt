@@ -16,6 +16,10 @@ set(LIBCDP_SOURCES
     ${LIBCDP_DIR}/src/context.c
     ${LIBCDP_DIR}/src/buffer.c
     ${LIBCDP_DIR}/src/gain.c
+    ${LIBCDP_DIR}/src/io.c
+    ${LIBCDP_DIR}/src/channel.c
+    ${LIBCDP_DIR}/src/mix.c
+    ${LIBCDP_DIR}/src/spatial.c
 )
 
 # Build libcdp as a static library

@@ -141,7 +141,7 @@ void cdp_buffer_clear(cdp_buffer* buf);
 /**
  * Read an audio file into a buffer.
  *
- * Supports WAV, AIFF, and other common formats.
+ * Currently supports WAV files (16/24/32-bit PCM and 32-bit float).
  *
  * @param ctx Context for error reporting.
  * @param path Path to audio file.
@@ -150,9 +150,7 @@ void cdp_buffer_clear(cdp_buffer* buf);
 cdp_buffer* cdp_read_file(cdp_context* ctx, const char* path);
 
 /**
- * Write a buffer to an audio file.
- *
- * Format is inferred from file extension.
+ * Write a buffer to a WAV file (32-bit float).
  *
  * @param ctx Context for error reporting.
  * @param path Path to output file.
@@ -161,6 +159,28 @@ cdp_buffer* cdp_read_file(cdp_context* ctx, const char* path);
  */
 cdp_error cdp_write_file(cdp_context* ctx, const char* path,
                          const cdp_buffer* buf);
+
+/**
+ * Write a buffer to a WAV file (16-bit PCM).
+ *
+ * @param ctx Context for error reporting.
+ * @param path Path to output file.
+ * @param buf Buffer to write.
+ * @return CDP_OK on success, error code on failure.
+ */
+cdp_error cdp_write_file_pcm16(cdp_context* ctx, const char* path,
+                               const cdp_buffer* buf);
+
+/**
+ * Write a buffer to a WAV file (24-bit PCM).
+ *
+ * @param ctx Context for error reporting.
+ * @param path Path to output file.
+ * @param buf Buffer to write.
+ * @return CDP_OK on success, error code on failure.
+ */
+cdp_error cdp_write_file_pcm24(cdp_context* ctx, const char* path,
+                               const cdp_buffer* buf);
 
 /*============================================================================
  * Gain / Amplitude Operations
@@ -241,6 +261,148 @@ cdp_error cdp_normalize_db(cdp_context* ctx, cdp_buffer* buf, double target_db);
  * @return CDP_OK on success, error code on failure.
  */
 cdp_error cdp_phase_invert(cdp_context* ctx, cdp_buffer* buf);
+
+/*============================================================================
+ * Spatial/Panning Operations
+ *============================================================================*/
+
+/**
+ * Pan a mono buffer to stereo with a static pan position.
+ *
+ * Uses CDP's geometric panning model for natural sound positioning.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer (must be mono).
+ * @param position Pan position: -1.0 = left, 0.0 = center, +1.0 = right.
+ *                 Values beyond -1/+1 simulate sound beyond speakers.
+ * @return New stereo buffer, or NULL on error.
+ */
+cdp_buffer* cdp_pan(cdp_context* ctx, const cdp_buffer* buf, double position);
+
+/**
+ * Pan a mono buffer to stereo with time-varying position.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer (must be mono).
+ * @param points Array of (time, position) breakpoints.
+ * @param point_count Number of breakpoints.
+ * @return New stereo buffer, or NULL on error.
+ */
+cdp_buffer* cdp_pan_envelope(cdp_context* ctx, const cdp_buffer* buf,
+                              const cdp_breakpoint* points, size_t point_count);
+
+/**
+ * Mirror (swap) left and right channels of a stereo buffer.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer (must be stereo).
+ * @return New buffer with swapped channels, or NULL on error.
+ */
+cdp_buffer* cdp_mirror(cdp_context* ctx, const cdp_buffer* buf);
+
+/**
+ * Narrow or widen stereo image.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer (must be stereo).
+ * @param width Stereo width: 0.0 = mono, 1.0 = unchanged, >1.0 = wider.
+ * @return New buffer with adjusted stereo width, or NULL on error.
+ */
+cdp_buffer* cdp_narrow(cdp_context* ctx, const cdp_buffer* buf, double width);
+
+/*============================================================================
+ * Mixing Operations
+ *============================================================================*/
+
+/**
+ * Mix two buffers together with gains.
+ *
+ * @param ctx Context for error reporting.
+ * @param a First buffer.
+ * @param b Second buffer (must have same channels and sample rate as a).
+ * @param gain_a Gain for first buffer.
+ * @param gain_b Gain for second buffer.
+ * @return New buffer containing the mix, or NULL on error.
+ */
+cdp_buffer* cdp_mix2(cdp_context* ctx, const cdp_buffer* a, const cdp_buffer* b,
+                     double gain_a, double gain_b);
+
+/**
+ * Mix multiple buffers together with optional gains.
+ *
+ * @param ctx Context for error reporting.
+ * @param buffers Array of buffers to mix (must all have same channels/rate).
+ * @param gains Optional array of gains (one per buffer), or NULL for unity.
+ * @param count Number of buffers.
+ * @return New buffer containing the mix, or NULL on error.
+ */
+cdp_buffer* cdp_mix(cdp_context* ctx, cdp_buffer** buffers, const double* gains,
+                    int count);
+
+/*============================================================================
+ * Channel Operations
+ *============================================================================*/
+
+/**
+ * Convert multi-channel buffer to mono by averaging all channels.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer (any channel count).
+ * @return New mono buffer, or NULL on error.
+ */
+cdp_buffer* cdp_to_mono(cdp_context* ctx, const cdp_buffer* buf);
+
+/**
+ * Convert mono buffer to stereo by duplicating the channel.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer (must be mono).
+ * @return New stereo buffer, or NULL on error.
+ */
+cdp_buffer* cdp_to_stereo(cdp_context* ctx, const cdp_buffer* buf);
+
+/**
+ * Extract a single channel from a multi-channel buffer.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer.
+ * @param channel Channel index (0-based, 0=left, 1=right for stereo).
+ * @return New mono buffer containing the extracted channel, or NULL on error.
+ */
+cdp_buffer* cdp_extract_channel(cdp_context* ctx, const cdp_buffer* buf, int channel);
+
+/**
+ * Merge two mono buffers into a stereo buffer.
+ *
+ * @param ctx Context for error reporting.
+ * @param left Left channel buffer (must be mono).
+ * @param right Right channel buffer (must be mono, same length as left).
+ * @return New stereo buffer, or NULL on error.
+ */
+cdp_buffer* cdp_merge_channels(cdp_context* ctx, const cdp_buffer* left,
+                                const cdp_buffer* right);
+
+/**
+ * Split a multi-channel buffer into separate mono buffers.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer.
+ * @param out_num_channels Output: number of channels (may be NULL).
+ * @return Array of mono buffers (one per channel), or NULL on error.
+ *         Caller must free each buffer and the array itself.
+ */
+cdp_buffer** cdp_split_channels(cdp_context* ctx, const cdp_buffer* buf,
+                                 int* out_num_channels);
+
+/**
+ * Interleave multiple mono buffers into a single multi-channel buffer.
+ *
+ * @param ctx Context for error reporting.
+ * @param buffers Array of mono buffers.
+ * @param num_channels Number of buffers in the array.
+ * @return New interleaved buffer, or NULL on error.
+ */
+cdp_buffer* cdp_interleave(cdp_context* ctx, cdp_buffer** buffers, int num_channels);
 
 /*============================================================================
  * Utility Functions

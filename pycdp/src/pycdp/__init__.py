@@ -38,6 +38,24 @@ from pycdp._core import (
     normalize_db,
     phase_invert,
     peak,
+    # File I/O
+    read_file,
+    write_file,
+    # Spatial/panning
+    pan,
+    pan_envelope,
+    mirror,
+    narrow,
+    # Mixing
+    mix,
+    mix2,
+    # Channel operations
+    to_mono,
+    to_stereo,
+    extract_channel,
+    merge_channels,
+    split_channels,
+    interleave,
 )
 
 __all__ = [
@@ -68,6 +86,24 @@ __all__ = [
     "normalize_db",
     "phase_invert",
     "peak",
+    # File I/O
+    "read_file",
+    "write_file",
+    # Spatial/panning
+    "pan",
+    "pan_envelope",
+    "mirror",
+    "narrow",
+    # Mixing
+    "mix",
+    "mix2",
+    # Channel operations
+    "to_mono",
+    "to_stereo",
+    "extract_channel",
+    "merge_channels",
+    "split_channels",
+    "interleave",
 ]
 
 __version__ = version()

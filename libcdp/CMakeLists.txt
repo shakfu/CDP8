@@ -24,6 +24,10 @@ set(CDP_SOURCES
     src/context.c
     src/buffer.c
     src/gain.c
+    src/io.c
+    src/channel.c
+    src/mix.c
+    src/spatial.c
 )
 
 # Header files (for IDE integration)
