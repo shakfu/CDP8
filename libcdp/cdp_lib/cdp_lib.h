@@ -494,6 +494,82 @@ cdp_lib_buffer* cdp_lib_limiter(cdp_lib_ctx* ctx,
                                  double attack_ms,
                                  double release_ms);
 
+/* =========================================================================
+ * Morphing and Cross-synthesis (CDP: morph, combine)
+ * ========================================================================= */
+
+/*
+ * Spectral morph between two sounds (CDP: SPECMORPH).
+ *
+ * Interpolates amplitude and frequency between two sounds over time.
+ * Amplitude interpolation is linear; frequency interpolation is exponential
+ * (for natural pitch transitions).
+ *
+ * Args:
+ *   ctx: Library context
+ *   input1: First input audio buffer (source)
+ *   input2: Second input audio buffer (target)
+ *   morph_start: Time when morphing begins (0.0 to 1.0 of duration)
+ *   morph_end: Time when morphing ends (0.0 to 1.0 of duration)
+ *   exponent: Interpolation curve (1.0 = linear, <1 = fast start, >1 = slow start)
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with morphed audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_morph(cdp_lib_ctx* ctx,
+                               const cdp_lib_buffer* input1,
+                               const cdp_lib_buffer* input2,
+                               double morph_start,
+                               double morph_end,
+                               double exponent,
+                               int fft_size);
+
+/*
+ * Simple spectral glide between two sounds (CDP: SPECGLIDE).
+ *
+ * Creates a linear glide from one spectrum to another over the specified
+ * duration. Amplitude interpolates linearly; frequency interpolates
+ * exponentially.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input1: First input audio buffer
+ *   input2: Second input audio buffer
+ *   duration: Output duration in seconds
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with glided audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_morph_glide(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input1,
+                                     const cdp_lib_buffer* input2,
+                                     double duration,
+                                     int fft_size);
+
+/*
+ * Cross-synthesis: combine amplitude from one sound with frequencies from another.
+ *
+ * Takes the amplitude envelope from input1 and applies it to the frequency
+ * content of input2 (or vice versa based on mode).
+ *
+ * Args:
+ *   ctx: Library context
+ *   input1: First input audio buffer (amplitude source by default)
+ *   input2: Second input audio buffer (frequency source by default)
+ *   mode: 0 = amp from input1, freq from input2
+ *         1 = amp from input2, freq from input1
+ *   mix: Mix between original and cross-synthesized (0.0 = original, 1.0 = full cross)
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with cross-synthesized audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_cross_synth(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input1,
+                                     const cdp_lib_buffer* input2,
+                                     int mode,
+                                     double mix,
+                                     int fft_size);
+
 #ifdef __cplusplus
 }
 #endif

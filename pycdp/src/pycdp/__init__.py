@@ -103,6 +103,10 @@ from pycdp._core import (
     grain_extend,
     texture_simple,
     texture_multi,
+    # Morphing/Cross-synthesis
+    morph,
+    morph_glide,
+    cross_synth,
 )
 
 __all__ = [
@@ -198,6 +202,10 @@ __all__ = [
     "grain_extend",
     "texture_simple",
     "texture_multi",
+    # Morphing/Cross-synthesis
+    "morph",
+    "morph_glide",
+    "cross_synth",
 ]
 
 __version__ = version()

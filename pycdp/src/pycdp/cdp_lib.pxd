@@ -157,6 +157,27 @@ cdef extern from "cdp_lib.h":
                                      double attack_ms,
                                      double release_ms)
 
+    cdp_lib_buffer* cdp_lib_morph(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input1,
+                                   const cdp_lib_buffer* input2,
+                                   double morph_start,
+                                   double morph_end,
+                                   double exponent,
+                                   int fft_size)
+
+    cdp_lib_buffer* cdp_lib_morph_glide(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input1,
+                                         const cdp_lib_buffer* input2,
+                                         double duration,
+                                         int fft_size)
+
+    cdp_lib_buffer* cdp_lib_cross_synth(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input1,
+                                         const cdp_lib_buffer* input2,
+                                         int mode,
+                                         double mix,
+                                         int fft_size)
+
 cdef extern from "cdp_envelope.h":
     int CDP_FADE_LINEAR
     int CDP_FADE_EXPONENTIAL

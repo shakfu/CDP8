@@ -1263,6 +1263,27 @@ cdef extern from "cdp_lib.h":
                                      double attack_ms,
                                      double release_ms)
 
+    cdp_lib_buffer* cdp_lib_morph(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input1,
+                                   const cdp_lib_buffer* input2,
+                                   double morph_start,
+                                   double morph_end,
+                                   double exponent,
+                                   int fft_size)
+
+    cdp_lib_buffer* cdp_lib_morph_glide(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input1,
+                                         const cdp_lib_buffer* input2,
+                                         double duration,
+                                         int fft_size)
+
+    cdp_lib_buffer* cdp_lib_cross_synth(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input1,
+                                         const cdp_lib_buffer* input2,
+                                         int mode,
+                                         double mix,
+                                         int fft_size)
+
 cdef extern from "cdp_envelope.h":
     int CDP_FADE_LINEAR
     int CDP_FADE_EXPONENTIAL
@@ -2778,6 +2799,133 @@ def texture_multi(Buffer buf not None, double duration=5.0, double density=2.0,
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Texture multi failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def morph(Buffer buf1 not None, Buffer buf2 not None,
+          double morph_start=0.0, double morph_end=1.0,
+          double exponent=1.0, int fft_size=1024):
+    """Spectral morph between two sounds (CDP: SPECMORPH).
+
+    Interpolates amplitude and frequency between two sounds over time.
+    Amplitude interpolation is linear; frequency interpolation is exponential.
+
+    Args:
+        buf1: First input Buffer (source).
+        buf2: Second input Buffer (target).
+        morph_start: Time when morphing begins (0.0 to 1.0 of duration). Default 0.0.
+        morph_end: Time when morphing ends (0.0 to 1.0 of duration). Default 1.0.
+        exponent: Interpolation curve (1.0 = linear, <1 = fast start, >1 = slow start). Default 1.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with morphed audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if buf1.sample_rate != buf2.sample_rate:
+        raise ValueError("Sample rates must match for morphing")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input1_buf = _buffer_to_cdp_lib(buf1)
+    cdef cdp_lib_buffer* input2_buf = _buffer_to_cdp_lib(buf2)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_morph(
+        ctx, input1_buf, input2_buf, morph_start, morph_end, exponent, fft_size)
+
+    cdp_lib_buffer_free(input1_buf)
+    cdp_lib_buffer_free(input2_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Morph failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def morph_glide(Buffer buf1 not None, Buffer buf2 not None,
+                double duration=1.0, int fft_size=1024):
+    """Simple spectral glide between two sounds (CDP: SPECGLIDE).
+
+    Creates a linear glide from one spectrum to another over the specified duration.
+
+    Args:
+        buf1: First input Buffer.
+        buf2: Second input Buffer.
+        duration: Output duration in seconds. Default 1.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with glided audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if buf1.sample_rate != buf2.sample_rate:
+        raise ValueError("Sample rates must match for glide")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input1_buf = _buffer_to_cdp_lib(buf1)
+    cdef cdp_lib_buffer* input2_buf = _buffer_to_cdp_lib(buf2)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_morph_glide(
+        ctx, input1_buf, input2_buf, duration, fft_size)
+
+    cdp_lib_buffer_free(input1_buf)
+    cdp_lib_buffer_free(input2_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Morph glide failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def cross_synth(Buffer buf1 not None, Buffer buf2 not None,
+                int mode=0, double mix=1.0, int fft_size=1024):
+    """Cross-synthesis: combine amplitude from one sound with frequencies from another.
+
+    Args:
+        buf1: First input Buffer (amplitude source by default).
+        buf2: Second input Buffer (frequency source by default).
+        mode: 0 = amp from buf1, freq from buf2 (default)
+              1 = amp from buf2, freq from buf1
+        mix: Mix between original and cross-synthesized (0.0 = original, 1.0 = full cross). Default 1.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with cross-synthesized audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if buf1.sample_rate != buf2.sample_rate:
+        raise ValueError("Sample rates must match for cross-synthesis")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input1_buf = _buffer_to_cdp_lib(buf1)
+    cdef cdp_lib_buffer* input2_buf = _buffer_to_cdp_lib(buf2)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_cross_synth(
+        ctx, input1_buf, input2_buf, mode, mix, fft_size)
+
+    cdp_lib_buffer_free(input1_buf)
+    cdp_lib_buffer_free(input2_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Cross-synthesis failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)

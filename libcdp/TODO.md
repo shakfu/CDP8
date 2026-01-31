@@ -18,6 +18,11 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `spectral_shift` - Shift all frequencies by Hz offset
 - [x] `spectral_stretch` - Differential frequency stretching
 
+**Morphing/Cross-synthesis (CDP: `morph`, `combine`):**
+- [x] `morph` - Spectral interpolation between two sounds
+- [x] `morph_glide` - Simple spectral glide between two sounds
+- [x] `cross_synth` - Cross-synthesis (amp from one, freq from other)
+
 **Filtering (CDP: `filter`, `filtrage`, `synfilt`):**
 - [x] `filter_lowpass` - Spectral lowpass filter
 - [x] `filter_highpass` - Spectral highpass filter
@@ -84,15 +89,7 @@ Useful audio processing functions not derived from CDP algorithms.
 
 Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 
-### Priority 1: Morphing/Combining (CDP: `morph`, `combine`)
-
-| CDP Tool | Algorithm | Description |
-|----------|-----------|-------------|
-| `morph` | Spectral morph | Interpolate between sounds |
-| `newmorph` | New morph | Updated morph algorithm |
-| `combine` | Spectral combine | Cross-synthesis (amp/freq mixing) |
-
-### Priority 2: Analysis (CDP: `pitch`, `formants`, `get_partials`)
+### Priority 1: Analysis (CDP: `pitch`, `formants`, `get_partials`)
 
 | CDP Tool | Algorithm | Description |
 |----------|-----------|-------------|
@@ -100,7 +97,7 @@ Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 | `formants` | Formant analysis | Extract formant frequencies |
 | `get_partials` | Partial tracking | Extract sinusoidal partials |
 
-### Priority 3: Additional Spectral (CDP: `focus`, `hilite`, `specfold`)
+### Priority 2: Additional Spectral (CDP: `focus`, `hilite`, `specfold`)
 
 | CDP Tool | Algorithm | Description |
 |----------|-----------|-------------|
@@ -109,7 +106,7 @@ Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 | `specfold` | Spectral fold | Fold spectrum at frequency |
 | `speclean` | Spectral clean | Remove spectral noise |
 
-### Priority 4: Experimental (CDP: `strange`, `fractal`, `crystal`)
+### Priority 3: Experimental (CDP: `strange`, `fractal`, `crystal`)
 
 | CDP Tool | Algorithm | Description |
 |----------|-----------|-------------|

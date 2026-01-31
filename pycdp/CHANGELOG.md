@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Granular:** `grain_extend` - extend duration using grain repetition (CDP: grainex extend)
 - **Texture:** `texture_simple` - simple texture layering (CDP: texture SIMPLE_TEX)
 - **Texture:** `texture_multi` - multi-layer grouped texture (CDP: texture GROUPS)
+- **Morphing:** `morph` - spectral interpolation between two sounds (CDP: SPECMORPH)
+- **Morphing:** `morph_glide` - simple spectral glide between two sounds (CDP: SPECGLIDE)
+- **Cross-synthesis:** `cross_synth` - combine amp from one sound with freq from another (CDP: combine)
 
 ### Added (Non-CDP Additions)
 Standard DSP functions not derived from CDP algorithms:

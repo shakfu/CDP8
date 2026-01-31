@@ -1567,5 +1567,143 @@ class TestTextureMulti:
         assert result2.frame_count > 0
 
 
+class TestMorph:
+    """Test spectral morph (CDP: SPECMORPH)."""
+
+    @pytest.fixture
+    def sine_440(self):
+        """Create a 440Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def sine_880(self):
+        """Create a 880Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_morph_runs(self, sine_440, sine_880):
+        """Morph should run without error."""
+        result = pycdp.morph(sine_440, sine_880)
+        assert result.frame_count > 0
+
+    def test_morph_with_timing(self, sine_440, sine_880):
+        """Morph should respect timing parameters."""
+        result = pycdp.morph(sine_440, sine_880, morph_start=0.25, morph_end=0.75)
+        assert result.frame_count > 0
+
+    def test_morph_with_exponent(self, sine_440, sine_880):
+        """Morph should support different curve exponents."""
+        result1 = pycdp.morph(sine_440, sine_880, exponent=0.5)  # Fast start
+        result2 = pycdp.morph(sine_440, sine_880, exponent=2.0)  # Slow start
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+
+class TestMorphGlide:
+    """Test spectral glide (CDP: SPECGLIDE)."""
+
+    @pytest.fixture
+    def sine_440(self):
+        """Create a 440Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def sine_880(self):
+        """Create a 880Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_morph_glide_runs(self, sine_440, sine_880):
+        """Morph glide should run without error."""
+        result = pycdp.morph_glide(sine_440, sine_880, duration=0.5)
+        assert result.frame_count > 0
+
+    def test_morph_glide_duration(self, sine_440, sine_880):
+        """Morph glide should produce output of reasonable length."""
+        duration = 1.0
+        result = pycdp.morph_glide(sine_440, sine_880, duration=duration)
+        # Output should be non-trivial length (FFT processing affects exact duration)
+        assert result.frame_count > sine_440.sample_rate * 0.1  # At least 100ms
+
+
+class TestCrossSynth:
+    """Test cross-synthesis (CDP: combine)."""
+
+    @pytest.fixture
+    def voice_like(self):
+        """Create a voice-like sound with harmonics."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            # Fundamental with harmonics
+            val = 0.3 * math.sin(2 * math.pi * 220 * t)
+            val += 0.2 * math.sin(2 * math.pi * 440 * t)
+            val += 0.1 * math.sin(2 * math.pi * 660 * t)
+            samples.append(val)
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def noise_like(self):
+        """Create a noise-like sound."""
+        import math
+        import random
+        random.seed(42)
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.3 * (random.random() * 2 - 1)
+            for _ in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_cross_synth_runs(self, voice_like, noise_like):
+        """Cross-synthesis should run without error."""
+        result = pycdp.cross_synth(voice_like, noise_like)
+        assert result.frame_count > 0
+
+    def test_cross_synth_modes(self, voice_like, noise_like):
+        """Cross-synthesis should support both modes."""
+        result0 = pycdp.cross_synth(voice_like, noise_like, mode=0)
+        result1 = pycdp.cross_synth(voice_like, noise_like, mode=1)
+        assert result0.frame_count > 0
+        assert result1.frame_count > 0
+
+    def test_cross_synth_mix(self, voice_like, noise_like):
+        """Cross-synthesis should support mix parameter."""
+        result_full = pycdp.cross_synth(voice_like, noise_like, mix=1.0)
+        result_half = pycdp.cross_synth(voice_like, noise_like, mix=0.5)
+        assert result_full.frame_count > 0
+        assert result_half.frame_count > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
