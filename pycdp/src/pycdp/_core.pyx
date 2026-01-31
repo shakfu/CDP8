@@ -128,7 +128,13 @@ cdef extern from "cdp.h":
                                      int* out_num_channels)
     cdp_buffer* cdp_interleave(cdp_context* ctx, cdp_buffer** buffers, int num_channels)
 
-    # Utilities
+    # Buffer utilities
+    cdp_buffer* cdp_reverse(cdp_context* ctx, const cdp_buffer* buf)
+    cdp_error cdp_fade_in(cdp_context* ctx, cdp_buffer* buf, double duration, int fade_type)
+    cdp_error cdp_fade_out(cdp_context* ctx, cdp_buffer* buf, double duration, int fade_type)
+    cdp_buffer* cdp_concat(cdp_context* ctx, cdp_buffer** buffers, int count)
+
+    # Conversion utilities
     double cdp_gain_to_db(double gain)
     double cdp_db_to_gain(double db)
 
@@ -795,6 +801,130 @@ def mix(list buffers not None, list gains=None):
 
 
 # =============================================================================
+# Buffer utilities
+# =============================================================================
+
+def reverse(Buffer buf not None):
+    """Reverse audio buffer.
+
+    Args:
+        buf: Input buffer.
+
+    Returns:
+        New Buffer with reversed audio.
+    """
+    cdef Context ctx = Context()
+    cdef cdp_buffer* c_result = cdp_reverse(ctx.ptr(), buf.ptr())
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+def fade_in(Buffer buf not None, double duration, str curve="linear"):
+    """Apply fade in to buffer (in-place).
+
+    Args:
+        buf: Buffer to process (modified in-place).
+        duration: Fade duration in seconds.
+        curve: "linear" or "exponential" (equal power).
+
+    Returns:
+        The same buffer (for chaining).
+
+    Raises:
+        ValueError: If curve type is invalid.
+    """
+    cdef int fade_type
+    if curve == "linear":
+        fade_type = 0
+    elif curve == "exponential":
+        fade_type = 1
+    else:
+        raise ValueError(f"Invalid curve: {curve}. Use 'linear' or 'exponential'.")
+
+    cdef Context ctx = Context()
+    cdef cdp_error err = cdp_fade_in(ctx.ptr(), buf.ptr(), duration, fade_type)
+    ctx._check_error(err)
+    return buf
+
+
+def fade_out(Buffer buf not None, double duration, str curve="linear"):
+    """Apply fade out to buffer (in-place).
+
+    Args:
+        buf: Buffer to process (modified in-place).
+        duration: Fade duration in seconds.
+        curve: "linear" or "exponential" (equal power).
+
+    Returns:
+        The same buffer (for chaining).
+
+    Raises:
+        ValueError: If curve type is invalid.
+    """
+    cdef int fade_type
+    if curve == "linear":
+        fade_type = 0
+    elif curve == "exponential":
+        fade_type = 1
+    else:
+        raise ValueError(f"Invalid curve: {curve}. Use 'linear' or 'exponential'.")
+
+    cdef Context ctx = Context()
+    cdef cdp_error err = cdp_fade_out(ctx.ptr(), buf.ptr(), duration, fade_type)
+    ctx._check_error(err)
+    return buf
+
+
+def concat(list buffers not None):
+    """Concatenate multiple buffers into one.
+
+    Args:
+        buffers: List of Buffers (all must have same channels/rate).
+
+    Returns:
+        New concatenated Buffer.
+
+    Raises:
+        CDPError: If buffers are incompatible.
+        ValueError: If list is empty.
+    """
+    if len(buffers) == 0:
+        raise ValueError("Buffer list cannot be empty")
+
+    cdef Context ctx = Context()
+    cdef int count = len(buffers)
+    cdef cdp_buffer** c_buffers = <cdp_buffer**>malloc(count * sizeof(cdp_buffer*))
+
+    if c_buffers is NULL:
+        raise MemoryError("Failed to allocate buffer array")
+
+    cdef int i
+    cdef Buffer b
+    for i in range(count):
+        b = buffers[i]
+        c_buffers[i] = b.ptr()
+
+    cdef cdp_buffer* c_result = cdp_concat(ctx.ptr(), c_buffers, count)
+    free(c_buffers)
+
+    if c_result is NULL:
+        msg = ctx.get_error_message()
+        raise CDPError(ctx.get_error(), msg)
+
+    cdef Buffer result = Buffer()
+    result._buf = c_result
+    result._owns_buffer = True
+    return result
+
+
+# =============================================================================
 # Channel operations
 # =============================================================================
 
@@ -976,4 +1106,862 @@ def interleave(list buffers not None):
     cdef Buffer result = Buffer()
     result._buf = c_result
     result._owns_buffer = True
+    return result
+
+
+# =============================================================================
+# CDP Library - Native spectral processing (no subprocess)
+# =============================================================================
+
+cdef extern from "cdp_lib.h":
+    ctypedef struct cdp_lib_ctx:
+        pass
+
+    ctypedef struct cdp_lib_buffer:
+        float *data
+        size_t length
+        int channels
+        int sample_rate
+
+    cdp_lib_ctx* cdp_lib_init()
+    void cdp_lib_cleanup(cdp_lib_ctx* ctx)
+    const char* cdp_lib_get_error(cdp_lib_ctx* ctx)
+
+    cdp_lib_buffer* cdp_lib_buffer_create(size_t length, int channels, int sample_rate)
+    cdp_lib_buffer* cdp_lib_buffer_from_data(float *data, size_t length,
+                                              int channels, int sample_rate)
+    void cdp_lib_buffer_free(cdp_lib_buffer* buf)
+
+    cdp_lib_buffer* cdp_lib_time_stretch(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          double factor,
+                                          int fft_size,
+                                          int overlap)
+
+    cdp_lib_buffer* cdp_lib_spectral_blur(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double blur_time,
+                                           int fft_size)
+
+    cdp_lib_buffer* cdp_lib_loudness(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double gain_db)
+
+    cdp_lib_buffer* cdp_lib_speed(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double speed)
+
+    # Spectral operations
+    cdp_lib_buffer* cdp_lib_pitch_shift(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double semitones,
+                                         int fft_size)
+
+    cdp_lib_buffer* cdp_lib_spectral_shift(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double shift_hz,
+                                            int fft_size)
+
+    cdp_lib_buffer* cdp_lib_spectral_stretch(cdp_lib_ctx* ctx,
+                                              const cdp_lib_buffer* input,
+                                              double max_stretch,
+                                              double freq_divide,
+                                              double exponent,
+                                              int fft_size)
+
+    cdp_lib_buffer* cdp_lib_filter_lowpass(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double cutoff_freq,
+                                            double attenuation_db,
+                                            int fft_size)
+
+    cdp_lib_buffer* cdp_lib_filter_highpass(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             double cutoff_freq,
+                                             double attenuation_db,
+                                             int fft_size)
+
+cdef extern from "cdp_envelope.h":
+    int CDP_FADE_LINEAR
+    int CDP_FADE_EXPONENTIAL
+
+    cdp_lib_buffer* cdp_lib_dovetail(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double fade_in_dur,
+                                      double fade_out_dur,
+                                      int fade_in_type,
+                                      int fade_out_type)
+
+    cdp_lib_buffer* cdp_lib_tremolo(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double freq,
+                                     double depth,
+                                     double gain)
+
+    cdp_lib_buffer* cdp_lib_attack(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    double attack_gain,
+                                    double attack_time)
+
+cdef extern from "cdp_distort.h":
+    cdp_lib_buffer* cdp_lib_distort_overload(cdp_lib_ctx* ctx,
+                                              const cdp_lib_buffer* input,
+                                              double clip_level,
+                                              double depth)
+
+    cdp_lib_buffer* cdp_lib_distort_reverse(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             int cycle_count)
+
+    cdp_lib_buffer* cdp_lib_distort_fractal(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             double scaling,
+                                             double loudness)
+
+    cdp_lib_buffer* cdp_lib_distort_shuffle(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             int chunk_count,
+                                             unsigned int seed)
+
+cdef extern from "cdp_reverb.h":
+    cdp_lib_buffer* cdp_lib_reverb(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    double mix,
+                                    double decay_time,
+                                    double damping,
+                                    double lpfreq,
+                                    double predelay)
+
+cdef extern from "cdp_granular.h":
+    cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double velocity,
+                                      double density,
+                                      double grainsize_ms,
+                                      double scatter,
+                                      double pitch_shift,
+                                      double amp_variation)
+
+    cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    double start_time,
+                                    double end_time,
+                                    double duration,
+                                    double delay,
+                                    double randomize,
+                                    double pitch_scatter,
+                                    double amp_cut,
+                                    double gain)
+
+
+# Global CDP library context (lazily initialized)
+cdef cdp_lib_ctx* _cdp_lib_ctx = NULL
+
+
+cdef cdp_lib_ctx* _get_cdp_lib_ctx() except NULL:
+    """Get or create the global CDP library context."""
+    global _cdp_lib_ctx
+    if _cdp_lib_ctx is NULL:
+        _cdp_lib_ctx = cdp_lib_init()
+        if _cdp_lib_ctx is NULL:
+            raise MemoryError("Failed to initialize CDP library")
+    return _cdp_lib_ctx
+
+
+cdef cdp_lib_buffer* _buffer_to_cdp_lib(Buffer buf) except NULL:
+    """Convert a pycdp Buffer to a cdp_lib_buffer."""
+    cdef cdp_lib_buffer* lib_buf = cdp_lib_buffer_create(
+        buf.sample_count, buf.channels, buf.sample_rate)
+    if lib_buf is NULL:
+        raise MemoryError("Failed to create CDP library buffer")
+
+    # Copy data
+    cdef size_t i
+    for i in range(buf.sample_count):
+        lib_buf.data[i] = buf._buf.samples[i]
+
+    return lib_buf
+
+
+cdef Buffer _cdp_lib_to_buffer(cdp_lib_buffer* lib_buf):
+    """Convert a cdp_lib_buffer to a pycdp Buffer."""
+    cdef Buffer result = Buffer.create(
+        lib_buf.length // lib_buf.channels,
+        lib_buf.channels,
+        lib_buf.sample_rate)
+
+    # Copy data
+    cdef size_t i
+    for i in range(lib_buf.length):
+        result._buf.samples[i] = lib_buf.data[i]
+
+    return result
+
+
+def time_stretch(Buffer buf not None, double factor, int fft_size=1024, int overlap=3):
+    """Time-stretch audio without changing pitch (native implementation).
+
+    Uses phase vocoder for high-quality time stretching.
+    This is a native implementation - no subprocess overhead.
+
+    Args:
+        buf: Input Buffer.
+        factor: Stretch factor (2.0 = twice as long, 0.5 = half as long).
+        fft_size: FFT window size (power of 2, 256-8192). Default 1024.
+        overlap: Overlap factor (1-4). Default 3.
+
+    Returns:
+        New Buffer with time-stretched audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if factor <= 0:
+        raise ValueError("Stretch factor must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_time_stretch(
+        ctx, input_buf, factor, fft_size, overlap)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Time stretch failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def spectral_blur(Buffer buf not None, double blur_time, int fft_size=1024):
+    """Apply spectral blur (native implementation).
+
+    Averages the spectrum over time, creating a smeared effect.
+    This is a native implementation - no subprocess overhead.
+
+    Args:
+        buf: Input Buffer.
+        blur_time: Time to blur over in seconds.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with blurred audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_spectral_blur(
+        ctx, input_buf, blur_time, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spectral blur failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def modify_speed(Buffer buf not None, double speed_factor):
+    """Change playback speed (native implementation).
+
+    Changes both pitch and duration.
+    This is a native implementation - no subprocess overhead.
+
+    Args:
+        buf: Input Buffer.
+        speed_factor: Speed multiplier (2.0 = double speed/octave up).
+
+    Returns:
+        New Buffer with modified speed.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if speed_factor <= 0:
+        raise ValueError("Speed factor must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_speed(ctx, input_buf, speed_factor)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Speed change failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Native spectral operations
+# =============================================================================
+
+def pitch_shift(Buffer buf not None, double semitones, int fft_size=1024):
+    """Pitch shift without changing duration (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        semitones: Pitch shift in semitones (positive = up, negative = down).
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with pitch-shifted audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_pitch_shift(ctx, input_buf, semitones, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Pitch shift failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def spectral_shift(Buffer buf not None, double shift_hz, int fft_size=1024):
+    """Shift all frequencies by a fixed Hz offset (native implementation).
+
+    Unlike pitch shift, this adds a constant Hz value, creating inharmonic effects.
+
+    Args:
+        buf: Input Buffer.
+        shift_hz: Frequency offset in Hz (positive = up, negative = down).
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with shifted frequencies.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_spectral_shift(ctx, input_buf, shift_hz, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spectral shift failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def spectral_stretch(Buffer buf not None, double max_stretch,
+                            double freq_divide=1000.0, double exponent=1.0, int fft_size=1024):
+    """Stretch frequencies differentially (native implementation).
+
+    Higher frequencies get stretched more, creating inharmonic effects.
+
+    Args:
+        buf: Input Buffer.
+        max_stretch: Maximum transposition ratio for highest frequencies.
+        freq_divide: Frequency below which no stretching occurs. Default 1000 Hz.
+        exponent: Stretching curve (1.0 = linear). Default 1.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with stretched spectrum.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if max_stretch <= 0:
+        raise ValueError("max_stretch must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_spectral_stretch(
+        ctx, input_buf, max_stretch, freq_divide, exponent, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spectral stretch failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def filter_lowpass(Buffer buf not None, double cutoff_freq,
+                          double attenuation_db=-60, int fft_size=1024):
+    """Apply lowpass filter (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        cutoff_freq: Cutoff frequency in Hz.
+        attenuation_db: Attenuation in dB (negative). Default -60.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with filtered audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if cutoff_freq <= 0:
+        raise ValueError("cutoff_freq must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_filter_lowpass(
+        ctx, input_buf, cutoff_freq, attenuation_db, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Lowpass filter failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def filter_highpass(Buffer buf not None, double cutoff_freq,
+                           double attenuation_db=-60, int fft_size=1024):
+    """Apply highpass filter (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        cutoff_freq: Cutoff frequency in Hz.
+        attenuation_db: Attenuation in dB (negative). Default -60.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with filtered audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if cutoff_freq <= 0:
+        raise ValueError("cutoff_freq must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_filter_highpass(
+        ctx, input_buf, cutoff_freq, attenuation_db, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Highpass filter failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Native envelope operations
+# =============================================================================
+
+def dovetail(Buffer buf not None, double fade_in_dur, double fade_out_dur,
+                    str fade_type="exponential"):
+    """Apply fade-in and fade-out envelopes (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        fade_in_dur: Fade-in duration in seconds.
+        fade_out_dur: Fade-out duration in seconds.
+        fade_type: "linear" or "exponential" (default).
+
+    Returns:
+        New Buffer with fades applied.
+
+    Raises:
+        CDPError: If processing fails.
+        ValueError: If fade_type is invalid.
+    """
+    cdef int fade_in_type, fade_out_type
+
+    if fade_type == "linear":
+        fade_in_type = CDP_FADE_LINEAR
+        fade_out_type = CDP_FADE_LINEAR
+    elif fade_type == "exponential":
+        fade_in_type = CDP_FADE_EXPONENTIAL
+        fade_out_type = CDP_FADE_EXPONENTIAL
+    else:
+        raise ValueError(f"Invalid fade_type: {fade_type}. Use 'linear' or 'exponential'.")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_dovetail(
+        ctx, input_buf, fade_in_dur, fade_out_dur, fade_in_type, fade_out_type)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Dovetail failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def tremolo(Buffer buf not None, double freq, double depth, double gain=1.0):
+    """Apply tremolo / amplitude modulation (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        freq: Tremolo frequency in Hz (0 to 500).
+        depth: Modulation depth (0.0 = none, 1.0 = full).
+        gain: Output gain multiplier. Default 1.0.
+
+    Returns:
+        New Buffer with tremolo applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_tremolo(ctx, input_buf, freq, depth, gain)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Tremolo failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def attack(Buffer buf not None, double attack_gain, double attack_time):
+    """Modify the attack portion of a sound (native implementation).
+
+    Args:
+        buf: Input Buffer.
+        attack_gain: Gain multiplier for attack (e.g., 2.0 = double).
+        attack_time: Duration of attack region in seconds.
+
+    Returns:
+        New Buffer with modified attack.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_attack(ctx, input_buf, attack_gain, attack_time)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Attack modification failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Native distortion operations
+# =============================================================================
+
+def distort_overload(Buffer buf not None, double clip_level, double depth=0.5):
+    """Apply clipping distortion (native implementation).
+
+    Args:
+        buf: Input Buffer (will be converted to mono if stereo).
+        clip_level: Clipping threshold (0.0 to 1.0).
+        depth: Distortion depth (0 = hard clip, 1 = soft clip). Default 0.5.
+
+    Returns:
+        New mono Buffer with distortion applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_overload(ctx, input_buf, clip_level, depth)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort overload failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def distort_reverse(Buffer buf not None, int cycle_count):
+    """Reverse groups of wavecycles (native implementation).
+
+    Args:
+        buf: Input Buffer (will be converted to mono if stereo).
+        cycle_count: Number of cycles in each reversed group.
+
+    Returns:
+        New mono Buffer with reversed cycles.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_reverse(ctx, input_buf, cycle_count)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort reverse failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def distort_fractal(Buffer buf not None, double scaling, double loudness=1.0):
+    """Apply fractal distortion (native implementation).
+
+    Adds harmonic complexity by recursively overlaying wavecycle patterns.
+
+    Args:
+        buf: Input Buffer (will be converted to mono if stereo).
+        scaling: Fractal scaling factor (affects harmonic content).
+        loudness: Output loudness (0.0 to 1.0). Default 1.0.
+
+    Returns:
+        New mono Buffer with fractal distortion.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_fractal(ctx, input_buf, scaling, loudness)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort fractal failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def distort_shuffle(Buffer buf not None, int chunk_count, unsigned int seed=0):
+    """Shuffle segments of audio (native implementation).
+
+    Args:
+        buf: Input Buffer (will be converted to mono if stereo).
+        chunk_count: Number of chunks to divide the audio into.
+        seed: Random seed (0 = time-based). Default 0.
+
+    Returns:
+        New mono Buffer with shuffled segments.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_shuffle(ctx, input_buf, chunk_count, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort shuffle failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Native reverb
+# =============================================================================
+
+def reverb(Buffer buf not None, double mix=0.5, double decay_time=2.0,
+                  double damping=0.5, double lpfreq=8000.0, double predelay=0.0):
+    """Apply reverb (native implementation).
+
+    Uses a Feedback Delay Network (8 combs + 4 allpass) for dense reverb.
+
+    Args:
+        buf: Input Buffer.
+        mix: Dry/wet balance (0.0 = dry, 1.0 = wet). Default 0.5.
+        decay_time: Reverb decay time in seconds (RT60). Default 2.0.
+        damping: High frequency damping (0.0 to 1.0). Default 0.5.
+        lpfreq: Lowpass filter cutoff in Hz. Default 8000.
+        predelay: Pre-delay time in milliseconds. Default 0.
+
+    Returns:
+        New stereo Buffer with reverb applied (includes tail).
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_reverb(
+        ctx, input_buf, mix, decay_time, damping, lpfreq, predelay)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Reverb failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Native granular operations
+# =============================================================================
+
+def brassage(Buffer buf not None, double velocity=1.0, double density=1.0,
+                    double grainsize_ms=50.0, double scatter=0.0,
+                    double pitch_shift=0.0, double amp_variation=0.0):
+    """Apply granular brassage (native implementation).
+
+    Breaks sound into grains and reassembles with optional modifications.
+
+    Args:
+        buf: Input Buffer.
+        velocity: Playback speed through source (1.0 = normal). Default 1.0.
+        density: Grain density multiplier. Default 1.0.
+        grainsize_ms: Grain size in milliseconds. Default 50.
+        scatter: Time scatter of grains (0.0 to 1.0). Default 0.
+        pitch_shift: Pitch shift per grain in semitones. Default 0.
+        amp_variation: Random amplitude variation (0.0 to 1.0). Default 0.
+
+    Returns:
+        New Buffer with brassage applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_brassage(
+        ctx, input_buf, velocity, density, grainsize_ms,
+        scatter, pitch_shift, amp_variation)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Brassage failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def freeze(Buffer buf not None, double start_time, double end_time,
+                  double duration, double delay=0.05, double randomize=0.2,
+                  double pitch_scatter=0.0, double amp_cut=0.1, double gain=1.0):
+    """Freeze a segment of audio by repeated iteration (native implementation).
+
+    Creates a sustained texture by repeating a frozen segment with variations.
+
+    Args:
+        buf: Input Buffer.
+        start_time: Start of segment to freeze (seconds).
+        end_time: End of segment to freeze (seconds).
+        duration: Output duration in seconds.
+        delay: Average delay between iterations. Default 0.05.
+        randomize: Delay time randomization (0.0 to 1.0). Default 0.2.
+        pitch_scatter: Max random pitch shift in semitones (0 to 12). Default 0.
+        amp_cut: Max random amplitude reduction (0.0 to 1.0). Default 0.1.
+        gain: Gain adjustment for frozen segment. Default 1.0.
+
+    Returns:
+        New Buffer with frozen audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if end_time <= start_time:
+        raise ValueError("end_time must be greater than start_time")
+    if duration <= 0:
+        raise ValueError("duration must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_freeze(
+        ctx, input_buf, start_time, end_time, duration,
+        delay, randomize, pitch_scatter, amp_cut, gain)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Freeze failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
     return result

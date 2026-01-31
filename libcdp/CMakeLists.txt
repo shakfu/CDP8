@@ -28,6 +28,7 @@ set(CDP_SOURCES
     src/channel.c
     src/mix.c
     src/spatial.c
+    src/utils.c
 )
 
 # Header files (for IDE integration)

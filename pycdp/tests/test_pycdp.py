@@ -245,6 +245,106 @@ class TestBufferInterop:
         assert mv[0] == pytest.approx(1.0, rel=1e-6)
 
 
+class TestBufferUtilities:
+    """Test buffer utility operations."""
+
+    def test_reverse(self):
+        """Reverse should reverse sample order."""
+        samples = array.array('f', [1.0, 2.0, 3.0, 4.0, 5.0])
+        buf = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
+
+        rev = pycdp.reverse(buf)
+        assert rev.sample_count == 5
+        assert rev[0] == pytest.approx(5.0, rel=1e-6)
+        assert rev[4] == pytest.approx(1.0, rel=1e-6)
+        assert rev[2] == pytest.approx(3.0, rel=1e-6)
+
+    def test_reverse_stereo(self):
+        """Reverse should preserve channel order within frames."""
+        buf = pycdp.Buffer.create(3, channels=2, sample_rate=44100)
+        # Frame 0: L=1, R=2
+        buf[0] = 1.0
+        buf[1] = 2.0
+        # Frame 1: L=3, R=4
+        buf[2] = 3.0
+        buf[3] = 4.0
+        # Frame 2: L=5, R=6
+        buf[4] = 5.0
+        buf[5] = 6.0
+
+        rev = pycdp.reverse(buf)
+        # Frame 0 should now be old Frame 2
+        assert rev[0] == pytest.approx(5.0, rel=1e-6)
+        assert rev[1] == pytest.approx(6.0, rel=1e-6)
+        # Frame 2 should now be old Frame 0
+        assert rev[4] == pytest.approx(1.0, rel=1e-6)
+        assert rev[5] == pytest.approx(2.0, rel=1e-6)
+
+    def test_fade_in_linear(self):
+        """Linear fade in should ramp from 0 to 1."""
+        # 1 second at 100 Hz
+        buf = pycdp.Buffer.create(100, channels=1, sample_rate=100)
+        for i in range(100):
+            buf[i] = 1.0
+
+        # Fade in over 0.5 seconds
+        pycdp.fade_in(buf, duration=0.5, curve="linear")
+
+        assert buf[0] == pytest.approx(0.0, abs=0.02)
+        assert buf[25] == pytest.approx(0.5, abs=0.02)
+        assert buf[75] == pytest.approx(1.0, rel=1e-6)
+
+    def test_fade_out_linear(self):
+        """Linear fade out should ramp from 1 to 0."""
+        buf = pycdp.Buffer.create(100, channels=1, sample_rate=100)
+        for i in range(100):
+            buf[i] = 1.0
+
+        pycdp.fade_out(buf, duration=0.5, curve="linear")
+
+        assert buf[25] == pytest.approx(1.0, rel=1e-6)
+        assert buf[75] == pytest.approx(0.5, abs=0.02)
+        assert buf[99] == pytest.approx(0.0, abs=0.02)
+
+    def test_fade_exponential(self):
+        """Exponential fade should use equal-power curve."""
+        buf = pycdp.Buffer.create(100, channels=1, sample_rate=100)
+        for i in range(100):
+            buf[i] = 1.0
+
+        pycdp.fade_in(buf, duration=0.5, curve="exponential")
+
+        # Exponential fade is smoother - mid-point should be higher than linear
+        assert buf[25] > 0.5  # Equal power curve is above linear at midpoint
+
+    def test_fade_invalid_curve_raises(self):
+        """Invalid curve should raise ValueError."""
+        buf = pycdp.Buffer.create(100, channels=1, sample_rate=44100)
+        with pytest.raises(ValueError):
+            pycdp.fade_in(buf, duration=0.5, curve="invalid")
+
+    def test_concat(self):
+        """Concat should join buffers end-to-end."""
+        a_samples = array.array('f', [1.0] * 50)
+        b_samples = array.array('f', [2.0] * 30)
+        c_samples = array.array('f', [3.0] * 20)
+        a = pycdp.Buffer.from_memoryview(a_samples, channels=1, sample_rate=44100)
+        b = pycdp.Buffer.from_memoryview(b_samples, channels=1, sample_rate=44100)
+        c = pycdp.Buffer.from_memoryview(c_samples, channels=1, sample_rate=44100)
+
+        result = pycdp.concat([a, b, c])
+        assert result.sample_count == 100
+
+        assert result[25] == pytest.approx(1.0, rel=1e-6)
+        assert result[60] == pytest.approx(2.0, rel=1e-6)
+        assert result[90] == pytest.approx(3.0, rel=1e-6)
+
+    def test_concat_empty_raises(self):
+        """concat should fail with empty list."""
+        with pytest.raises(ValueError):
+            pycdp.concat([])
+
+
 class TestSpatial:
     """Test spatial/panning operations."""
 
@@ -710,6 +810,215 @@ class TestFileIO:
         path = str(tmp_path / "test.wav")
         with pytest.raises(ValueError, match="Invalid format"):
             pycdp.write_file(path, buf, format="invalid")
+
+
+class TestSpectral:
+    """Test spectral processing functions."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_time_stretch_double(self, sine_wave):
+        """Time stretch should approximately double the length."""
+        original_frames = sine_wave.frame_count
+        stretched = pycdp.time_stretch(sine_wave, factor=2.0)
+        # Should be roughly double length (allow some tolerance for FFT windowing)
+        assert stretched.frame_count > original_frames * 1.5
+        assert stretched.frame_count < original_frames * 2.5
+
+    def test_time_stretch_half(self, sine_wave):
+        """Time stretch with 0.5 should halve the length."""
+        original_frames = sine_wave.frame_count
+        compressed = pycdp.time_stretch(sine_wave, factor=0.5)
+        assert compressed.frame_count > original_frames * 0.3
+        assert compressed.frame_count < original_frames * 0.7
+
+    def test_spectral_blur(self, sine_wave):
+        """Spectral blur should run without error."""
+        blurred = pycdp.spectral_blur(sine_wave, blur_time=0.05)
+        # Output should have similar length
+        assert blurred.frame_count > sine_wave.frame_count * 0.8
+        assert blurred.frame_count < sine_wave.frame_count * 1.2
+
+    def test_speed(self, sine_wave):
+        """Speed change should change duration."""
+        original_frames = sine_wave.frame_count
+        faster = pycdp.modify_speed(sine_wave, speed_factor=2.0)
+        # Double speed = half duration
+        assert faster.frame_count < original_frames * 0.6
+
+    def test_pitch_shift(self, sine_wave):
+        """Pitch shift should maintain similar duration."""
+        original_frames = sine_wave.frame_count
+        shifted = pycdp.pitch_shift(sine_wave, semitones=5)
+        # Duration should be roughly the same (within tolerance for spectral processing)
+        assert shifted.frame_count > original_frames * 0.7
+        assert shifted.frame_count < original_frames * 1.5
+
+    def test_spectral_shift(self, sine_wave):
+        """Spectral shift should run without error."""
+        shifted = pycdp.spectral_shift(sine_wave, shift_hz=100)
+        assert shifted.frame_count > 0
+
+    def test_spectral_stretch(self, sine_wave):
+        """Spectral stretch should run without error."""
+        stretched = pycdp.spectral_stretch(sine_wave, max_stretch=1.5)
+        assert stretched.frame_count > 0
+
+    def test_filter_lowpass(self, sine_wave):
+        """Lowpass filter should run without error."""
+        filtered = pycdp.filter_lowpass(sine_wave, cutoff_freq=1000)
+        assert filtered.frame_count > 0
+
+    def test_filter_highpass(self, sine_wave):
+        """Highpass filter should run without error."""
+        filtered = pycdp.filter_highpass(sine_wave, cutoff_freq=200)
+        assert filtered.frame_count > 0
+
+
+class TestEnvelope:
+    """Test envelope operations."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_dovetail(self, sine_wave):
+        """Dovetail should apply fades."""
+        result = pycdp.dovetail(sine_wave, fade_in_dur=0.05, fade_out_dur=0.05)
+        assert result.frame_count == sine_wave.frame_count
+        # Start should be near zero (faded in)
+        assert abs(result[0]) < 0.1
+        # End should be near zero (faded out)
+        assert abs(result[result.sample_count - 1]) < 0.1
+
+    def test_tremolo(self, sine_wave):
+        """Tremolo should run without error."""
+        result = pycdp.tremolo(sine_wave, freq=5.0, depth=0.5)
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_attack(self, sine_wave):
+        """Attack should run without error."""
+        result = pycdp.attack(sine_wave, attack_gain=2.0, attack_time=0.1)
+        assert result.frame_count == sine_wave.frame_count
+
+
+class TestDistortion:
+    """Test distortion operations."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_distort_overload(self, sine_wave):
+        """Overload distortion should run without error."""
+        result = pycdp.distort_overload(sine_wave, clip_level=0.3)
+        assert result.frame_count > 0
+
+    def test_distort_reverse(self, sine_wave):
+        """Reverse cycles should run without error."""
+        result = pycdp.distort_reverse(sine_wave, cycle_count=5)
+        assert result.frame_count > 0
+
+    def test_distort_fractal(self, sine_wave):
+        """Fractal distortion should run without error."""
+        result = pycdp.distort_fractal(sine_wave, scaling=1.5)
+        assert result.frame_count > 0
+
+    def test_distort_shuffle(self, sine_wave):
+        """Shuffle should run without error."""
+        result = pycdp.distort_shuffle(sine_wave, chunk_count=10, seed=42)
+        assert result.frame_count > 0
+
+
+class TestReverb:
+    """Test reverb."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_reverb(self, sine_wave):
+        """Reverb should run without error and add a tail."""
+        result = pycdp.reverb(sine_wave, mix=0.5, decay_time=1.0)
+        # Should be stereo
+        assert result.channels == 2
+        # Should have reverb tail
+        assert result.frame_count > sine_wave.frame_count
+
+
+class TestGranular:
+    """Test granular operations."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_brassage(self, sine_wave):
+        """Brassage should run without error."""
+        result = pycdp.brassage(sine_wave, velocity=1.0, density=1.0)
+        assert result.frame_count > 0
+
+    def test_brassage_slower(self, sine_wave):
+        """Brassage with slow velocity should produce longer output."""
+        original_frames = sine_wave.frame_count
+        result = pycdp.brassage(sine_wave, velocity=0.5)
+        # Slower velocity = longer output
+        assert result.frame_count > original_frames
+
+    def test_freeze(self, sine_wave):
+        """Freeze should produce specified duration."""
+        result = pycdp.freeze(
+            sine_wave,
+            start_time=0.1,
+            end_time=0.2,
+            duration=1.0
+        )
+        # Should be roughly 1 second (44100 samples at 44.1kHz)
+        expected_samples = 44100
+        assert result.frame_count > expected_samples * 0.9
+        assert result.frame_count < expected_samples * 1.1
 
 
 if __name__ == "__main__":

@@ -405,7 +405,52 @@ cdp_buffer** cdp_split_channels(cdp_context* ctx, const cdp_buffer* buf,
 cdp_buffer* cdp_interleave(cdp_context* ctx, cdp_buffer** buffers, int num_channels);
 
 /*============================================================================
- * Utility Functions
+ * Buffer Utilities
+ *============================================================================*/
+
+/**
+ * Reverse audio buffer.
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Input buffer.
+ * @return New buffer with reversed audio, or NULL on error.
+ */
+cdp_buffer* cdp_reverse(cdp_context* ctx, const cdp_buffer* buf);
+
+/**
+ * Apply fade in to buffer (in-place).
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Buffer to process.
+ * @param duration Fade duration in seconds.
+ * @param fade_type 0 = linear, 1 = exponential (equal power).
+ * @return CDP_OK on success, error code on failure.
+ */
+cdp_error cdp_fade_in(cdp_context* ctx, cdp_buffer* buf, double duration, int fade_type);
+
+/**
+ * Apply fade out to buffer (in-place).
+ *
+ * @param ctx Context for error reporting.
+ * @param buf Buffer to process.
+ * @param duration Fade duration in seconds.
+ * @param fade_type 0 = linear, 1 = exponential (equal power).
+ * @return CDP_OK on success, error code on failure.
+ */
+cdp_error cdp_fade_out(cdp_context* ctx, cdp_buffer* buf, double duration, int fade_type);
+
+/**
+ * Concatenate multiple buffers into one.
+ *
+ * @param ctx Context for error reporting.
+ * @param buffers Array of buffers (must all have same channels/rate).
+ * @param count Number of buffers.
+ * @return New concatenated buffer, or NULL on error.
+ */
+cdp_buffer* cdp_concat(cdp_context* ctx, cdp_buffer** buffers, int count);
+
+/*============================================================================
+ * Conversion Utilities
  *============================================================================*/
 
 /**

@@ -49,6 +49,11 @@ from pycdp._core import (
     # Mixing
     mix,
     mix2,
+    # Buffer utilities
+    reverse,
+    fade_in,
+    fade_out,
+    concat,
     # Channel operations
     to_mono,
     to_stereo,
@@ -56,6 +61,29 @@ from pycdp._core import (
     merge_channels,
     split_channels,
     interleave,
+    # Spectral processing
+    time_stretch,
+    spectral_blur,
+    modify_speed,
+    pitch_shift,
+    spectral_shift,
+    spectral_stretch,
+    filter_lowpass,
+    filter_highpass,
+    # Envelope operations
+    dovetail,
+    tremolo,
+    attack,
+    # Distortion operations
+    distort_overload,
+    distort_reverse,
+    distort_fractal,
+    distort_shuffle,
+    # Reverb
+    reverb,
+    # Granular operations
+    brassage,
+    freeze,
 )
 
 __all__ = [
@@ -97,6 +125,11 @@ __all__ = [
     # Mixing
     "mix",
     "mix2",
+    # Buffer utilities
+    "reverse",
+    "fade_in",
+    "fade_out",
+    "concat",
     # Channel operations
     "to_mono",
     "to_stereo",
@@ -104,6 +137,29 @@ __all__ = [
     "merge_channels",
     "split_channels",
     "interleave",
+    # Spectral processing
+    "time_stretch",
+    "spectral_blur",
+    "modify_speed",
+    "pitch_shift",
+    "spectral_shift",
+    "spectral_stretch",
+    "filter_lowpass",
+    "filter_highpass",
+    # Envelope operations
+    "dovetail",
+    "tremolo",
+    "attack",
+    # Distortion operations
+    "distort_overload",
+    "distort_reverse",
+    "distort_fractal",
+    "distort_shuffle",
+    # Reverb
+    "reverb",
+    # Granular operations
+    "brassage",
+    "freeze",
 ]
 
 __version__ = version()

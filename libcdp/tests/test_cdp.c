@@ -571,6 +571,147 @@ static int test_read_nonexistent_file(void)
 }
 
 /*============================================================================
+ * Buffer Utility Tests
+ *============================================================================*/
+
+static int test_reverse(void)
+{
+    cdp_context* ctx = cdp_context_create();
+
+    cdp_buffer* buf = cdp_buffer_create(5, 1, 44100);
+    buf->samples[0] = 1.0f;
+    buf->samples[1] = 2.0f;
+    buf->samples[2] = 3.0f;
+    buf->samples[3] = 4.0f;
+    buf->samples[4] = 5.0f;
+
+    cdp_buffer* rev = cdp_reverse(ctx, buf);
+    ASSERT_NOT_NULL(rev, "Reverse should succeed");
+    ASSERT_EQ(rev->sample_count, 5, "Length should match");
+
+    ASSERT_FLOAT_EQ(rev->samples[0], 5.0f, 1e-6f, "First should be last");
+    ASSERT_FLOAT_EQ(rev->samples[4], 1.0f, 1e-6f, "Last should be first");
+    ASSERT_FLOAT_EQ(rev->samples[2], 3.0f, 1e-6f, "Middle should stay");
+
+    cdp_buffer_destroy(buf);
+    cdp_buffer_destroy(rev);
+    cdp_context_destroy(ctx);
+    return 1;
+}
+
+static int test_reverse_stereo(void)
+{
+    cdp_context* ctx = cdp_context_create();
+
+    cdp_buffer* buf = cdp_buffer_create(3, 2, 44100);
+    /* Frame 0: L=1, R=2 */
+    buf->samples[0] = 1.0f;
+    buf->samples[1] = 2.0f;
+    /* Frame 1: L=3, R=4 */
+    buf->samples[2] = 3.0f;
+    buf->samples[3] = 4.0f;
+    /* Frame 2: L=5, R=6 */
+    buf->samples[4] = 5.0f;
+    buf->samples[5] = 6.0f;
+
+    cdp_buffer* rev = cdp_reverse(ctx, buf);
+    ASSERT_NOT_NULL(rev, "Reverse should succeed");
+
+    /* Frame 0 should now be old Frame 2 */
+    ASSERT_FLOAT_EQ(rev->samples[0], 5.0f, 1e-6f, "Frame 0 L");
+    ASSERT_FLOAT_EQ(rev->samples[1], 6.0f, 1e-6f, "Frame 0 R");
+    /* Frame 2 should now be old Frame 0 */
+    ASSERT_FLOAT_EQ(rev->samples[4], 1.0f, 1e-6f, "Frame 2 L");
+    ASSERT_FLOAT_EQ(rev->samples[5], 2.0f, 1e-6f, "Frame 2 R");
+
+    cdp_buffer_destroy(buf);
+    cdp_buffer_destroy(rev);
+    cdp_context_destroy(ctx);
+    return 1;
+}
+
+static int test_fade_in_linear(void)
+{
+    cdp_context* ctx = cdp_context_create();
+
+    /* 1 second at 100 Hz for easy testing */
+    cdp_buffer* buf = cdp_buffer_create(100, 1, 100);
+    for (size_t i = 0; i < 100; i++) {
+        buf->samples[i] = 1.0f;
+    }
+
+    /* Fade in over 0.5 seconds (50 samples) */
+    cdp_error err = cdp_fade_in(ctx, buf, 0.5, 0);
+    ASSERT_EQ(err, CDP_OK, "Fade in should succeed");
+
+    /* First sample should be ~0 */
+    ASSERT_FLOAT_EQ(buf->samples[0], 0.0f, 0.02f, "Start should be ~0");
+    /* Middle of fade (sample 25) should be ~0.5 */
+    ASSERT_FLOAT_EQ(buf->samples[25], 0.5f, 0.02f, "Mid-fade should be ~0.5");
+    /* After fade (sample 75) should be 1.0 */
+    ASSERT_FLOAT_EQ(buf->samples[75], 1.0f, 1e-6f, "After fade should be 1.0");
+
+    cdp_buffer_destroy(buf);
+    cdp_context_destroy(ctx);
+    return 1;
+}
+
+static int test_fade_out_linear(void)
+{
+    cdp_context* ctx = cdp_context_create();
+
+    cdp_buffer* buf = cdp_buffer_create(100, 1, 100);
+    for (size_t i = 0; i < 100; i++) {
+        buf->samples[i] = 1.0f;
+    }
+
+    /* Fade out over 0.5 seconds (50 samples) */
+    cdp_error err = cdp_fade_out(ctx, buf, 0.5, 0);
+    ASSERT_EQ(err, CDP_OK, "Fade out should succeed");
+
+    /* Before fade (sample 25) should be 1.0 */
+    ASSERT_FLOAT_EQ(buf->samples[25], 1.0f, 1e-6f, "Before fade should be 1.0");
+    /* Middle of fade (sample 75) should be ~0.5 */
+    ASSERT_FLOAT_EQ(buf->samples[75], 0.5f, 0.02f, "Mid-fade should be ~0.5");
+    /* Last sample should be ~0 */
+    ASSERT_FLOAT_EQ(buf->samples[99], 0.0f, 0.02f, "End should be ~0");
+
+    cdp_buffer_destroy(buf);
+    cdp_context_destroy(ctx);
+    return 1;
+}
+
+static int test_concat(void)
+{
+    cdp_context* ctx = cdp_context_create();
+
+    cdp_buffer* a = cdp_buffer_create(50, 1, 44100);
+    cdp_buffer* b = cdp_buffer_create(30, 1, 44100);
+    cdp_buffer* c = cdp_buffer_create(20, 1, 44100);
+
+    for (size_t i = 0; i < 50; i++) a->samples[i] = 1.0f;
+    for (size_t i = 0; i < 30; i++) b->samples[i] = 2.0f;
+    for (size_t i = 0; i < 20; i++) c->samples[i] = 3.0f;
+
+    cdp_buffer* bufs[3] = {a, b, c};
+    cdp_buffer* result = cdp_concat(ctx, bufs, 3);
+
+    ASSERT_NOT_NULL(result, "Concat should succeed");
+    ASSERT_EQ(result->sample_count, 100, "Total length should be 100");
+
+    ASSERT_FLOAT_EQ(result->samples[25], 1.0f, 1e-6f, "First section");
+    ASSERT_FLOAT_EQ(result->samples[60], 2.0f, 1e-6f, "Second section");
+    ASSERT_FLOAT_EQ(result->samples[90], 3.0f, 1e-6f, "Third section");
+
+    cdp_buffer_destroy(a);
+    cdp_buffer_destroy(b);
+    cdp_buffer_destroy(c);
+    cdp_buffer_destroy(result);
+    cdp_context_destroy(ctx);
+    return 1;
+}
+
+/*============================================================================
  * Spatial/Pan Tests
  *============================================================================*/
 
@@ -1231,6 +1372,13 @@ int main(void)
     RUN_TEST(test_write_read_wav_pcm16);
     RUN_TEST(test_write_read_wav_pcm24);
     RUN_TEST(test_read_nonexistent_file);
+
+    /* Buffer utility tests */
+    RUN_TEST(test_reverse);
+    RUN_TEST(test_reverse_stereo);
+    RUN_TEST(test_fade_in_linear);
+    RUN_TEST(test_fade_out_linear);
+    RUN_TEST(test_concat);
 
     /* Spatial/pan tests */
     RUN_TEST(test_pan_center);
