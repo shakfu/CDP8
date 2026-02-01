@@ -45,7 +45,12 @@ set(CDP_LIB_SOURCES
     ${LIBCDP_DIR}/cdp_lib/cdp_reverb.c
     ${LIBCDP_DIR}/cdp_lib/cdp_granular.c
     ${LIBCDP_DIR}/cdp_lib/cdp_analysis.c
-    ${LIBCDP_DIR}/src/cdp_shim.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_filters.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_transform.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_effects.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_dynamics.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_morph.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_shim.c
 )
 
 # CDP dev sources needed (FFT)

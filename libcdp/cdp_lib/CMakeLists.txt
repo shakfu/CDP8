@@ -39,7 +39,7 @@ set(SFSYS_SRCS
 
 # Our shim and wrapper layer
 set(SHIM_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cdp_shim.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_shim.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_io_redirect.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_lib.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_spectral.c
