@@ -200,19 +200,7 @@ cdp_lib_buffer* cdp_lib_distort_fractal(cdp_lib_ctx* ctx,
 
     cdp_lib_buffer_free(mono);
 
-    /* Normalize to prevent clipping */
-    float peak = 0;
-    for (size_t i = 0; i < num_samples; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 1.0f / peak;
-        for (size_t i = 0; i < num_samples; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 1.0f);
     return output;
 }
 

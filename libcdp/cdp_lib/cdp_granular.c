@@ -25,7 +25,8 @@ cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
                                   double grainsize_ms,
                                   double scatter,
                                   double pitch_shift,
-                                  double amp_variation) {
+                                  double amp_variation,
+                                  unsigned int seed) {
     if (ctx == NULL || input == NULL) {
         return NULL;
     }
@@ -40,6 +41,9 @@ cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
     if (amp_variation > 1) amp_variation = 1;
 
     int sample_rate = input->sample_rate;
+
+    /* Initialize PRNG */
+    cdp_lib_seed(ctx, seed);
 
     /* Convert to mono if needed */
     cdp_lib_buffer* mono = cdp_lib_to_mono(ctx, input);
@@ -83,9 +87,6 @@ cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
         return NULL;
     }
 
-    /* Initialize random seed */
-    srand((unsigned int)time(NULL));
-
     /* Process grains */
     double src_pos = 0;  /* Position in source */
     size_t dst_pos = 0;  /* Position in destination */
@@ -100,7 +101,7 @@ cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
         double scattered_pos = src_pos;
         if (scatter > 0) {
             double scatter_range = grain_size * scatter * 2;
-            scattered_pos += (((double)rand() / RAND_MAX) - 0.5) * scatter_range;
+            scattered_pos += (cdp_lib_random(ctx) - 0.5) * scatter_range;
             if (scattered_pos < 0) scattered_pos = 0;
             if (scattered_pos > input_samples - grain_size)
                 scattered_pos = input_samples - grain_size;
@@ -127,7 +128,7 @@ cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
         /* Apply amplitude variation */
         double amp = 1.0;
         if (amp_variation > 0) {
-            amp = 1.0 - amp_variation * ((double)rand() / RAND_MAX);
+            amp = 1.0 - amp_variation * cdp_lib_random(ctx);
         }
 
         /* Overlap-add grain to output */
@@ -143,19 +144,7 @@ cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
     free(grain);
     cdp_lib_buffer_free(mono);
 
-    /* Normalize if needed */
-    float peak = 0;
-    for (size_t i = 0; i < output_samples; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 1.0f / peak;
-        for (size_t i = 0; i < output_samples; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 1.0f);
     return output;
 }
 
@@ -168,7 +157,8 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
                                 double randomize,
                                 double pitch_scatter,
                                 double amp_cut,
-                                double gain) {
+                                double gain,
+                                unsigned int seed) {
     if (ctx == NULL || input == NULL) {
         return NULL;
     }
@@ -193,6 +183,9 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
     if (amp_cut < 0) amp_cut = 0;
     if (amp_cut > 1) amp_cut = 1;
     if (gain <= 0) gain = 1.0;
+
+    /* Initialize PRNG */
+    cdp_lib_seed(ctx, seed);
 
     /* Convert to mono if needed */
     cdp_lib_buffer* mono = cdp_lib_to_mono(ctx, input);
@@ -238,9 +231,6 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
         return NULL;
     }
 
-    /* Initialize random seed */
-    srand((unsigned int)time(NULL));
-
     /* Process iterations */
     size_t write_pos = 0;
     size_t base_delay_samples = (size_t)(delay * sample_rate);
@@ -249,7 +239,7 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
         /* Calculate pitch ratio for this iteration */
         double pitch_ratio = 1.0;
         if (pitch_scatter > 0) {
-            double pitch_semitones = (((double)rand() / RAND_MAX) - 0.5) * 2 * pitch_scatter;
+            double pitch_semitones = (cdp_lib_random(ctx) - 0.5) * 2 * pitch_scatter;
             pitch_ratio = pow(2.0, pitch_semitones / 12.0);
         }
 
@@ -274,7 +264,7 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
         /* Calculate amplitude for this iteration */
         double iter_amp = gain;
         if (amp_cut > 0) {
-            iter_amp *= 1.0 - amp_cut * ((double)rand() / RAND_MAX);
+            iter_amp *= 1.0 - amp_cut * cdp_lib_random(ctx);
         }
 
         /* Apply fade envelope */
@@ -297,7 +287,7 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
         /* Calculate next delay */
         size_t iter_delay = base_delay_samples;
         if (randomize > 0) {
-            double rand_factor = 1.0 + (((double)rand() / RAND_MAX) - 0.5) * 2 * randomize;
+            double rand_factor = 1.0 + (cdp_lib_random(ctx) - 0.5) * 2 * randomize;
             iter_delay = (size_t)(iter_delay * rand_factor);
         }
         if (iter_delay < 1) iter_delay = 1;
@@ -308,19 +298,7 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
     free(seg_buf);
     cdp_lib_buffer_free(mono);
 
-    /* Normalize if needed */
-    float peak = 0;
-    for (size_t i = 0; i < output_samples; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 1.0f / peak;
-        for (size_t i = 0; i < output_samples; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 1.0f);
     return output;
 }
 
@@ -433,13 +411,12 @@ cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
 
     int sample_rate = input->sample_rate;
 
+    /* Initialize PRNG */
+    cdp_lib_seed(ctx, seed);
+
     /* Convert to mono if needed */
     cdp_lib_buffer* mono = cdp_lib_to_mono(ctx, input);
     if (mono == NULL) return NULL;
-
-    /* Initialize random seed */
-    if (seed == 0) seed = (unsigned int)time(NULL);
-    srand(seed);
 
     /* Find grains in source */
     size_t* grain_starts = NULL;
@@ -476,7 +453,7 @@ cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
 
     while (write_pos < output_samples) {
         /* Select a random grain */
-        size_t grain_idx = (size_t)(rand() % grain_count);
+        size_t grain_idx = (size_t)(cdp_lib_random_u64(ctx) % grain_count);
         size_t src_start = grain_starts[grain_idx];
         size_t grain_len = grain_lengths[grain_idx];
 
@@ -484,7 +461,7 @@ cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
         size_t actual_pos = write_pos;
         if (scatter > 0) {
             double scatter_range = hop_samples * scatter;
-            int scatter_offset = (int)(((double)rand() / RAND_MAX - 0.5) * 2 * scatter_range);
+            int scatter_offset = (int)((cdp_lib_random(ctx) - 0.5) * 2 * scatter_range);
             if ((int)write_pos + scatter_offset >= 0) {
                 actual_pos = write_pos + scatter_offset;
             }
@@ -507,19 +484,7 @@ cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
     free(grain_lengths);
     cdp_lib_buffer_free(mono);
 
-    /* Normalize if needed */
-    float peak = 0;
-    for (size_t i = 0; i < output_samples; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 0.95f / peak;
-        for (size_t i = 0; i < output_samples; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 0.95f);
     return output;
 }
 
@@ -529,7 +494,8 @@ cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
                                       double trough,
                                       double extension,
                                       double start_time,
-                                      double end_time) {
+                                      double end_time,
+                                      unsigned int seed) {
     if (ctx == NULL || input == NULL) {
         return NULL;
     }
@@ -546,6 +512,9 @@ cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
     if (start_time < 0) start_time = 0;
     if (end_time <= start_time) end_time = input_duration;
     if (end_time > input_duration) end_time = input_duration;
+
+    /* Initialize PRNG */
+    cdp_lib_seed(ctx, seed);
 
     /* Convert to mono if needed */
     cdp_lib_buffer* mono = cdp_lib_to_mono(ctx, input);
@@ -638,8 +607,6 @@ cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
     }
 
     /* Generate extended grains */
-    srand((unsigned int)time(NULL));
-
     size_t write_pos = seg_start;
     size_t extension_samples = (size_t)(extension * sample_rate);
     size_t target_end = seg_start + seg_len + extension_samples;
@@ -667,7 +634,7 @@ cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
         /* Shuffle permutation when we've used all grains */
         if (perm_idx >= grain_count) {
             for (size_t i = grain_count - 1; i > 0; i--) {
-                size_t j = rand() % (i + 1);
+                size_t j = cdp_lib_random_u64(ctx) % (i + 1);
                 size_t tmp = perm[i];
                 perm[i] = perm[j];
                 perm[j] = tmp;
@@ -721,19 +688,7 @@ cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
     free(grain_indices);
     cdp_lib_buffer_free(mono);
 
-    /* Normalize if needed */
-    float peak = 0;
-    for (size_t i = 0; i < output_samples; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 0.95f / peak;
-        for (size_t i = 0; i < output_samples; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 0.95f);
     return output;
 }
 
@@ -761,15 +716,14 @@ cdp_lib_buffer* cdp_lib_texture_simple(cdp_lib_ctx* ctx,
 
     int sample_rate = input->sample_rate;
 
+    /* Initialize PRNG */
+    cdp_lib_seed(ctx, seed);
+
     /* Convert to mono source if needed */
     cdp_lib_buffer* mono = cdp_lib_to_mono(ctx, input);
     if (mono == NULL) return NULL;
 
     size_t input_samples = mono->length;
-
-    /* Initialize random seed */
-    if (seed == 0) seed = (unsigned int)time(NULL);
-    srand(seed);
 
     /* Calculate output size (stereo) */
     size_t output_samples = (size_t)(duration * sample_rate);
@@ -793,20 +747,20 @@ cdp_lib_buffer* cdp_lib_texture_simple(cdp_lib_ctx* ctx,
     /* Generate texture events */
     for (size_t ev = 0; ev < event_count; ev++) {
         /* Random event time */
-        double event_time = ((double)rand() / RAND_MAX) * duration;
+        double event_time = cdp_lib_random(ctx) * duration;
         size_t event_pos = (size_t)(event_time * sample_rate);
 
         /* Random pitch (transposition) */
-        double pitch_semitones = (((double)rand() / RAND_MAX) - 0.5) * 2 * pitch_range;
+        double pitch_semitones = (cdp_lib_random(ctx) - 0.5) * 2 * pitch_range;
         double pitch_ratio = pow(2.0, pitch_semitones / 12.0);
 
         /* Random amplitude */
-        double amp = 1.0 - amp_range * ((double)rand() / RAND_MAX);
+        double amp = 1.0 - amp_range * cdp_lib_random(ctx);
 
         /* Random stereo position */
         double pan = 0.5;
         if (spatial_range > 0) {
-            pan = 0.5 + (((double)rand() / RAND_MAX) - 0.5) * spatial_range;
+            pan = 0.5 + (cdp_lib_random(ctx) - 0.5) * spatial_range;
         }
         double left_gain = cos(pan * M_PI / 2);
         double right_gain = sin(pan * M_PI / 2);
@@ -848,19 +802,7 @@ cdp_lib_buffer* cdp_lib_texture_simple(cdp_lib_ctx* ctx,
 
     cdp_lib_buffer_free(mono);
 
-    /* Normalize if needed */
-    float peak = 0;
-    for (size_t i = 0; i < output->length; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 0.95f / peak;
-        for (size_t i = 0; i < output->length; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 0.95f);
     return output;
 }
 
@@ -897,9 +839,8 @@ cdp_lib_buffer* cdp_lib_texture_multi(cdp_lib_ctx* ctx,
 
     size_t input_samples = mono->length;
 
-    /* Initialize random seed */
-    if (seed == 0) seed = (unsigned int)time(NULL);
-    srand(seed);
+    /* Initialize PRNG */
+    cdp_lib_seed(ctx, seed);
 
     /* Calculate output size (stereo) */
     size_t output_samples = (size_t)(duration * sample_rate);
@@ -923,23 +864,23 @@ cdp_lib_buffer* cdp_lib_texture_multi(cdp_lib_ctx* ctx,
     /* Generate texture groups */
     for (size_t g = 0; g < group_count; g++) {
         /* Random group time */
-        double group_time = ((double)rand() / RAND_MAX) * duration;
+        double group_time = cdp_lib_random(ctx) * duration;
 
         /* Random group pitch center */
-        double group_pitch = pitch_center + (((double)rand() / RAND_MAX) - 0.5) * pitch_range;
+        double group_pitch = pitch_center + (cdp_lib_random(ctx) - 0.5) * pitch_range;
 
         /* Random stereo position for group */
-        double group_pan = 0.5 + (((double)rand() / RAND_MAX) - 0.5) * 0.8;
+        double group_pan = 0.5 + (cdp_lib_random(ctx) - 0.5) * 0.8;
 
         /* Actual notes in this group (vary slightly) */
-        int notes_in_group = group_size + (rand() % 3) - 1;
+        int notes_in_group = group_size + (int)(cdp_lib_random_u64(ctx) % 3) - 1;
         if (notes_in_group < 1) notes_in_group = 1;
 
         /* Generate notes in group */
         for (int n = 0; n < notes_in_group; n++) {
             /* Note time within group */
             double note_offset = ((double)n / notes_in_group) * group_spread;
-            note_offset += (((double)rand() / RAND_MAX) - 0.5) * group_spread * 0.3;
+            note_offset += (cdp_lib_random(ctx) - 0.5) * group_spread * 0.3;
             double note_time = group_time + note_offset;
 
             if (note_time < 0) note_time = 0;
@@ -948,15 +889,15 @@ cdp_lib_buffer* cdp_lib_texture_multi(cdp_lib_ctx* ctx,
             size_t note_pos = (size_t)(note_time * sample_rate);
 
             /* Note pitch (spread around group center) */
-            double note_pitch = group_pitch + (((double)rand() / RAND_MAX) - 0.5) * 4;
+            double note_pitch = group_pitch + (cdp_lib_random(ctx) - 0.5) * 4;
             double pitch_ratio = pow(2.0, note_pitch / 12.0);
 
             /* Note amplitude (decay through group) */
             double amp = 1.0 - amp_decay * ((double)n / notes_in_group);
-            amp *= 0.5 + 0.5 * ((double)rand() / RAND_MAX);  /* Add variation */
+            amp *= 0.5 + 0.5 * cdp_lib_random(ctx);  /* Add variation */
 
             /* Note pan (spread around group pan) */
-            double note_pan = group_pan + (((double)rand() / RAND_MAX) - 0.5) * 0.3;
+            double note_pan = group_pan + (cdp_lib_random(ctx) - 0.5) * 0.3;
             if (note_pan < 0) note_pan = 0;
             if (note_pan > 1) note_pan = 1;
             double left_gain = cos(note_pan * M_PI / 2);
@@ -1000,18 +941,6 @@ cdp_lib_buffer* cdp_lib_texture_multi(cdp_lib_ctx* ctx,
 
     cdp_lib_buffer_free(mono);
 
-    /* Normalize if needed */
-    float peak = 0;
-    for (size_t i = 0; i < output->length; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 0.95f / peak;
-        for (size_t i = 0; i < output->length; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 0.95f);
     return output;
 }

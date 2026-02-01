@@ -114,35 +114,8 @@ cdp_lib_buffer* cdp_lib_time_stretch(cdp_lib_ctx* ctx,
     cdp_spectral_data *stretched = cdp_spectral_time_stretch(spectral, factor);
     cdp_spectral_data_free(spectral);
 
-    if (stretched == NULL) {
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Time stretch failed");
-        return NULL;
-    }
-
-    /* 3. Synthesize back to audio */
-    size_t out_samples;
-    float *audio = cdp_spectral_synthesize(stretched, &out_samples);
-    cdp_spectral_data_free(stretched);
-
-    if (audio == NULL) {
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Spectral synthesis failed");
-        return NULL;
-    }
-
-    /* 4. Create output buffer */
-    cdp_lib_buffer *output = cdp_lib_buffer_from_data(
-        audio, out_samples, 1, input->sample_rate);
-
-    if (output == NULL) {
-        free(audio);
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Failed to create output buffer");
-        return NULL;
-    }
-
-    return output;
+    /* 3. Synthesize and create output buffer */
+    return cdp_lib_spectral_to_buffer(ctx, stretched, input->sample_rate);
 }
 
 cdp_lib_buffer* cdp_lib_spectral_blur(cdp_lib_ctx* ctx,
@@ -175,35 +148,8 @@ cdp_lib_buffer* cdp_lib_spectral_blur(cdp_lib_ctx* ctx,
     cdp_spectral_data *blurred = cdp_spectral_blur(spectral, blur_windows);
     cdp_spectral_data_free(spectral);
 
-    if (blurred == NULL) {
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Spectral blur failed");
-        return NULL;
-    }
-
-    /* 3. Synthesize back to audio */
-    size_t out_samples;
-    float *audio = cdp_spectral_synthesize(blurred, &out_samples);
-    cdp_spectral_data_free(blurred);
-
-    if (audio == NULL) {
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Spectral synthesis failed");
-        return NULL;
-    }
-
-    /* 4. Create output buffer */
-    cdp_lib_buffer *output = cdp_lib_buffer_from_data(
-        audio, out_samples, 1, input->sample_rate);
-
-    if (output == NULL) {
-        free(audio);
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Failed to create output buffer");
-        return NULL;
-    }
-
-    return output;
+    /* 3. Synthesize and create output buffer */
+    return cdp_lib_spectral_to_buffer(ctx, blurred, input->sample_rate);
 }
 
 cdp_lib_buffer* cdp_lib_pitch_shift(cdp_lib_ctx* ctx,
@@ -274,35 +220,8 @@ cdp_lib_buffer* cdp_lib_spectral_shift(cdp_lib_ctx* ctx,
     cdp_spectral_data *shifted = cdp_spectral_freq_shift(spectral, shift_hz);
     cdp_spectral_data_free(spectral);
 
-    if (shifted == NULL) {
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Spectral frequency shift failed");
-        return NULL;
-    }
-
-    /* 3. Synthesize back to audio */
-    size_t out_samples;
-    float *audio = cdp_spectral_synthesize(shifted, &out_samples);
-    cdp_spectral_data_free(shifted);
-
-    if (audio == NULL) {
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Spectral synthesis failed");
-        return NULL;
-    }
-
-    /* 4. Create output buffer */
-    cdp_lib_buffer *output = cdp_lib_buffer_from_data(
-        audio, out_samples, 1, input->sample_rate);
-
-    if (output == NULL) {
-        free(audio);
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Failed to create output buffer");
-        return NULL;
-    }
-
-    return output;
+    /* 3. Synthesize and create output buffer */
+    return cdp_lib_spectral_to_buffer(ctx, shifted, input->sample_rate);
 }
 
 cdp_lib_buffer* cdp_lib_spectral_stretch(cdp_lib_ctx* ctx,
@@ -340,33 +259,6 @@ cdp_lib_buffer* cdp_lib_spectral_stretch(cdp_lib_ctx* ctx,
         spectral, max_stretch, freq_divide, exponent);
     cdp_spectral_data_free(spectral);
 
-    if (stretched == NULL) {
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Spectral frequency stretch failed");
-        return NULL;
-    }
-
-    /* 3. Synthesize back to audio */
-    size_t out_samples;
-    float *audio = cdp_spectral_synthesize(stretched, &out_samples);
-    cdp_spectral_data_free(stretched);
-
-    if (audio == NULL) {
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Spectral synthesis failed");
-        return NULL;
-    }
-
-    /* 4. Create output buffer */
-    cdp_lib_buffer *output = cdp_lib_buffer_from_data(
-        audio, out_samples, 1, input->sample_rate);
-
-    if (output == NULL) {
-        free(audio);
-        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
-                 "Failed to create output buffer");
-        return NULL;
-    }
-
-    return output;
+    /* 3. Synthesize and create output buffer */
+    return cdp_lib_spectral_to_buffer(ctx, stretched, input->sample_rate);
 }

@@ -198,19 +198,7 @@ cdp_lib_buffer* cdp_lib_morph(cdp_lib_ctx* ctx,
         return NULL;
     }
 
-    /* Normalize */
-    float peak = 0;
-    for (size_t i = 0; i < output->length; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 0.95f / peak;
-        for (size_t i = 0; i < output->length; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 0.95f);
     return output;
 }
 
@@ -384,19 +372,7 @@ cdp_lib_buffer* cdp_lib_morph_glide(cdp_lib_ctx* ctx,
         return NULL;
     }
 
-    /* Normalize */
-    float peak = 0;
-    for (size_t i = 0; i < output->length; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 0.95f / peak;
-        for (size_t i = 0; i < output->length; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 0.95f);
     return output;
 }
 
@@ -570,18 +546,6 @@ cdp_lib_buffer* cdp_lib_cross_synth(cdp_lib_ctx* ctx,
         return NULL;
     }
 
-    /* Normalize */
-    float peak = 0;
-    for (size_t i = 0; i < output->length; i++) {
-        float abs_val = fabsf(output->data[i]);
-        if (abs_val > peak) peak = abs_val;
-    }
-    if (peak > 1.0f) {
-        float norm = 0.95f / peak;
-        for (size_t i = 0; i < output->length; i++) {
-            output->data[i] *= norm;
-        }
-    }
-
+    cdp_lib_normalize_if_clipping(output, 0.95f);
     return output;
 }

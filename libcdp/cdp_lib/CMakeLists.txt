@@ -43,10 +43,16 @@ set(SHIM_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_io_redirect.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_lib.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_spectral.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_transform.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_filters.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_envelope.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_distort.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_reverb.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_granular.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_morph.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_analysis.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_effects.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_dynamics.c
 )
 
 # =============================================================================

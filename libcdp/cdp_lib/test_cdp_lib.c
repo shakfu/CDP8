@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
 
     /* Test 11: Brassage */
     printf("Test 11: Brassage... ");
-    cdp_lib_buffer* brassaged = cdp_lib_brassage(ctx, input, 1.0, 1.0, 50.0, 0, 0, 0);
+    cdp_lib_buffer* brassaged = cdp_lib_brassage(ctx, input, 1.0, 1.0, 50.0, 0, 0, 0, 12345);
     if (brassaged == NULL) {
         printf("FAILED: %s\n", cdp_lib_get_error(ctx));
     } else {
@@ -185,7 +185,7 @@ int main(int argc, char *argv[]) {
 
     /* Test 12: Freeze */
     printf("Test 12: Freeze (0.1-0.2s, 1s output)... ");
-    cdp_lib_buffer* frozen = cdp_lib_freeze(ctx, input, 0.1, 0.2, 1.0, 0.05, 0.2, 0, 0.1, 1.0);
+    cdp_lib_buffer* frozen = cdp_lib_freeze(ctx, input, 0.1, 0.2, 1.0, 0.05, 0.2, 0, 0.1, 1.0, 12345);
     if (frozen == NULL) {
         printf("FAILED: %s\n", cdp_lib_get_error(ctx));
     } else {

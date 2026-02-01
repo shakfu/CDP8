@@ -30,6 +30,7 @@ extern "C" {
  *   scatter: Time scatter of grains (0.0 to 1.0, 0 = no scatter)
  *   pitch_shift: Pitch shift per grain in semitones (-12 to +12)
  *   amp_variation: Random amplitude variation (0.0 to 1.0)
+ *   seed: Random seed (0 = use time)
  *
  * Returns: New buffer with brassage applied, or NULL on error.
  */
@@ -40,7 +41,8 @@ cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
                                   double grainsize_ms,
                                   double scatter,
                                   double pitch_shift,
-                                  double amp_variation);
+                                  double amp_variation,
+                                  unsigned int seed);
 
 /*
  * Freeze a segment of audio by repeated iteration.
@@ -58,6 +60,7 @@ cdp_lib_buffer* cdp_lib_brassage(cdp_lib_ctx* ctx,
  *   pitch_scatter: Max random pitch shift in semitones (0 to 12)
  *   amp_cut: Max random amplitude reduction (0.0 to 1.0)
  *   gain: Gain adjustment for frozen segment
+ *   seed: Random seed (0 = use time)
  *
  * Returns: New buffer with frozen audio, or NULL on error.
  */
@@ -70,7 +73,8 @@ cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
                                 double randomize,
                                 double pitch_scatter,
                                 double amp_cut,
-                                double gain);
+                                double gain,
+                                unsigned int seed);
 
 /*
  * Generate grain cloud from source audio (CDP: grain)
@@ -113,6 +117,7 @@ cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
  *   extension: How much duration to add (seconds)
  *   start_time: Start of grain material in source (seconds)
  *   end_time: End of grain material in source (seconds)
+ *   seed: Random seed (0 = use time)
  *
  * Returns: New buffer with extended audio, or NULL on error.
  */
@@ -122,7 +127,8 @@ cdp_lib_buffer* cdp_lib_grain_extend(cdp_lib_ctx* ctx,
                                       double trough,
                                       double extension,
                                       double start_time,
-                                      double end_time);
+                                      double end_time,
+                                      unsigned int seed);
 
 /*
  * Generate simple texture (CDP: texture SIMPLE_TEX)

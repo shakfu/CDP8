@@ -1406,7 +1406,8 @@ cdef extern from "cdp_granular.h":
                                       double grainsize_ms,
                                       double scatter,
                                       double pitch_shift,
-                                      double amp_variation)
+                                      double amp_variation,
+                                      unsigned int seed)
 
     cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
                                     const cdp_lib_buffer* input,
@@ -1417,7 +1418,8 @@ cdef extern from "cdp_granular.h":
                                     double randomize,
                                     double pitch_scatter,
                                     double amp_cut,
-                                    double gain)
+                                    double gain,
+                                    unsigned int seed)
 
     cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
                                          const cdp_lib_buffer* input,
@@ -1434,7 +1436,8 @@ cdef extern from "cdp_granular.h":
                                           double trough,
                                           double extension,
                                           double start_time,
-                                          double end_time)
+                                          double end_time,
+                                          unsigned int seed)
 
     cdp_lib_buffer* cdp_lib_texture_simple(cdp_lib_ctx* ctx,
                                             const cdp_lib_buffer* input,
@@ -2617,7 +2620,8 @@ def reverb(Buffer buf not None, double mix=0.5, double decay_time=2.0,
 
 def brassage(Buffer buf not None, double velocity=1.0, double density=1.0,
                     double grainsize_ms=50.0, double scatter=0.0,
-                    double pitch_shift=0.0, double amp_variation=0.0):
+                    double pitch_shift=0.0, double amp_variation=0.0,
+                    unsigned int seed=0):
     """Apply granular brassage (native implementation).
 
     Breaks sound into grains and reassembles with optional modifications.
@@ -2630,6 +2634,7 @@ def brassage(Buffer buf not None, double velocity=1.0, double density=1.0,
         scatter: Time scatter of grains (0.0 to 1.0). Default 0.
         pitch_shift: Pitch shift per grain in semitones. Default 0.
         amp_variation: Random amplitude variation (0.0 to 1.0). Default 0.
+        seed: Random seed (0 = use time). Default 0.
 
     Returns:
         New Buffer with brassage applied.
@@ -2642,7 +2647,7 @@ def brassage(Buffer buf not None, double velocity=1.0, double density=1.0,
 
     cdef cdp_lib_buffer* output_buf = cdp_lib_brassage(
         ctx, input_buf, velocity, density, grainsize_ms,
-        scatter, pitch_shift, amp_variation)
+        scatter, pitch_shift, amp_variation, seed)
 
     cdp_lib_buffer_free(input_buf)
 
@@ -2658,7 +2663,8 @@ def brassage(Buffer buf not None, double velocity=1.0, double density=1.0,
 
 def freeze(Buffer buf not None, double start_time, double end_time,
                   double duration, double delay=0.05, double randomize=0.2,
-                  double pitch_scatter=0.0, double amp_cut=0.1, double gain=1.0):
+                  double pitch_scatter=0.0, double amp_cut=0.1, double gain=1.0,
+                  unsigned int seed=0):
     """Freeze a segment of audio by repeated iteration (native implementation).
 
     Creates a sustained texture by repeating a frozen segment with variations.
@@ -2673,6 +2679,7 @@ def freeze(Buffer buf not None, double start_time, double end_time,
         pitch_scatter: Max random pitch shift in semitones (0 to 12). Default 0.
         amp_cut: Max random amplitude reduction (0.0 to 1.0). Default 0.1.
         gain: Gain adjustment for frozen segment. Default 1.0.
+        seed: Random seed (0 = use time). Default 0.
 
     Returns:
         New Buffer with frozen audio.
@@ -2690,7 +2697,7 @@ def freeze(Buffer buf not None, double start_time, double end_time,
 
     cdef cdp_lib_buffer* output_buf = cdp_lib_freeze(
         ctx, input_buf, start_time, end_time, duration,
-        delay, randomize, pitch_scatter, amp_cut, gain)
+        delay, randomize, pitch_scatter, amp_cut, gain, seed)
 
     cdp_lib_buffer_free(input_buf)
 
@@ -2746,7 +2753,8 @@ def grain_cloud(Buffer buf not None, double gate=0.1, double grainsize_ms=50.0,
 
 
 def grain_extend(Buffer buf not None, double grainsize_ms=15.0, double trough=0.3,
-                 double extension=1.0, double start_time=0.0, double end_time=0.0):
+                 double extension=1.0, double start_time=0.0, double end_time=0.0,
+                 unsigned int seed=0):
     """Extend audio duration using grain repetition (CDP: grainex extend).
 
     Finds grains in source and extends duration by repeating grains
@@ -2759,6 +2767,7 @@ def grain_extend(Buffer buf not None, double grainsize_ms=15.0, double trough=0.
         extension: How much duration to add (seconds). Default 1.0.
         start_time: Start of grain material in source (seconds). Default 0.0.
         end_time: End of grain material in source (seconds, 0 = end). Default 0.0.
+        seed: Random seed (0 = use time). Default 0.
 
     Returns:
         New Buffer with extended audio.
@@ -2770,7 +2779,7 @@ def grain_extend(Buffer buf not None, double grainsize_ms=15.0, double trough=0.
     cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
 
     cdef cdp_lib_buffer* output_buf = cdp_lib_grain_extend(
-        ctx, input_buf, grainsize_ms, trough, extension, start_time, end_time)
+        ctx, input_buf, grainsize_ms, trough, extension, start_time, end_time, seed)
 
     cdp_lib_buffer_free(input_buf)
 

@@ -300,7 +300,8 @@ cdef extern from "cdp_granular.h":
                                       double grainsize_ms,
                                       double scatter,
                                       double pitch_shift,
-                                      double amp_variation)
+                                      double amp_variation,
+                                      unsigned int seed)
 
     cdp_lib_buffer* cdp_lib_freeze(cdp_lib_ctx* ctx,
                                     const cdp_lib_buffer* input,
@@ -311,7 +312,8 @@ cdef extern from "cdp_granular.h":
                                     double randomize,
                                     double pitch_scatter,
                                     double amp_cut,
-                                    double gain)
+                                    double gain,
+                                    unsigned int seed)
 
     cdp_lib_buffer* cdp_lib_grain_cloud(cdp_lib_ctx* ctx,
                                          const cdp_lib_buffer* input,
@@ -328,7 +330,8 @@ cdef extern from "cdp_granular.h":
                                           double trough,
                                           double extension,
                                           double start_time,
-                                          double end_time)
+                                          double end_time,
+                                          unsigned int seed)
 
     cdp_lib_buffer* cdp_lib_texture_simple(cdp_lib_ctx* ctx,
                                             const cdp_lib_buffer* input,

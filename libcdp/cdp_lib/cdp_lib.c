@@ -17,6 +17,7 @@ cdp_lib_ctx* cdp_lib_init(void) {
     }
 
     ctx->initialized = 1;
+    cdp_lib_seed(ctx, 0);  /* Initialize PRNG with time-based seed */
     return ctx;
 }
 
