@@ -178,6 +178,69 @@ cdef extern from "cdp_lib.h":
                                          double mix,
                                          int fft_size)
 
+    # Analysis data structures
+    ctypedef struct cdp_pitch_data:
+        float *pitch
+        float *confidence
+        int num_frames
+        float frame_time
+        float sample_rate
+
+    ctypedef struct cdp_formant_data:
+        float *f1
+        float *f2
+        float *f3
+        float *f4
+        float *b1
+        float *b2
+        float *b3
+        float *b4
+        int num_frames
+        float frame_time
+        float sample_rate
+
+    ctypedef struct cdp_partial_track:
+        float *freq
+        float *amp
+        int start_frame
+        int end_frame
+        int num_frames
+
+    ctypedef struct cdp_partial_data:
+        cdp_partial_track *tracks
+        int num_tracks
+        int total_frames
+        float frame_time
+        float sample_rate
+        int fft_size
+
+    # Analysis memory management
+    void cdp_pitch_data_free(cdp_pitch_data* data)
+    void cdp_formant_data_free(cdp_formant_data* data)
+    void cdp_partial_data_free(cdp_partial_data* data)
+
+    # Analysis functions (high-level API)
+    cdp_pitch_data* cdp_lib_pitch(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double min_freq,
+                                   double max_freq,
+                                   int frame_size,
+                                   int hop_size)
+
+    cdp_formant_data* cdp_lib_formants(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        int lpc_order,
+                                        int frame_size,
+                                        int hop_size)
+
+    cdp_partial_data* cdp_lib_get_partials(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double min_amp_db,
+                                            int max_partials,
+                                            double freq_tolerance,
+                                            int fft_size,
+                                            int hop_size)
+
 cdef extern from "cdp_envelope.h":
     int CDP_FADE_LINEAR
     int CDP_FADE_EXPONENTIAL
@@ -286,3 +349,4 @@ cdef extern from "cdp_granular.h":
                                            double pitch_center,
                                            double amp_decay,
                                            unsigned int seed)
+

@@ -1284,6 +1284,69 @@ cdef extern from "cdp_lib.h":
                                          double mix,
                                          int fft_size)
 
+    # Analysis data structures
+    ctypedef struct cdp_pitch_data:
+        float *pitch
+        float *confidence
+        int num_frames
+        float frame_time
+        float sample_rate
+
+    ctypedef struct cdp_formant_data:
+        float *f1
+        float *f2
+        float *f3
+        float *f4
+        float *b1
+        float *b2
+        float *b3
+        float *b4
+        int num_frames
+        float frame_time
+        float sample_rate
+
+    ctypedef struct cdp_partial_track:
+        float *freq
+        float *amp
+        int start_frame
+        int end_frame
+        int num_frames
+
+    ctypedef struct cdp_partial_data:
+        cdp_partial_track *tracks
+        int num_tracks
+        int total_frames
+        float frame_time
+        float sample_rate
+        int fft_size
+
+    # Analysis memory management
+    void cdp_pitch_data_free(cdp_pitch_data* data)
+    void cdp_formant_data_free(cdp_formant_data* data)
+    void cdp_partial_data_free(cdp_partial_data* data)
+
+    # Analysis functions (high-level API)
+    cdp_pitch_data* cdp_lib_pitch(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double min_freq,
+                                   double max_freq,
+                                   int frame_size,
+                                   int hop_size)
+
+    cdp_formant_data* cdp_lib_formants(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        int lpc_order,
+                                        int frame_size,
+                                        int hop_size)
+
+    cdp_partial_data* cdp_lib_get_partials(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double min_amp_db,
+                                            int max_partials,
+                                            double freq_tolerance,
+                                            int fft_size,
+                                            int hop_size)
+
 cdef extern from "cdp_envelope.h":
     int CDP_FADE_LINEAR
     int CDP_FADE_EXPONENTIAL
@@ -2931,3 +2994,190 @@ def cross_synth(Buffer buf1 not None, Buffer buf2 not None,
     cdp_lib_buffer_free(output_buf)
 
     return result
+
+
+# =============================================================================
+# Analysis functions
+# =============================================================================
+
+def pitch(Buffer buf not None, double min_freq=50.0, double max_freq=2000.0,
+          int frame_size=2048, int hop_size=512):
+    """Extract pitch contour from audio using YIN algorithm.
+
+    Uses autocorrelation-based pitch detection. Returns pitch in Hz for each
+    analysis frame, with 0 indicating unvoiced segments.
+
+    Args:
+        buf: Input Buffer.
+        min_freq: Minimum expected frequency in Hz. Default 50.
+        max_freq: Maximum expected frequency in Hz. Default 2000.
+        frame_size: Analysis frame size in samples. Default 2048.
+        hop_size: Hop size in samples. Default 512.
+
+    Returns:
+        Dictionary with:
+            - 'pitch': list of pitch values in Hz (0 = unvoiced)
+            - 'confidence': list of confidence values (0-1)
+            - 'num_frames': number of analysis frames
+            - 'frame_time': time between frames in seconds
+            - 'sample_rate': original sample rate
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_pitch_data* result = cdp_lib_pitch(
+        ctx, input_buf, min_freq, max_freq, frame_size, hop_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if result is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Pitch analysis failed")
+
+    # Convert to Python lists
+    cdef int i
+    pitch_list = [result.pitch[i] for i in range(result.num_frames)]
+    confidence_list = [result.confidence[i] for i in range(result.num_frames)]
+
+    output = {
+        'pitch': pitch_list,
+        'confidence': confidence_list,
+        'num_frames': result.num_frames,
+        'frame_time': result.frame_time,
+        'sample_rate': result.sample_rate
+    }
+
+    cdp_pitch_data_free(result)
+    return output
+
+
+def formants(Buffer buf not None, int lpc_order=12, int frame_size=1024, int hop_size=256):
+    """Extract formant frequencies from audio using LPC analysis.
+
+    Uses Linear Predictive Coding to estimate formant frequencies.
+    Returns up to 4 formants (F1-F4) with bandwidths for each frame.
+
+    Args:
+        buf: Input Buffer.
+        lpc_order: LPC order (higher = more formants but less stable). Default 12.
+        frame_size: Analysis frame size in samples. Default 1024.
+        hop_size: Hop size in samples. Default 256.
+
+    Returns:
+        Dictionary with:
+            - 'f1', 'f2', 'f3', 'f4': lists of formant frequencies in Hz
+            - 'b1', 'b2', 'b3', 'b4': lists of formant bandwidths in Hz
+            - 'num_frames': number of analysis frames
+            - 'frame_time': time between frames in seconds
+            - 'sample_rate': original sample rate
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_formant_data* result = cdp_lib_formants(
+        ctx, input_buf, lpc_order, frame_size, hop_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if result is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Formant analysis failed")
+
+    # Convert to Python lists
+    cdef int i
+    cdef int n = result.num_frames
+    f1_list = [result.f1[i] for i in range(n)]
+    f2_list = [result.f2[i] for i in range(n)]
+    f3_list = [result.f3[i] for i in range(n)]
+    f4_list = [result.f4[i] for i in range(n)]
+    b1_list = [result.b1[i] for i in range(n)]
+    b2_list = [result.b2[i] for i in range(n)]
+    b3_list = [result.b3[i] for i in range(n)]
+    b4_list = [result.b4[i] for i in range(n)]
+
+    output = {
+        'f1': f1_list, 'f2': f2_list, 'f3': f3_list, 'f4': f4_list,
+        'b1': b1_list, 'b2': b2_list, 'b3': b3_list, 'b4': b4_list,
+        'num_frames': result.num_frames,
+        'frame_time': result.frame_time,
+        'sample_rate': result.sample_rate
+    }
+
+    cdp_formant_data_free(result)
+    return output
+
+
+def get_partials(Buffer buf not None, double min_amp_db=-60.0, int max_partials=100,
+                 double freq_tolerance=50.0, int fft_size=2048, int hop_size=512):
+    """Extract sinusoidal partials from audio using peak tracking.
+
+    Performs spectral analysis and tracks peaks over time.
+    Each partial is a continuous frequency/amplitude trajectory.
+
+    Args:
+        buf: Input Buffer.
+        min_amp_db: Minimum amplitude in dB to consider as partial. Default -60.
+        max_partials: Maximum number of partials to track. Default 100.
+        freq_tolerance: Frequency tolerance for track continuation in Hz. Default 50.
+        fft_size: FFT size for analysis. Default 2048.
+        hop_size: Hop size in samples. Default 512.
+
+    Returns:
+        Dictionary with:
+            - 'tracks': list of partial track dictionaries, each containing:
+                - 'freq': list of frequency values
+                - 'amp': list of amplitude values
+                - 'start_frame': frame index where track starts
+                - 'end_frame': frame index where track ends
+            - 'num_tracks': number of partial tracks
+            - 'total_frames': total number of analysis frames
+            - 'frame_time': time between frames in seconds
+            - 'sample_rate': original sample rate
+            - 'fft_size': FFT size used
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_partial_data* result = cdp_lib_get_partials(
+        ctx, input_buf, min_amp_db, max_partials, freq_tolerance, fft_size, hop_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if result is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Partial tracking failed")
+
+    # Convert to Python lists
+    cdef int i, j
+    cdef cdp_partial_track* track
+    tracks_list = []
+    for i in range(result.num_tracks):
+        track = &result.tracks[i]
+        track_dict = {
+            'freq': [track.freq[j] for j in range(track.num_frames)],
+            'amp': [track.amp[j] for j in range(track.num_frames)],
+            'start_frame': track.start_frame,
+            'end_frame': track.end_frame
+        }
+        tracks_list.append(track_dict)
+
+    output = {
+        'tracks': tracks_list,
+        'num_tracks': result.num_tracks,
+        'total_frames': result.total_frames,
+        'frame_time': result.frame_time,
+        'sample_rate': result.sample_rate,
+        'fft_size': result.fft_size
+    }
+
+    cdp_partial_data_free(result)
+    return output

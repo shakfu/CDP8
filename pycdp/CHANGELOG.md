@@ -8,26 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added (CDP Algorithm Ports)
-- **Filtering:** `filter_bandpass`, `filter_notch` - spectral bandpass and notch filters
-- **Granular:** `grain_cloud` - grain cloud generation from amplitude-detected grains (CDP: grain)
-- **Granular:** `grain_extend` - extend duration using grain repetition (CDP: grainex extend)
-- **Texture:** `texture_simple` - simple texture layering (CDP: texture SIMPLE_TEX)
-- **Texture:** `texture_multi` - multi-layer grouped texture (CDP: texture GROUPS)
-- **Morphing:** `morph` - spectral interpolation between two sounds (CDP: SPECMORPH)
-- **Morphing:** `morph_glide` - simple spectral glide between two sounds (CDP: SPECGLIDE)
-- **Cross-synthesis:** `cross_synth` - combine amp from one sound with freq from another (CDP: combine)
+
+**Granular/Texture:**
+- `grain_cloud` - grain cloud generation from amplitude-detected grains (CDP: grain)
+- `grain_extend` - extend duration using grain repetition (CDP: grainex extend)
+- `texture_simple` - simple texture layering (CDP: texture SIMPLE_TEX)
+- `texture_multi` - multi-layer grouped texture (CDP: texture GROUPS)
+
+**Morphing/Cross-synthesis:**
+- `morph` - spectral interpolation between two sounds (CDP: SPECMORPH)
+- `morph_glide` - simple spectral glide between two sounds (CDP: SPECGLIDE)
+- `cross_synth` - combine amp from one sound with freq from another (CDP: combine)
+
+**Filtering:**
+- `filter_bandpass` - spectral bandpass filter
+- `filter_notch` - spectral notch (band-reject) filter
 
 ### Added (Non-CDP Additions)
+
 Standard DSP functions not derived from CDP algorithms:
-- **EQ:** `eq_parametric` - parametric equalizer with center frequency, gain, and Q factor
-- **Dynamics:** `gate` - noise gate with attack/release/hold envelope
-- **Dynamics:** `compressor` - dynamic range compression with threshold, ratio, attack/release
-- **Dynamics:** `limiter` - peak limiting with attack/release
-- **Envelope:** `envelope_follow` - extract amplitude envelope (peak or RMS mode)
-- **Envelope:** `envelope_apply` - apply envelope to sound with depth control
-- **Distortion:** `bitcrush` - bit depth and sample rate reduction
-- **Modulation:** `ring_mod` - ring modulation with carrier frequency
-- **Delay effects:** `delay`, `chorus`, `flanger` - feedback delay, modulated delays
+
+**EQ:**
+- `eq_parametric` - parametric equalizer with center frequency, gain, and Q factor
+
+**Dynamics:**
+- `gate` - noise gate with attack/release/hold envelope
+- `compressor` - dynamic range compression with threshold, ratio, attack/release
+- `limiter` - peak limiting with attack/release
+- `envelope_follow` - extract amplitude envelope (peak or RMS mode)
+- `envelope_apply` - apply envelope to sound with depth control
+
+**Effects:**
+- `bitcrush` - bit depth and sample rate reduction
+- `ring_mod` - ring modulation with carrier frequency
+- `delay` - feedback delay with mix control
+- `chorus` - modulated delay (LFO-based)
+- `flanger` - short modulated delay with feedback
 
 ### Fixed
 - Phase vocoder frequency calculation now uses correct hop size

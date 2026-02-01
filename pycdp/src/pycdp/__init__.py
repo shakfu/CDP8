@@ -107,6 +107,10 @@ from pycdp._core import (
     morph,
     morph_glide,
     cross_synth,
+    # Analysis
+    pitch,
+    formants,
+    get_partials,
 )
 
 __all__ = [
@@ -206,6 +210,10 @@ __all__ = [
     "morph",
     "morph_glide",
     "cross_synth",
+    # Analysis
+    "pitch",
+    "formants",
+    "get_partials",
 ]
 
 __version__ = version()

@@ -570,6 +570,135 @@ cdp_lib_buffer* cdp_lib_cross_synth(cdp_lib_ctx* ctx,
                                      double mix,
                                      int fft_size);
 
+/* =========================================================================
+ * Analysis Functions (CDP: pitch, formants, get_partials)
+ * ========================================================================= */
+
+/*
+ * Pitch tracking result - frequency values over time
+ */
+typedef struct cdp_pitch_data {
+    float *pitch;          /* Pitch in Hz for each frame (0 = unvoiced) */
+    float *confidence;     /* Confidence/amplitude for each frame (0-1) */
+    int num_frames;        /* Number of analysis frames */
+    float frame_time;      /* Time between frames in seconds */
+    float sample_rate;     /* Original sample rate */
+} cdp_pitch_data;
+
+/*
+ * Formant analysis result - formant frequencies over time
+ */
+typedef struct cdp_formant_data {
+    float *f1;             /* First formant frequency (Hz) */
+    float *f2;             /* Second formant frequency (Hz) */
+    float *f3;             /* Third formant frequency (Hz) */
+    float *f4;             /* Fourth formant frequency (Hz) */
+    float *b1;             /* First formant bandwidth (Hz) */
+    float *b2;             /* Second formant bandwidth (Hz) */
+    float *b3;             /* Third formant bandwidth (Hz) */
+    float *b4;             /* Fourth formant bandwidth (Hz) */
+    int num_frames;        /* Number of analysis frames */
+    float frame_time;      /* Time between frames in seconds */
+    float sample_rate;     /* Original sample rate */
+} cdp_formant_data;
+
+/*
+ * Single partial track (sinusoidal trajectory)
+ */
+typedef struct cdp_partial_track {
+    float *freq;           /* Frequency values over time */
+    float *amp;            /* Amplitude values over time */
+    int start_frame;       /* Frame index where track starts */
+    int end_frame;         /* Frame index where track ends */
+    int num_frames;        /* Length of track (end - start) */
+} cdp_partial_track;
+
+/*
+ * Partial tracking result - sinusoidal partials over time
+ */
+typedef struct cdp_partial_data {
+    cdp_partial_track *tracks; /* Array of partial tracks */
+    int num_tracks;            /* Number of tracks */
+    int total_frames;          /* Total number of analysis frames */
+    float frame_time;          /* Time between frames in seconds */
+    float sample_rate;         /* Original sample rate */
+    int fft_size;              /* FFT size used for analysis */
+} cdp_partial_data;
+
+/* Memory management */
+void cdp_pitch_data_free(cdp_pitch_data* data);
+void cdp_formant_data_free(cdp_formant_data* data);
+void cdp_partial_data_free(cdp_partial_data* data);
+
+/*
+ * Extract pitch contour from audio using YIN algorithm.
+ *
+ * Uses autocorrelation-based pitch detection. Works directly on audio.
+ * Returns pitch in Hz for each analysis frame, with 0 indicating unvoiced.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer (will be converted to mono if stereo)
+ *   min_freq: Minimum expected frequency in Hz (default 50)
+ *   max_freq: Maximum expected frequency in Hz (default 2000)
+ *   frame_size: Analysis frame size in samples (default 2048)
+ *   hop_size: Hop size in samples (default 512)
+ *
+ * Returns: Pitch data, or NULL on error.
+ */
+cdp_pitch_data* cdp_lib_pitch(cdp_lib_ctx* ctx,
+                               const cdp_lib_buffer* input,
+                               double min_freq,
+                               double max_freq,
+                               int frame_size,
+                               int hop_size);
+
+/*
+ * Extract formant frequencies from audio using LPC analysis.
+ *
+ * Uses Linear Predictive Coding to estimate formant frequencies.
+ * Returns up to 4 formants (F1-F4) with bandwidths for each frame.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer (will be converted to mono if stereo)
+ *   lpc_order: LPC order (default 12, higher = more formants but less stable)
+ *   frame_size: Analysis frame size in samples (default 1024)
+ *   hop_size: Hop size in samples (default 256)
+ *
+ * Returns: Formant data, or NULL on error.
+ */
+cdp_formant_data* cdp_lib_formants(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    int lpc_order,
+                                    int frame_size,
+                                    int hop_size);
+
+/*
+ * Extract sinusoidal partials from audio using peak tracking.
+ *
+ * Performs spectral analysis internally, then tracks peaks over time.
+ * Each partial is a continuous frequency/amplitude trajectory.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer (will be converted to mono if stereo)
+ *   min_amp_db: Minimum amplitude in dB to consider as partial (default -60)
+ *   max_partials: Maximum number of partials to track (default 100)
+ *   freq_tolerance: Frequency tolerance for track continuation in Hz (default 50)
+ *   fft_size: FFT size for analysis (default 2048)
+ *   hop_size: Hop size in samples (default 512)
+ *
+ * Returns: Partial data, or NULL on error.
+ */
+cdp_partial_data* cdp_lib_get_partials(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double min_amp_db,
+                                        int max_partials,
+                                        double freq_tolerance,
+                                        int fft_size,
+                                        int hop_size);
+
 #ifdef __cplusplus
 }
 #endif

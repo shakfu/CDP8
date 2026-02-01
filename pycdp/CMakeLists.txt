@@ -44,6 +44,7 @@ set(CDP_LIB_SOURCES
     ${LIBCDP_DIR}/cdp_lib/cdp_distort.c
     ${LIBCDP_DIR}/cdp_lib/cdp_reverb.c
     ${LIBCDP_DIR}/cdp_lib/cdp_granular.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_analysis.c
     ${LIBCDP_DIR}/src/cdp_shim.c
 )
 

@@ -1705,5 +1705,137 @@ class TestCrossSynth:
         assert result_half.frame_count > 0
 
 
+# =============================================================================
+# Analysis Functions
+# =============================================================================
+
+
+class TestPitch:
+    """Tests for pitch analysis."""
+
+    @pytest.fixture
+    def tone_440(self):
+        """Create a 440 Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            samples.append(0.8 * math.sin(2 * math.pi * 440 * t))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_pitch_runs(self, tone_440):
+        """Pitch analysis should run without error."""
+        result = pycdp.pitch(tone_440)
+        assert 'pitch' in result
+        assert 'confidence' in result
+        assert 'num_frames' in result
+        assert result['num_frames'] > 0
+        assert len(result['pitch']) == result['num_frames']
+        assert len(result['confidence']) == result['num_frames']
+
+    def test_pitch_detects_440hz(self, tone_440):
+        """Pitch analysis should detect 440 Hz in a sine wave."""
+        result = pycdp.pitch(tone_440, min_freq=100, max_freq=1000)
+        # Check that some frames detected pitch near 440 Hz
+        detected = [p for p in result['pitch'] if p > 0]
+        assert len(detected) > 0
+        avg_pitch = sum(detected) / len(detected)
+        # Allow 10% tolerance
+        assert 396 < avg_pitch < 484
+
+    def test_pitch_with_params(self, tone_440):
+        """Pitch analysis should accept parameter overrides."""
+        result = pycdp.pitch(tone_440, min_freq=200, max_freq=1000,
+                             frame_size=1024, hop_size=256)
+        assert result['num_frames'] > 0
+
+
+class TestFormants:
+    """Tests for formant analysis."""
+
+    @pytest.fixture
+    def complex_tone(self):
+        """Create a complex tone with multiple frequencies."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            # Multiple frequencies to create formant-like structure
+            val = 0.3 * math.sin(2 * math.pi * 500 * t)
+            val += 0.2 * math.sin(2 * math.pi * 1500 * t)
+            val += 0.15 * math.sin(2 * math.pi * 2500 * t)
+            val += 0.1 * math.sin(2 * math.pi * 3500 * t)
+            samples.append(val)
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_formants_runs(self, complex_tone):
+        """Formant analysis should run without error."""
+        result = pycdp.formants(complex_tone)
+        assert 'f1' in result
+        assert 'f2' in result
+        assert 'f3' in result
+        assert 'f4' in result
+        assert 'b1' in result
+        assert 'num_frames' in result
+        assert result['num_frames'] > 0
+
+    def test_formants_with_params(self, complex_tone):
+        """Formant analysis should accept parameter overrides."""
+        result = pycdp.formants(complex_tone, lpc_order=16,
+                                frame_size=512, hop_size=128)
+        assert result['num_frames'] > 0
+
+
+class TestGetPartials:
+    """Tests for partial tracking."""
+
+    @pytest.fixture
+    def harmonic_tone(self):
+        """Create a tone with clear harmonics."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            # Fundamental and harmonics
+            val = 0.5 * math.sin(2 * math.pi * 220 * t)
+            val += 0.3 * math.sin(2 * math.pi * 440 * t)
+            val += 0.2 * math.sin(2 * math.pi * 660 * t)
+            val += 0.1 * math.sin(2 * math.pi * 880 * t)
+            samples.append(val)
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_get_partials_runs(self, harmonic_tone):
+        """Partial tracking should run without error."""
+        result = pycdp.get_partials(harmonic_tone)
+        assert 'tracks' in result
+        assert 'num_tracks' in result
+        assert 'total_frames' in result
+        assert result['total_frames'] > 0
+
+    def test_get_partials_finds_tracks(self, harmonic_tone):
+        """Partial tracking should find some tracks."""
+        result = pycdp.get_partials(harmonic_tone, min_amp_db=-40, max_partials=20)
+        assert result['num_tracks'] > 0
+        # Each track should have freq and amp arrays
+        for track in result['tracks']:
+            assert 'freq' in track
+            assert 'amp' in track
+            assert 'start_frame' in track
+            assert 'end_frame' in track
+
+    def test_get_partials_with_params(self, harmonic_tone):
+        """Partial tracking should accept parameter overrides."""
+        result = pycdp.get_partials(harmonic_tone, min_amp_db=-50,
+                                    max_partials=50, freq_tolerance=30,
+                                    fft_size=1024, hop_size=256)
+        assert result['total_frames'] > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
