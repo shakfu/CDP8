@@ -353,3 +353,101 @@ cdef extern from "cdp_granular.h":
                                            double amp_decay,
                                            unsigned int seed)
 
+    # Spectral operations
+    cdp_lib_buffer* cdp_lib_spectral_focus(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double center_freq,
+                                            double bandwidth,
+                                            double gain_db,
+                                            int fft_size)
+
+    cdp_lib_buffer* cdp_lib_spectral_hilite(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             double threshold_db,
+                                             double boost_db,
+                                             int fft_size)
+
+    cdp_lib_buffer* cdp_lib_spectral_fold(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double fold_freq,
+                                           int fft_size)
+
+    cdp_lib_buffer* cdp_lib_spectral_clean(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double threshold_db,
+                                            int fft_size)
+
+cdef extern from "cdp_experimental.h":
+    # Experimental operations
+    cdp_lib_buffer* cdp_lib_strange(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double chaos_amount,
+                                     double rate,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_brownian(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double step_size,
+                                      double smoothing,
+                                      int target,
+                                      unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_crystal(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double density,
+                                     double decay,
+                                     double pitch_scatter,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_fractal(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     int depth,
+                                     double pitch_ratio,
+                                     double decay,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_quirk(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double probability,
+                                   double intensity,
+                                   int mode,
+                                   unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_chirikov(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double k_param,
+                                      double mod_depth,
+                                      double rate,
+                                      unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_cantor(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    int depth,
+                                    double duty_cycle,
+                                    double smooth_ms,
+                                    unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_cascade(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     int num_echoes,
+                                     double delay_ms,
+                                     double pitch_decay,
+                                     double amp_decay,
+                                     double filter_decay,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_fracture(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double fragment_ms,
+                                      double gap_ratio,
+                                      double scatter,
+                                      unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_tesselate(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double tile_ms,
+                                       int pattern,
+                                       double overlap,
+                                       double transform,
+                                       unsigned int seed)
+

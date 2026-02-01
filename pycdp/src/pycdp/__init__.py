@@ -111,6 +111,22 @@ from pycdp._core import (
     pitch,
     formants,
     get_partials,
+    # Spectral operations
+    spectral_focus,
+    spectral_hilite,
+    spectral_fold,
+    spectral_clean,
+    # Experimental operations
+    strange,
+    brownian,
+    crystal,
+    fractal,
+    quirk,
+    chirikov,
+    cantor,
+    cascade,
+    fracture,
+    tesselate,
 )
 
 __all__ = [
@@ -214,6 +230,22 @@ __all__ = [
     "pitch",
     "formants",
     "get_partials",
+    # Spectral operations
+    "spectral_focus",
+    "spectral_hilite",
+    "spectral_fold",
+    "spectral_clean",
+    # Experimental operations
+    "strange",
+    "brownian",
+    "crystal",
+    "fractal",
+    "quirk",
+    "chirikov",
+    "cantor",
+    "cascade",
+    "fracture",
+    "tesselate",
 ]
 
 __version__ = version()

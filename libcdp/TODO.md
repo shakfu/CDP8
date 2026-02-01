@@ -28,6 +28,27 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `filter_highpass` - Spectral highpass filter
 - [x] `filter_bandpass` - Spectral bandpass filter
 - [x] `filter_notch` - Spectral notch (band-reject) filter
+- [x] `spectral_focus` - Super-Gaussian frequency enhancement
+- [x] `spectral_hilite` - Boost spectral peaks
+- [x] `spectral_fold` - Fold spectrum at frequency (metallic)
+- [x] `spectral_clean` - Spectral noise gate
+
+**Analysis (CDP: `pitch`, `formants`, `get_partials`):**
+- [x] `pitch` - Pitch tracking (YIN algorithm)
+- [x] `formants` - Formant analysis (LPC)
+- [x] `get_partials` - Partial tracking
+
+**Experimental (CDP: `strange`, `brownian`, `crystal`, `fractal`, `quirk`, etc.):**
+- [x] `strange` - Lorenz attractor chaotic modulation
+- [x] `brownian` - Random walk modulation (pitch/amp/filter)
+- [x] `crystal` - Crystalline textures with decaying echoes
+- [x] `fractal` - Recursive wavecycle overlay with pitch ratio and decay
+- [x] `quirk` - Probabilistic reverse/dropout transformations
+- [x] `chirikov` - Standard map chaotic modulation
+- [x] `cantor` - Cantor set fractal gating pattern
+- [x] `cascade` - Cascading echoes with pitch/amp/filter decay
+- [x] `fracture` - Fragment and scatter audio with gaps
+- [x] `tesselate` - Tile-based pattern transformations
 
 **Envelope (CDP: `envel`, `tremolo`, `envcut`):**
 - [x] `dovetail` - Fade in/out envelopes (linear/exponential)
@@ -89,31 +110,34 @@ Useful audio processing functions not derived from CDP algorithms.
 
 Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 
-### Priority 1: Analysis (CDP: `pitch`, `formants`, `get_partials`)
+### ~~Priority 1: Analysis (CDP: `pitch`, `formants`, `get_partials`)~~ DONE
 
-| CDP Tool | Algorithm | Description |
-|----------|-----------|-------------|
-| `pitch` | Pitch tracking | Extract pitch contour |
-| `formants` | Formant analysis | Extract formant frequencies |
-| `get_partials` | Partial tracking | Extract sinusoidal partials |
+- [x] `pitch` - Pitch tracking (YIN algorithm)
+- [x] `formants` - Formant analysis (LPC)
+- [x] `get_partials` - Partial tracking (peak tracking)
 
-### Priority 2: Additional Spectral (CDP: `focus`, `hilite`, `specfold`)
+### ~~Priority 2: Additional Spectral (CDP: `focus`, `hilite`, `specfold`)~~ DONE
 
-| CDP Tool | Algorithm | Description |
-|----------|-----------|-------------|
-| `focus` | Spectral focus | Enhance specific frequencies |
-| `hilite` | Spectral highlight | Boost spectral peaks |
-| `specfold` | Spectral fold | Fold spectrum at frequency |
-| `speclean` | Spectral clean | Remove spectral noise |
+- [x] `spectral_focus` - Enhance frequencies with super-Gaussian curve
+- [x] `spectral_hilite` - Boost spectral peaks above threshold
+- [x] `spectral_fold` - Fold spectrum at frequency (metallic effects)
+- [x] `spectral_clean` - Spectral noise gate
 
-### Priority 3: Experimental (CDP: `strange`, `fractal`, `crystal`)
+### ~~Priority 3: Experimental (CDP: `strange`, `brownian`, `crystal`)~~ DONE
 
-| CDP Tool | Algorithm | Description |
-|----------|-----------|-------------|
-| `strange` | Strange attractor | Chaotic modulation |
-| `fractal` | Fractal | Fractal-based processing |
-| `crystal` | Crystal | Crystalline textures |
-| `brownian` | Brownian motion | Random walk modulation |
+- [x] `strange` - Lorenz attractor chaotic modulation
+- [x] `brownian` - Random walk modulation (pitch/amp/filter)
+- [x] `crystal` - Crystalline textures with decaying echoes
+
+### ~~Priority 4: Additional Experimental (CDP: `fractal`, `quirk`, etc.)~~ DONE
+
+- [x] `fractal` - Recursive wavecycle overlay with pitch ratio and decay
+- [x] `quirk` - Probabilistic reverse/dropout transformations
+- [x] `chirikov` - Standard map chaotic modulation
+- [x] `cantor` - Cantor set fractal gating pattern
+- [x] `cascade` - Cascading echoes with pitch/amp/filter decay
+- [x] `fracture` - Fragment and scatter audio with gaps
+- [x] `tesselate` - Tile-based pattern transformations
 
 ---
 

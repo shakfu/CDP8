@@ -53,6 +53,7 @@ set(SHIM_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_analysis.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_effects.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_dynamics.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_experimental.c
 )
 
 # =============================================================================

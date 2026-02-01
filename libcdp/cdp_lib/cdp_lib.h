@@ -699,6 +699,326 @@ cdp_partial_data* cdp_lib_get_partials(cdp_lib_ctx* ctx,
                                         int fft_size,
                                         int hop_size);
 
+/* =========================================================================
+ * Spectral Operations (CDP: focus, hilite, fold, clean)
+ * ========================================================================= */
+
+/*
+ * Spectral focus - enhance frequencies around a center point.
+ *
+ * Uses a super-Gaussian curve (exponent 4) for sharper focus than
+ * standard parametric EQ.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   center_freq: Center frequency in Hz
+ *   bandwidth: Bandwidth in Hz (half-power width)
+ *   gain_db: Gain to apply in dB (can be negative to attenuate)
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with focused frequencies, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spectral_focus(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double center_freq,
+                                        double bandwidth,
+                                        double gain_db,
+                                        int fft_size);
+
+/*
+ * Spectral hilite - boost spectral peaks above threshold.
+ *
+ * Detects local maxima in each spectral frame and boosts them selectively,
+ * emphasizing the harmonic structure.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   threshold_db: Only boost peaks above this level (relative to frame peak)
+ *   boost_db: Amount to boost peaks in dB
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with highlighted peaks, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spectral_hilite(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double threshold_db,
+                                         double boost_db,
+                                         int fft_size);
+
+/*
+ * Spectral fold - fold spectrum at frequency (metallic effects).
+ *
+ * Frequencies above fold point are mirrored back down, creating
+ * complex inharmonic textures with a metallic quality.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   fold_freq: Frequency at which to fold the spectrum
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with folded spectrum, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spectral_fold(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double fold_freq,
+                                       int fft_size);
+
+/*
+ * Spectral clean - spectral noise gate.
+ *
+ * Zeros spectral bins below a per-frame threshold, removing
+ * low-level noise and artifacts.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   threshold_db: Threshold in dB below frame peak (e.g., -40)
+ *   fft_size: FFT window size. Default 1024.
+ *
+ * Returns: New buffer with cleaned spectrum, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spectral_clean(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double threshold_db,
+                                        int fft_size);
+
+/* =========================================================================
+ * Experimental Operations (CDP: strange, brownian, crystal)
+ * ========================================================================= */
+
+/*
+ * Strange attractor (Lorenz) modulation.
+ *
+ * Uses the Lorenz attractor to chaotically modulate pitch and amplitude.
+ * Creates complex, evolving timbral changes that are deterministic but
+ * appear chaotic.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   chaos_amount: Amount of chaotic modulation (0.0 to 1.0)
+ *   rate: Speed of chaotic evolution (typically 0.1 to 10.0)
+ *   seed: Random seed for initial attractor state
+ *
+ * Returns: New buffer with chaotic modulation, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_strange(cdp_lib_ctx* ctx,
+                                 const cdp_lib_buffer* input,
+                                 double chaos_amount,
+                                 double rate,
+                                 unsigned int seed);
+
+/*
+ * Brownian (random walk) modulation.
+ *
+ * Applies random walk modulation to pitch, amplitude, or filter cutoff.
+ * Creates organic, drifting parameter changes.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   step_size: Maximum step size per frame (in target units)
+ *   smoothing: Smoothing factor (0.0 to 1.0, higher = smoother)
+ *   target: Modulation target: 0=pitch (semitones), 1=amp (dB), 2=filter (Hz)
+ *   seed: Random seed for reproducibility
+ *
+ * Returns: New buffer with random walk modulation, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_brownian(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double step_size,
+                                  double smoothing,
+                                  int target,
+                                  unsigned int seed);
+
+/*
+ * Crystal textures - granular with decaying echoes.
+ *
+ * Extracts small grains and creates shimmering, crystalline textures
+ * through multiple decaying echo layers with pitch scatter.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   density: Grain density (grains per second, typically 20-200)
+ *   decay: Echo decay time in seconds
+ *   pitch_scatter: Random pitch variation in semitones
+ *   seed: Random seed for reproducibility
+ *
+ * Returns: New buffer with crystalline texture, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_crystal(cdp_lib_ctx* ctx,
+                                 const cdp_lib_buffer* input,
+                                 double density,
+                                 double decay,
+                                 double pitch_scatter,
+                                 unsigned int seed);
+
+/*
+ * Fractal processing - self-similar recursive layering.
+ *
+ * Creates fractal textures by recursively layering pitch-shifted copies
+ * of the input at decreasing amplitudes.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   depth: Recursion depth (1-6)
+ *   pitch_ratio: Pitch ratio between layers (e.g., 0.5 for octave down)
+ *   decay: Amplitude decay per layer (0.0 to 1.0)
+ *   seed: Random seed for timing variations
+ *
+ * Returns: New buffer with fractal processing, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_fractal(cdp_lib_ctx* ctx,
+                                 const cdp_lib_buffer* input,
+                                 int depth,
+                                 double pitch_ratio,
+                                 double decay,
+                                 unsigned int seed);
+
+/*
+ * Quirk - unpredictable glitchy transformations.
+ *
+ * Applies random pitch and timing shifts with probability-based triggers.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   probability: Probability of quirk (0.0 to 1.0)
+ *   intensity: Intensity of quirks (0.0 to 1.0)
+ *   mode: 0=pitch, 1=timing, 2=both
+ *   seed: Random seed for reproducibility
+ *
+ * Returns: New buffer with quirk effects, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_quirk(cdp_lib_ctx* ctx,
+                               const cdp_lib_buffer* input,
+                               double probability,
+                               double intensity,
+                               int mode,
+                               unsigned int seed);
+
+/*
+ * Chirikov map modulation - chaotic standard map.
+ *
+ * Uses the Chirikov standard map for pitch/amplitude modulation.
+ * Different chaotic character from Lorenz attractor.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   k_param: Chirikov K parameter (0.5 to 10.0)
+ *   mod_depth: Modulation depth (0.0 to 1.0)
+ *   rate: Rate of map iteration
+ *   seed: Random seed for initial conditions
+ *
+ * Returns: New buffer with Chirikov modulation, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_chirikov(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double k_param,
+                                  double mod_depth,
+                                  double rate,
+                                  unsigned int seed);
+
+/*
+ * Cantor set gating - fractal silence pattern.
+ *
+ * Applies recursive middle-third removal pattern as gating.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   depth: Recursion depth (1-8)
+ *   duty_cycle: Proportion of audio kept (0.0 to 1.0)
+ *   smooth_ms: Crossfade time in milliseconds
+ *   seed: Random seed for variation
+ *
+ * Returns: New buffer with Cantor gating, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_cantor(cdp_lib_ctx* ctx,
+                                const cdp_lib_buffer* input,
+                                int depth,
+                                double duty_cycle,
+                                double smooth_ms,
+                                unsigned int seed);
+
+/*
+ * Cascade - cascading echoes with progressive transformation.
+ *
+ * Creates cascading delays with pitch shift, filtering, and decay.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   num_echoes: Number of stages (1-12)
+ *   delay_ms: Base delay in milliseconds
+ *   pitch_decay: Pitch ratio per stage (e.g., 0.95)
+ *   amp_decay: Amplitude decay per stage
+ *   filter_decay: Filter cutoff decay per stage
+ *   seed: Random seed for timing jitter
+ *
+ * Returns: New buffer with cascading echoes, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_cascade(cdp_lib_ctx* ctx,
+                                 const cdp_lib_buffer* input,
+                                 int num_echoes,
+                                 double delay_ms,
+                                 double pitch_decay,
+                                 double amp_decay,
+                                 double filter_decay,
+                                 unsigned int seed);
+
+/*
+ * Fracture - break audio into fragments with gaps.
+ *
+ * Creates broken, fractured textures by fragmenting audio.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   fragment_ms: Average fragment size in milliseconds
+ *   gap_ratio: Ratio of gaps to fragments (0.0 to 2.0)
+ *   scatter: Fragment reordering amount (0.0 to 1.0)
+ *   seed: Random seed for reproducibility
+ *
+ * Returns: New buffer with fractured audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_fracture(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double fragment_ms,
+                                  double gap_ratio,
+                                  double scatter,
+                                  unsigned int seed);
+
+/*
+ * Tesselate - tile audio segments in patterns.
+ *
+ * Arranges audio tiles in various patterns with transformations.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   tile_ms: Tile size in milliseconds
+ *   pattern: 0=repeat, 1=mirror, 2=rotate, 3=random
+ *   overlap: Tile overlap ratio (0.0 to 0.5)
+ *   transform: Transform intensity (0.0 to 1.0)
+ *   seed: Random seed for random pattern
+ *
+ * Returns: New buffer with tessellated audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_tesselate(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double tile_ms,
+                                   int pattern,
+                                   double overlap,
+                                   double transform,
+                                   unsigned int seed);
+
 #ifdef __cplusplus
 }
 #endif

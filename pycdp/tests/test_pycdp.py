@@ -1837,5 +1837,465 @@ class TestGetPartials:
         assert result['total_frames'] > 0
 
 
+class TestSpectralFocus:
+    """Tests for spectral focus operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_spectral_focus_returns_buffer(self, sine_buffer):
+        """Spectral focus should return a Buffer."""
+        result = pycdp.spectral_focus(sine_buffer, center_freq=440.0, bandwidth=100.0, gain_db=6.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_spectral_focus_with_params(self, sine_buffer):
+        """Spectral focus should accept parameter overrides."""
+        result = pycdp.spectral_focus(sine_buffer, center_freq=1000.0, bandwidth=200.0,
+                                       gain_db=-3.0, fft_size=2048)
+        assert isinstance(result, pycdp.Buffer)
+
+
+class TestSpectralHilite:
+    """Tests for spectral hilite operation."""
+
+    @pytest.fixture
+    def harmonic_buffer(self):
+        """Create a harmonic tone buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 220.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate) +
+            0.25 * math.sin(2.0 * math.pi * 2 * freq * i / sample_rate) +
+            0.125 * math.sin(2.0 * math.pi * 3 * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_spectral_hilite_returns_buffer(self, harmonic_buffer):
+        """Spectral hilite should return a Buffer."""
+        result = pycdp.spectral_hilite(harmonic_buffer, threshold_db=-20.0, boost_db=6.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_spectral_hilite_with_params(self, harmonic_buffer):
+        """Spectral hilite should accept parameter overrides."""
+        result = pycdp.spectral_hilite(harmonic_buffer, threshold_db=-30.0,
+                                        boost_db=12.0, fft_size=2048)
+        assert isinstance(result, pycdp.Buffer)
+
+
+class TestSpectralFold:
+    """Tests for spectral fold operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_spectral_fold_returns_buffer(self, sine_buffer):
+        """Spectral fold should return a Buffer."""
+        result = pycdp.spectral_fold(sine_buffer, fold_freq=2000.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_spectral_fold_with_params(self, sine_buffer):
+        """Spectral fold should accept parameter overrides."""
+        result = pycdp.spectral_fold(sine_buffer, fold_freq=1000.0, fft_size=2048)
+        assert isinstance(result, pycdp.Buffer)
+
+
+class TestSpectralClean:
+    """Tests for spectral clean operation."""
+
+    @pytest.fixture
+    def noisy_buffer(self):
+        """Create a noisy buffer for testing."""
+        import math
+        import random
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        random.seed(42)
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate) +
+            0.01 * (random.random() * 2 - 1)  # Add some noise
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_spectral_clean_returns_buffer(self, noisy_buffer):
+        """Spectral clean should return a Buffer."""
+        result = pycdp.spectral_clean(noisy_buffer, threshold_db=-40.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_spectral_clean_with_params(self, noisy_buffer):
+        """Spectral clean should accept parameter overrides."""
+        result = pycdp.spectral_clean(noisy_buffer, threshold_db=-30.0, fft_size=2048)
+        assert isinstance(result, pycdp.Buffer)
+
+
+class TestStrange:
+    """Tests for strange (Lorenz) modulation operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_strange_returns_buffer(self, sine_buffer):
+        """Strange modulation should return a Buffer."""
+        result = pycdp.strange(sine_buffer, chaos_amount=0.5, rate=2.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_strange_reproducible(self, sine_buffer):
+        """Strange modulation with same seed should produce identical results."""
+        result1 = pycdp.strange(sine_buffer, chaos_amount=0.5, rate=2.0, seed=12345)
+        result2 = pycdp.strange(sine_buffer, chaos_amount=0.5, rate=2.0, seed=12345)
+        # Compare sample values
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestBrownian:
+    """Tests for Brownian (random walk) modulation operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_brownian_returns_buffer(self, sine_buffer):
+        """Brownian modulation should return a Buffer."""
+        result = pycdp.brownian(sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_brownian_targets(self, sine_buffer):
+        """Brownian modulation should work with all targets."""
+        for target in [0, 1, 2]:  # pitch, amp, filter
+            result = pycdp.brownian(sine_buffer, step_size=0.1, smoothing=0.9,
+                                     target=target, seed=12345)
+            assert isinstance(result, pycdp.Buffer)
+
+    def test_brownian_reproducible(self, sine_buffer):
+        """Brownian modulation with same seed should produce identical results."""
+        result1 = pycdp.brownian(sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345)
+        result2 = pycdp.brownian(sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestCrystal:
+    """Tests for crystal texture operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_crystal_returns_buffer(self, sine_buffer):
+        """Crystal texture should return a Buffer."""
+        result = pycdp.crystal(sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_crystal_adds_tail(self, sine_buffer):
+        """Crystal texture should add a decay tail."""
+        result = pycdp.crystal(sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345)
+        # Output should be longer than input due to decay
+        assert result.sample_count > sine_buffer.sample_count
+
+    def test_crystal_reproducible(self, sine_buffer):
+        """Crystal texture with same seed should produce identical results."""
+        result1 = pycdp.crystal(sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345)
+        result2 = pycdp.crystal(sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestFractal:
+    """Tests for fractal processing operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_fractal_returns_buffer(self, sine_buffer):
+        """Fractal processing should return a Buffer."""
+        result = pycdp.fractal(sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_fractal_reproducible(self, sine_buffer):
+        """Fractal with same seed should produce identical results."""
+        result1 = pycdp.fractal(sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345)
+        result2 = pycdp.fractal(sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestQuirk:
+    """Tests for quirk processing operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_quirk_returns_buffer(self, sine_buffer):
+        """Quirk should return a Buffer."""
+        result = pycdp.quirk(sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_quirk_modes(self, sine_buffer):
+        """Quirk should work with all modes."""
+        for mode in [0, 1, 2]:
+            result = pycdp.quirk(sine_buffer, probability=0.3, intensity=0.5, mode=mode, seed=12345)
+            assert isinstance(result, pycdp.Buffer)
+
+    def test_quirk_reproducible(self, sine_buffer):
+        """Quirk with same seed should produce identical results."""
+        result1 = pycdp.quirk(sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345)
+        result2 = pycdp.quirk(sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestChirikov:
+    """Tests for Chirikov map modulation operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_chirikov_returns_buffer(self, sine_buffer):
+        """Chirikov modulation should return a Buffer."""
+        result = pycdp.chirikov(sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_chirikov_reproducible(self, sine_buffer):
+        """Chirikov with same seed should produce identical results."""
+        result1 = pycdp.chirikov(sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345)
+        result2 = pycdp.chirikov(sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestCantor:
+    """Tests for Cantor set gating operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_cantor_returns_buffer(self, sine_buffer):
+        """Cantor gating should return a Buffer."""
+        result = pycdp.cantor(sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_cantor_same_length(self, sine_buffer):
+        """Cantor gating should preserve length."""
+        result = pycdp.cantor(sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345)
+        assert result.sample_count == sine_buffer.sample_count
+
+    def test_cantor_reproducible(self, sine_buffer):
+        """Cantor with same seed should produce identical results."""
+        result1 = pycdp.cantor(sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345)
+        result2 = pycdp.cantor(sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestCascade:
+    """Tests for cascade echoes operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_cascade_returns_buffer(self, sine_buffer):
+        """Cascade should return a Buffer."""
+        result = pycdp.cascade(sine_buffer, num_echoes=6, delay_ms=100.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_cascade_adds_tail(self, sine_buffer):
+        """Cascade should add echo tail, making output longer."""
+        result = pycdp.cascade(sine_buffer, num_echoes=6, delay_ms=100.0, seed=12345)
+        assert result.sample_count > sine_buffer.sample_count
+
+    def test_cascade_reproducible(self, sine_buffer):
+        """Cascade with same seed should produce identical results."""
+        result1 = pycdp.cascade(sine_buffer, num_echoes=6, delay_ms=100.0, seed=12345)
+        result2 = pycdp.cascade(sine_buffer, num_echoes=6, delay_ms=100.0, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestFracture:
+    """Tests for fracture operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_fracture_returns_buffer(self, sine_buffer):
+        """Fracture should return a Buffer."""
+        result = pycdp.fracture(sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_fracture_reproducible(self, sine_buffer):
+        """Fracture with same seed should produce identical results."""
+        result1 = pycdp.fracture(sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345)
+        result2 = pycdp.fracture(sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
+class TestTesselate:
+    """Tests for tesselate operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_tesselate_returns_buffer(self, sine_buffer):
+        """Tesselate should return a Buffer."""
+        result = pycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_tesselate_patterns(self, sine_buffer):
+        """Tesselate should work with all patterns."""
+        for pattern in [0, 1, 2, 3]:
+            result = pycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=pattern, seed=12345)
+            assert isinstance(result, pycdp.Buffer)
+
+    def test_tesselate_same_length(self, sine_buffer):
+        """Tesselate should preserve length."""
+        result = pycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345)
+        assert result.sample_count == sine_buffer.sample_count
+
+    def test_tesselate_reproducible(self, sine_buffer):
+        """Tesselate with same seed should produce identical results."""
+        result1 = pycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345)
+        result2 = pycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

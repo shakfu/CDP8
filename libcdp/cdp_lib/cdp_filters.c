@@ -251,3 +251,146 @@ cdp_lib_buffer* cdp_lib_eq_parametric(cdp_lib_ctx* ctx,
     /* 3. Synthesize and create output buffer */
     return cdp_lib_spectral_to_buffer(ctx, spectral, input->sample_rate);
 }
+
+cdp_lib_buffer* cdp_lib_spectral_focus(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double center_freq,
+                                        double bandwidth,
+                                        double gain_db,
+                                        int fft_size) {
+    if (ctx == NULL || input == NULL) {
+        return NULL;
+    }
+
+    if (center_freq <= 0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "center_freq must be positive");
+        return NULL;
+    }
+
+    if (bandwidth <= 0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "bandwidth must be positive");
+        return NULL;
+    }
+
+    if (fft_size == 0) fft_size = 1024;
+
+    /* 1. Analyze input */
+    cdp_spectral_data *spectral = cdp_spectral_analyze(
+        input->data, input->length,
+        input->channels, input->sample_rate,
+        fft_size, 3);
+
+    if (spectral == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Spectral analysis failed");
+        return NULL;
+    }
+
+    /* 2. Apply focus */
+    cdp_spectral_data *focused = cdp_spectral_focus(
+        spectral, center_freq, bandwidth, gain_db);
+    cdp_spectral_data_free(spectral);
+
+    /* 3. Synthesize and create output buffer */
+    return cdp_lib_spectral_to_buffer(ctx, focused, input->sample_rate);
+}
+
+cdp_lib_buffer* cdp_lib_spectral_hilite(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double threshold_db,
+                                         double boost_db,
+                                         int fft_size) {
+    if (ctx == NULL || input == NULL) {
+        return NULL;
+    }
+
+    if (fft_size == 0) fft_size = 1024;
+
+    /* 1. Analyze input */
+    cdp_spectral_data *spectral = cdp_spectral_analyze(
+        input->data, input->length,
+        input->channels, input->sample_rate,
+        fft_size, 3);
+
+    if (spectral == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Spectral analysis failed");
+        return NULL;
+    }
+
+    /* 2. Apply hilite */
+    cdp_spectral_data *hilited = cdp_spectral_hilite(
+        spectral, threshold_db, boost_db);
+    cdp_spectral_data_free(spectral);
+
+    /* 3. Synthesize and create output buffer */
+    return cdp_lib_spectral_to_buffer(ctx, hilited, input->sample_rate);
+}
+
+cdp_lib_buffer* cdp_lib_spectral_fold(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double fold_freq,
+                                       int fft_size) {
+    if (ctx == NULL || input == NULL) {
+        return NULL;
+    }
+
+    if (fold_freq <= 0) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "fold_freq must be positive");
+        return NULL;
+    }
+
+    if (fft_size == 0) fft_size = 1024;
+
+    /* 1. Analyze input */
+    cdp_spectral_data *spectral = cdp_spectral_analyze(
+        input->data, input->length,
+        input->channels, input->sample_rate,
+        fft_size, 3);
+
+    if (spectral == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Spectral analysis failed");
+        return NULL;
+    }
+
+    /* 2. Apply fold */
+    cdp_spectral_data *folded = cdp_spectral_fold(spectral, fold_freq);
+    cdp_spectral_data_free(spectral);
+
+    /* 3. Synthesize and create output buffer */
+    return cdp_lib_spectral_to_buffer(ctx, folded, input->sample_rate);
+}
+
+cdp_lib_buffer* cdp_lib_spectral_clean(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double threshold_db,
+                                        int fft_size) {
+    if (ctx == NULL || input == NULL) {
+        return NULL;
+    }
+
+    if (fft_size == 0) fft_size = 1024;
+
+    /* 1. Analyze input */
+    cdp_spectral_data *spectral = cdp_spectral_analyze(
+        input->data, input->length,
+        input->channels, input->sample_rate,
+        fft_size, 3);
+
+    if (spectral == NULL) {
+        snprintf(ctx->error_msg, sizeof(ctx->error_msg),
+                 "Spectral analysis failed");
+        return NULL;
+    }
+
+    /* 2. Apply clean */
+    cdp_spectral_data *cleaned = cdp_spectral_clean(spectral, threshold_db);
+    cdp_spectral_data_free(spectral);
+
+    /* 3. Synthesize and create output buffer */
+    return cdp_lib_spectral_to_buffer(ctx, cleaned, input->sample_rate);
+}

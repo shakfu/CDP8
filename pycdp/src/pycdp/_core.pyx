@@ -1459,6 +1459,104 @@ cdef extern from "cdp_granular.h":
                                            double amp_decay,
                                            unsigned int seed)
 
+    # Spectral operations
+    cdp_lib_buffer* cdp_lib_spectral_focus(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double center_freq,
+                                            double bandwidth,
+                                            double gain_db,
+                                            int fft_size)
+
+    cdp_lib_buffer* cdp_lib_spectral_hilite(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             double threshold_db,
+                                             double boost_db,
+                                             int fft_size)
+
+    cdp_lib_buffer* cdp_lib_spectral_fold(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double fold_freq,
+                                           int fft_size)
+
+    cdp_lib_buffer* cdp_lib_spectral_clean(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double threshold_db,
+                                            int fft_size)
+
+cdef extern from "cdp_experimental.h":
+    # Experimental operations
+    cdp_lib_buffer* cdp_lib_strange(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double chaos_amount,
+                                     double rate,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_brownian(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double step_size,
+                                      double smoothing,
+                                      int target,
+                                      unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_crystal(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double density,
+                                     double decay,
+                                     double pitch_scatter,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_fractal(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     int depth,
+                                     double pitch_ratio,
+                                     double decay,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_quirk(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double probability,
+                                   double intensity,
+                                   int mode,
+                                   unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_chirikov(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double k_param,
+                                      double mod_depth,
+                                      double rate,
+                                      unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_cantor(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    int depth,
+                                    double duty_cycle,
+                                    double smooth_ms,
+                                    unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_cascade(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     int num_echoes,
+                                     double delay_ms,
+                                     double pitch_decay,
+                                     double amp_decay,
+                                     double filter_decay,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_fracture(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double fragment_ms,
+                                      double gap_ratio,
+                                      double scatter,
+                                      unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_tesselate(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double tile_ms,
+                                       int pattern,
+                                       double overlap,
+                                       double transform,
+                                       unsigned int seed)
+
 
 # Global CDP library context (lazily initialized)
 cdef cdp_lib_ctx* _cdp_lib_ctx = NULL
@@ -2871,6 +2969,544 @@ def texture_multi(Buffer buf not None, double duration=5.0, double density=2.0,
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Texture multi failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Spectral Operations
+# =============================================================================
+
+def spectral_focus(Buffer buf not None, double center_freq=1000.0,
+                   double bandwidth=200.0, double gain_db=6.0, int fft_size=1024):
+    """Enhance frequencies around a center point with super-Gaussian curve.
+
+    Uses a sharper curve (exponent 4) than standard parametric EQ for
+    more precise frequency focusing.
+
+    Args:
+        buf: Input Buffer.
+        center_freq: Center frequency in Hz. Default 1000.0.
+        bandwidth: Bandwidth in Hz (half-power width). Default 200.0.
+        gain_db: Gain in dB (can be negative to attenuate). Default 6.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with focused frequencies.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_spectral_focus(
+        ctx, input_buf, center_freq, bandwidth, gain_db, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spectral focus failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def spectral_hilite(Buffer buf not None, double threshold_db=-20.0,
+                    double boost_db=6.0, int fft_size=1024):
+    """Boost spectral peaks above threshold.
+
+    Detects local maxima in each spectral frame and boosts them selectively,
+    emphasizing the harmonic structure.
+
+    Args:
+        buf: Input Buffer.
+        threshold_db: Only boost peaks above this level (relative to frame peak). Default -20.0.
+        boost_db: Amount to boost peaks in dB. Default 6.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with highlighted peaks.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_spectral_hilite(
+        ctx, input_buf, threshold_db, boost_db, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spectral hilite failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def spectral_fold(Buffer buf not None, double fold_freq=2000.0, int fft_size=1024):
+    """Fold spectrum at frequency (creates metallic, inharmonic effects).
+
+    Frequencies above the fold point are mirrored back down, creating
+    complex inharmonic textures with a metallic quality.
+
+    Args:
+        buf: Input Buffer.
+        fold_freq: Frequency at which to fold the spectrum. Default 2000.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with folded spectrum.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_spectral_fold(
+        ctx, input_buf, fold_freq, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spectral fold failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def spectral_clean(Buffer buf not None, double threshold_db=-40.0, int fft_size=1024):
+    """Spectral noise gate - zero bins below per-frame threshold.
+
+    Removes low-level noise and artifacts by zeroing spectral bins
+    below a threshold relative to the frame's peak amplitude.
+
+    Args:
+        buf: Input Buffer.
+        threshold_db: Threshold in dB below frame peak. Default -40.0.
+        fft_size: FFT window size. Default 1024.
+
+    Returns:
+        New Buffer with cleaned spectrum.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_spectral_clean(
+        ctx, input_buf, threshold_db, fft_size)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spectral clean failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Experimental Operations
+# =============================================================================
+
+def strange(Buffer buf not None, double chaos_amount=0.5, double rate=2.0,
+            unsigned int seed=0):
+    """Strange attractor (Lorenz) modulation.
+
+    Uses the Lorenz attractor to chaotically modulate pitch and amplitude.
+    Creates complex, evolving timbral changes that are deterministic but
+    appear chaotic. Same seed produces identical results.
+
+    Args:
+        buf: Input Buffer.
+        chaos_amount: Amount of chaotic modulation (0.0 to 1.0). Default 0.5.
+        rate: Speed of chaotic evolution (typically 0.1 to 10.0). Default 2.0.
+        seed: Random seed for initial attractor state (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with chaotic modulation.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_strange(
+        ctx, input_buf, chaos_amount, rate, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Strange modulation failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def brownian(Buffer buf not None, double step_size=0.1, double smoothing=0.9,
+             int target=0, unsigned int seed=0):
+    """Brownian (random walk) modulation.
+
+    Applies random walk modulation to pitch, amplitude, or filter cutoff.
+    Creates organic, drifting parameter changes.
+
+    Args:
+        buf: Input Buffer.
+        step_size: Maximum step size per frame (in target units). Default 0.1.
+        smoothing: Smoothing factor (0.0 to 1.0, higher = smoother). Default 0.9.
+        target: Modulation target: 0=pitch (semitones), 1=amp (dB), 2=filter (Hz). Default 0.
+        seed: Random seed for reproducibility (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with random walk modulation.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_brownian(
+        ctx, input_buf, step_size, smoothing, target, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Brownian modulation failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def crystal(Buffer buf not None, double density=50.0, double decay=0.5,
+            double pitch_scatter=2.0, unsigned int seed=0):
+    """Crystal textures - granular with decaying echoes.
+
+    Extracts small grains and creates shimmering, crystalline textures
+    through multiple decaying echo layers with pitch scatter.
+
+    Args:
+        buf: Input Buffer.
+        density: Grain density (grains per second, typically 20-200). Default 50.0.
+        decay: Echo decay time in seconds. Default 0.5.
+        pitch_scatter: Random pitch variation in semitones. Default 2.0.
+        seed: Random seed for reproducibility (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with crystalline texture (may be longer than input due to decay).
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_crystal(
+        ctx, input_buf, density, decay, pitch_scatter, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Crystal texture failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def fractal(Buffer buf not None, int depth=3, double pitch_ratio=0.5,
+            double decay=0.7, unsigned int seed=0):
+    """Fractal processing - self-similar recursive layering.
+
+    Creates fractal textures by recursively layering pitch-shifted copies
+    of the input at decreasing amplitudes, creating self-similar structures.
+
+    Args:
+        buf: Input Buffer.
+        depth: Recursion depth (1-6, higher = more layers). Default 3.
+        pitch_ratio: Pitch ratio between layers (e.g., 0.5 for octave down). Default 0.5.
+        decay: Amplitude decay per layer (0.0 to 1.0). Default 0.7.
+        seed: Random seed for timing variations (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with fractal processing.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_fractal(
+        ctx, input_buf, depth, pitch_ratio, decay, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Fractal processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def quirk(Buffer buf not None, double probability=0.3, double intensity=0.5,
+          int mode=2, unsigned int seed=0):
+    """Quirk - unpredictable glitchy transformations.
+
+    Applies random, unexpected pitch and timing shifts with probability-based
+    triggers. Creates glitchy, surprising audio artifacts.
+
+    Args:
+        buf: Input Buffer.
+        probability: Probability of quirk occurring (0.0 to 1.0). Default 0.3.
+        intensity: Intensity of quirks (0.0 to 1.0). Default 0.5.
+        mode: 0=pitch quirks, 1=timing quirks, 2=both. Default 2.
+        seed: Random seed for reproducibility (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with quirk effects (length may vary due to timing quirks).
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_quirk(
+        ctx, input_buf, probability, intensity, mode, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Quirk processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def chirikov(Buffer buf not None, double k_param=2.0, double mod_depth=0.5,
+             double rate=2.0, unsigned int seed=0):
+    """Chirikov map modulation - chaotic standard map.
+
+    Uses the Chirikov standard map (a classic chaotic system) to modulate
+    pitch and amplitude. Different from Lorenz - produces more periodic
+    chaos with islands of stability.
+
+    Args:
+        buf: Input Buffer.
+        k_param: Chirikov K parameter (0.5 to 10.0, chaos increases with K). Default 2.0.
+        mod_depth: Modulation depth (0.0 to 1.0). Default 0.5.
+        rate: Rate of map iteration. Default 2.0.
+        seed: Random seed for initial conditions (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with Chirikov modulation.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_chirikov(
+        ctx, input_buf, k_param, mod_depth, rate, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Chirikov modulation failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def cantor(Buffer buf not None, int depth=4, double duty_cycle=0.5,
+           double smooth_ms=5.0, unsigned int seed=0):
+    """Cantor set gating - fractal silence pattern.
+
+    Applies a Cantor set pattern as a gating function, recursively removing
+    middle thirds of audio segments to create fractally-structured silences.
+
+    Args:
+        buf: Input Buffer.
+        depth: Recursion depth (1-8, higher = finer fractal detail). Default 4.
+        duty_cycle: Proportion of audio kept vs silenced (0.0 to 1.0). Default 0.5.
+        smooth_ms: Crossfade time in ms to smooth transitions. Default 5.0.
+        seed: Random seed for variation (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with Cantor gating.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_cantor(
+        ctx, input_buf, depth, duty_cycle, smooth_ms, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Cantor gating failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def cascade(Buffer buf not None, int num_echoes=6, double delay_ms=100.0,
+            double pitch_decay=0.95, double amp_decay=0.7, double filter_decay=0.8,
+            unsigned int seed=0):
+    """Cascade - cascading echoes with progressive transformation.
+
+    Creates cascading delays where each echo is progressively transformed
+    (pitch shifted down, filtered darker, amplitude reduced).
+
+    Args:
+        buf: Input Buffer.
+        num_echoes: Number of cascade stages (1-12). Default 6.
+        delay_ms: Base delay time in milliseconds. Default 100.0.
+        pitch_decay: Pitch ratio per stage (e.g., 0.95 = 5% down each stage). Default 0.95.
+        amp_decay: Amplitude decay per stage (0.0 to 1.0). Default 0.7.
+        filter_decay: Filter cutoff decay per stage (0.0 to 1.0). Default 0.8.
+        seed: Random seed for timing jitter (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with cascading echoes (longer than input).
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_cascade(
+        ctx, input_buf, num_echoes, delay_ms, pitch_decay, amp_decay, filter_decay, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Cascade processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def fracture(Buffer buf not None, double fragment_ms=50.0, double gap_ratio=0.5,
+             double scatter=0.3, unsigned int seed=0):
+    """Fracture - break audio into fragments with gaps.
+
+    Breaks the audio into fragments with random gaps and optional
+    reordering. Creates broken, fractured textures.
+
+    Args:
+        buf: Input Buffer.
+        fragment_ms: Average fragment size in milliseconds. Default 50.0.
+        gap_ratio: Ratio of gaps to fragments (0.0 to 2.0). Default 0.5.
+        scatter: Amount of fragment reordering (0.0 = none, 1.0 = full shuffle). Default 0.3.
+        seed: Random seed for reproducibility (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with fractured audio (length varies with gap_ratio).
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_fracture(
+        ctx, input_buf, fragment_ms, gap_ratio, scatter, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Fracture processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def tesselate(Buffer buf not None, double tile_ms=50.0, int pattern=1,
+              double overlap=0.25, double transform=0.3, unsigned int seed=0):
+    """Tesselate - tile audio segments in patterns.
+
+    Divides audio into tiles and arranges them in patterns with optional
+    transformations per tile (pitch, amplitude, reverse).
+
+    Args:
+        buf: Input Buffer.
+        tile_ms: Tile size in milliseconds. Default 50.0.
+        pattern: Pattern mode: 0=repeat, 1=mirror, 2=rotate, 3=random. Default 1.
+        overlap: Tile overlap ratio (0.0 to 0.5). Default 0.25.
+        transform: Transform intensity (0.0 to 1.0). Default 0.3.
+        seed: Random seed for random pattern mode (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with tessellated audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_tesselate(
+        ctx, input_buf, tile_ms, pattern, overlap, transform, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Tesselate processing failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)

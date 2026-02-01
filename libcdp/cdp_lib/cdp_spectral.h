@@ -155,6 +155,67 @@ cdp_spectral_data* cdp_spectral_filter_highpass(const cdp_spectral_data *input,
                                                  double cutoff_freq,
                                                  double attenuation_db);
 
+/*
+ * Focus (enhance) frequencies around a center point with super-Gaussian curve.
+ *
+ * Uses a sharper curve than standard parametric EQ (exponent 4).
+ *
+ * Args:
+ *   input: Input spectral data
+ *   center_freq: Center frequency in Hz
+ *   bandwidth: Bandwidth in Hz (half-power width)
+ *   gain_db: Gain to apply in dB (can be negative to attenuate)
+ *
+ * Returns: New spectral data with focused frequencies, or NULL on error.
+ */
+cdp_spectral_data* cdp_spectral_focus(const cdp_spectral_data *input,
+                                       double center_freq,
+                                       double bandwidth,
+                                       double gain_db);
+
+/*
+ * Boost spectral peaks above threshold.
+ *
+ * Detects local maxima in each frame and boosts them selectively.
+ *
+ * Args:
+ *   input: Input spectral data
+ *   threshold_db: Only boost peaks above this level (relative to frame peak)
+ *   boost_db: Amount to boost peaks in dB
+ *
+ * Returns: New spectral data with highlighted peaks, or NULL on error.
+ */
+cdp_spectral_data* cdp_spectral_hilite(const cdp_spectral_data *input,
+                                        double threshold_db,
+                                        double boost_db);
+
+/*
+ * Fold spectrum at frequency point (creates metallic, inharmonic effects).
+ *
+ * Frequencies above fold point are mirrored back down.
+ * Multiple reflections create complex inharmonic textures.
+ *
+ * Args:
+ *   input: Input spectral data
+ *   fold_freq: Frequency at which to fold the spectrum
+ *
+ * Returns: New spectral data with folded spectrum, or NULL on error.
+ */
+cdp_spectral_data* cdp_spectral_fold(const cdp_spectral_data *input,
+                                      double fold_freq);
+
+/*
+ * Spectral noise gate - zero bins below per-frame threshold.
+ *
+ * Args:
+ *   input: Input spectral data
+ *   threshold_db: Threshold in dB below peak (e.g., -40)
+ *
+ * Returns: New spectral data with cleaned spectrum, or NULL on error.
+ */
+cdp_spectral_data* cdp_spectral_clean(const cdp_spectral_data *input,
+                                       double threshold_db);
+
 #ifdef __cplusplus
 }
 #endif

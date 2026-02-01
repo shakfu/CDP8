@@ -51,6 +51,7 @@ set(CDP_LIB_SOURCES
     ${LIBCDP_DIR}/cdp_lib/cdp_dynamics.c
     ${LIBCDP_DIR}/cdp_lib/cdp_morph.c
     ${LIBCDP_DIR}/cdp_lib/cdp_shim.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_experimental.c
 )
 
 # CDP dev sources needed (FFT)

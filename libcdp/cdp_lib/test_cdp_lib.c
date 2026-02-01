@@ -7,6 +7,8 @@
 #include "cdp_distort.h"
 #include "cdp_reverb.h"
 #include "cdp_granular.h"
+#include "cdp_experimental.h"
+#include "cdp_filters.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -197,6 +199,158 @@ int main(int argc, char *argv[]) {
             printf("UNEXPECTED (length: %zu, expected ~%zu)\n", frozen->length, expected);
         }
         cdp_lib_buffer_free(frozen);
+    }
+
+    /* Test 13: Spectral focus */
+    printf("Test 13: Spectral focus (440 Hz, 100 Hz BW, +6dB)... ");
+    cdp_lib_buffer* focused = cdp_lib_spectral_focus(ctx, input, 440.0, 100.0, 6.0, 1024);
+    if (focused == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", focused->length);
+        cdp_lib_buffer_free(focused);
+    }
+
+    /* Test 14: Spectral hilite */
+    printf("Test 14: Spectral hilite (-20dB threshold, +6dB boost)... ");
+    cdp_lib_buffer* hilited = cdp_lib_spectral_hilite(ctx, input, -20.0, 6.0, 1024);
+    if (hilited == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", hilited->length);
+        cdp_lib_buffer_free(hilited);
+    }
+
+    /* Test 15: Spectral fold */
+    printf("Test 15: Spectral fold (2000 Hz)... ");
+    cdp_lib_buffer* folded = cdp_lib_spectral_fold(ctx, input, 2000.0, 1024);
+    if (folded == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", folded->length);
+        cdp_lib_buffer_free(folded);
+    }
+
+    /* Test 16: Spectral clean */
+    printf("Test 16: Spectral clean (-40dB threshold)... ");
+    cdp_lib_buffer* cleaned = cdp_lib_spectral_clean(ctx, input, -40.0, 1024);
+    if (cleaned == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", cleaned->length);
+        cdp_lib_buffer_free(cleaned);
+    }
+
+    /* Test 17: Strange attractor */
+    printf("Test 17: Strange (Lorenz) modulation... ");
+    cdp_lib_buffer* strange = cdp_lib_strange(ctx, input, 0.5, 2.0, 12345);
+    if (strange == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", strange->length);
+        cdp_lib_buffer_free(strange);
+    }
+
+    /* Test 18: Brownian modulation */
+    printf("Test 18: Brownian modulation (pitch)... ");
+    cdp_lib_buffer* brownian = cdp_lib_brownian(ctx, input, 0.1, 0.9, 0, 12345);
+    if (brownian == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", brownian->length);
+        cdp_lib_buffer_free(brownian);
+    }
+
+    /* Test 19: Crystal texture */
+    printf("Test 19: Crystal texture... ");
+    cdp_lib_buffer* crystal = cdp_lib_crystal(ctx, input, 50.0, 0.5, 2.0, 12345);
+    if (crystal == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        /* Crystal adds decay tail, so output should be longer */
+        if (crystal->length > input->length) {
+            printf("OK (length: %zu, original: %zu)\n", crystal->length, input->length);
+        } else {
+            printf("UNEXPECTED (length: %zu, expected > %zu)\n",
+                   crystal->length, input->length);
+        }
+        cdp_lib_buffer_free(crystal);
+    }
+
+    /* Test 20: Fractal processing */
+    printf("Test 20: Fractal (depth 3, 0.5 ratio)... ");
+    cdp_lib_buffer* fractal = cdp_lib_fractal(ctx, input, 3, 0.5, 0.7, 12345);
+    if (fractal == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", fractal->length);
+        cdp_lib_buffer_free(fractal);
+    }
+
+    /* Test 21: Quirk */
+    printf("Test 21: Quirk (probability 0.3, both modes)... ");
+    cdp_lib_buffer* quirk = cdp_lib_quirk(ctx, input, 0.3, 0.5, 2, 12345);
+    if (quirk == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", quirk->length);
+        cdp_lib_buffer_free(quirk);
+    }
+
+    /* Test 22: Chirikov map */
+    printf("Test 22: Chirikov (K=2.0)... ");
+    cdp_lib_buffer* chirikov = cdp_lib_chirikov(ctx, input, 2.0, 0.5, 2.0, 12345);
+    if (chirikov == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", chirikov->length);
+        cdp_lib_buffer_free(chirikov);
+    }
+
+    /* Test 23: Cantor set gating */
+    printf("Test 23: Cantor (depth 4)... ");
+    cdp_lib_buffer* cantor = cdp_lib_cantor(ctx, input, 4, 0.5, 5.0, 12345);
+    if (cantor == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", cantor->length);
+        cdp_lib_buffer_free(cantor);
+    }
+
+    /* Test 24: Cascade */
+    printf("Test 24: Cascade (6 echoes)... ");
+    cdp_lib_buffer* cascade = cdp_lib_cascade(ctx, input, 6, 100.0, 0.95, 0.7, 0.8, 12345);
+    if (cascade == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        /* Cascade adds echoes, so output should be longer */
+        if (cascade->length > input->length) {
+            printf("OK (length: %zu, original: %zu)\n", cascade->length, input->length);
+        } else {
+            printf("UNEXPECTED (length: %zu, expected > %zu)\n",
+                   cascade->length, input->length);
+        }
+        cdp_lib_buffer_free(cascade);
+    }
+
+    /* Test 25: Fracture */
+    printf("Test 25: Fracture (50ms fragments)... ");
+    cdp_lib_buffer* fracture = cdp_lib_fracture(ctx, input, 50.0, 0.5, 0.3, 12345);
+    if (fracture == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", fracture->length);
+        cdp_lib_buffer_free(fracture);
+    }
+
+    /* Test 26: Tesselate */
+    printf("Test 26: Tesselate (mirror pattern)... ");
+    cdp_lib_buffer* tesselate = cdp_lib_tesselate(ctx, input, 50.0, 1, 0.25, 0.3, 12345);
+    if (tesselate == NULL) {
+        printf("FAILED: %s\n", cdp_lib_get_error(ctx));
+    } else {
+        printf("OK (length: %zu)\n", tesselate->length);
+        cdp_lib_buffer_free(tesselate);
     }
 
     /* Cleanup */

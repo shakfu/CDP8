@@ -590,3 +590,175 @@ cdp_spectral_data* cdp_spectral_filter_highpass(const cdp_spectral_data *input,
 
     return output;
 }
+
+cdp_spectral_data* cdp_spectral_focus(const cdp_spectral_data *input,
+                                       double center_freq,
+                                       double bandwidth,
+                                       double gain_db) {
+    if (input == NULL || center_freq <= 0 || bandwidth <= 0) return NULL;
+
+    cdp_spectral_data *output = cdp_spectral_data_copy(input);
+    if (output == NULL) return NULL;
+
+    /* Convert gain to linear scale */
+    float gain = (float)pow(10.0, gain_db / 20.0);
+    float half_bw = (float)(bandwidth / 2.0);
+    int num_bins = input->num_bins;
+    float freq_per_bin = input->sample_rate / input->fft_size;
+
+    for (int frame = 0; frame < output->num_frames; frame++) {
+        float *amp = output->frames[frame].data;
+
+        for (int bin = 0; bin < num_bins; bin++) {
+            float bin_freq = bin * freq_per_bin;
+            float dist = fabsf(bin_freq - (float)center_freq);
+
+            /* Super-Gaussian curve with exponent 4 for sharp focus */
+            float norm_dist = dist / half_bw;
+            float curve = expf(-0.5f * norm_dist * norm_dist * norm_dist * norm_dist);
+
+            /* Interpolate between 1.0 and gain based on curve */
+            float applied_gain = 1.0f + (gain - 1.0f) * curve;
+            amp[bin] *= applied_gain;
+        }
+    }
+
+    return output;
+}
+
+cdp_spectral_data* cdp_spectral_hilite(const cdp_spectral_data *input,
+                                        double threshold_db,
+                                        double boost_db) {
+    if (input == NULL) return NULL;
+
+    cdp_spectral_data *output = cdp_spectral_data_copy(input);
+    if (output == NULL) return NULL;
+
+    float boost = (float)pow(10.0, boost_db / 20.0);
+    float threshold_ratio = (float)pow(10.0, threshold_db / 20.0);
+    int num_bins = input->num_bins;
+
+    for (int frame = 0; frame < output->num_frames; frame++) {
+        float *amp = output->frames[frame].data;
+
+        /* Find peak amplitude in this frame */
+        float peak = 0.0f;
+        for (int bin = 0; bin < num_bins; bin++) {
+            if (amp[bin] > peak) peak = amp[bin];
+        }
+
+        float abs_threshold = peak * threshold_ratio;
+
+        /* Detect local maxima and boost them */
+        for (int bin = 1; bin < num_bins - 1; bin++) {
+            /* Is this a local maximum? */
+            if (amp[bin] > amp[bin - 1] && amp[bin] > amp[bin + 1]) {
+                /* Is it above threshold? */
+                if (amp[bin] > abs_threshold) {
+                    /* Boost the peak */
+                    amp[bin] *= boost;
+                    /* Apply partial boost to neighbors for smoothing */
+                    float neighbor_boost = 1.0f + (boost - 1.0f) * 0.5f;
+                    amp[bin - 1] *= neighbor_boost;
+                    amp[bin + 1] *= neighbor_boost;
+                }
+            }
+        }
+    }
+
+    return output;
+}
+
+cdp_spectral_data* cdp_spectral_fold(const cdp_spectral_data *input,
+                                      double fold_freq) {
+    if (input == NULL || fold_freq <= 0) return NULL;
+
+    cdp_spectral_data *output = cdp_spectral_data_copy(input);
+    if (output == NULL) return NULL;
+
+    int num_bins = input->num_bins;
+    float freq_per_bin = input->sample_rate / input->fft_size;
+    int fold_bin = (int)(fold_freq / freq_per_bin);
+
+    /* Clamp fold_bin to valid range */
+    if (fold_bin < 1) fold_bin = 1;
+    if (fold_bin >= num_bins) fold_bin = num_bins - 1;
+
+    for (int frame = 0; frame < output->num_frames; frame++) {
+        float *amp = output->frames[frame].data;
+        float *freq = output->frames[frame].data + num_bins;
+
+        /* Temporary buffer for accumulating folded energy */
+        float *folded_amp = (float *)calloc(num_bins, sizeof(float));
+        if (folded_amp == NULL) {
+            cdp_spectral_data_free(output);
+            return NULL;
+        }
+
+        /* Copy bins below fold point */
+        for (int bin = 0; bin < fold_bin && bin < num_bins; bin++) {
+            folded_amp[bin] = amp[bin];
+        }
+
+        /* Fold bins above fold point */
+        for (int bin = fold_bin; bin < num_bins; bin++) {
+            int mirror = fold_bin - (bin - fold_bin);
+
+            /* Handle multiple reflections */
+            while (mirror < 0 || mirror >= fold_bin) {
+                if (mirror < 0) {
+                    mirror = -mirror;
+                }
+                if (mirror >= fold_bin) {
+                    mirror = 2 * fold_bin - mirror - 1;
+                }
+            }
+
+            if (mirror >= 0 && mirror < num_bins) {
+                folded_amp[mirror] += amp[bin];
+            }
+        }
+
+        /* Copy back and update frequencies */
+        for (int bin = 0; bin < num_bins; bin++) {
+            amp[bin] = folded_amp[bin];
+            freq[bin] = bin * freq_per_bin;
+        }
+
+        free(folded_amp);
+    }
+
+    return output;
+}
+
+cdp_spectral_data* cdp_spectral_clean(const cdp_spectral_data *input,
+                                       double threshold_db) {
+    if (input == NULL) return NULL;
+
+    cdp_spectral_data *output = cdp_spectral_data_copy(input);
+    if (output == NULL) return NULL;
+
+    float threshold_ratio = (float)pow(10.0, threshold_db / 20.0);
+    int num_bins = input->num_bins;
+
+    for (int frame = 0; frame < output->num_frames; frame++) {
+        float *amp = output->frames[frame].data;
+
+        /* Find peak amplitude in this frame */
+        float peak = 0.0f;
+        for (int bin = 0; bin < num_bins; bin++) {
+            if (amp[bin] > peak) peak = amp[bin];
+        }
+
+        float abs_threshold = peak * threshold_ratio;
+
+        /* Zero bins below threshold */
+        for (int bin = 0; bin < num_bins; bin++) {
+            if (amp[bin] < abs_threshold) {
+                amp[bin] = 0.0f;
+            }
+        }
+    }
+
+    return output;
+}

@@ -109,6 +109,85 @@ cdp_lib_buffer* cdp_lib_eq_parametric(cdp_lib_ctx* ctx,
                                        double q,
                                        int fft_size);
 
+/*
+ * Spectral focus - enhance frequencies around a center point.
+ *
+ * Uses a super-Gaussian curve (exponent 4) for sharper focus than
+ * standard parametric EQ.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   center_freq: Center frequency in Hz
+ *   bandwidth: Bandwidth in Hz
+ *   gain_db: Gain in dB (can be negative to attenuate)
+ *   fft_size: FFT size (0 for default 1024)
+ *
+ * Returns: Focused audio buffer, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spectral_focus(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double center_freq,
+                                        double bandwidth,
+                                        double gain_db,
+                                        int fft_size);
+
+/*
+ * Spectral hilite - boost spectral peaks above threshold.
+ *
+ * Detects local maxima and boosts them selectively.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   threshold_db: Only boost peaks above this level (relative to frame peak)
+ *   boost_db: Amount to boost peaks in dB
+ *   fft_size: FFT size (0 for default 1024)
+ *
+ * Returns: Hilited audio buffer, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spectral_hilite(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         double threshold_db,
+                                         double boost_db,
+                                         int fft_size);
+
+/*
+ * Spectral fold - fold spectrum at frequency (metallic effects).
+ *
+ * Frequencies above fold point are mirrored back down.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   fold_freq: Frequency at which to fold the spectrum
+ *   fft_size: FFT size (0 for default 1024)
+ *
+ * Returns: Folded audio buffer, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spectral_fold(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double fold_freq,
+                                       int fft_size);
+
+/*
+ * Spectral clean - spectral noise gate.
+ *
+ * Zeros spectral bins below per-frame threshold.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   threshold_db: Threshold in dB below frame peak
+ *   fft_size: FFT size (0 for default 1024)
+ *
+ * Returns: Cleaned audio buffer, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spectral_clean(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        double threshold_db,
+                                        int fft_size);
+
 #ifdef __cplusplus
 }
 #endif
