@@ -1,6 +1,6 @@
 [project]
 name = "cycdp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Cython bindings for the CDP audio processing library"
 readme = "README.md"
 license = { text = "LGPL-2.1-or-later" }
@@ -8,19 +8,36 @@ authors = [
     { name = "Shakeeb Alireza", email = "shakfu@users.noreply.github.com" }
 ]
 requires-python = ">=3.10"
-keywords = ["audio", "dsp", "signal-processing", "cython"]
+keywords = ["audio", "dsp", "signal-processing", "spectral", "granular", "cython", "cdp"]
 dependencies = []
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: C",
+    "Programming Language :: Cython",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Programming Language :: Cython",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis",
+    "Topic :: Scientific/Engineering :: Information Analysis",
     "Typing :: Typed",
 ]
+
+[project.urls]
+Homepage = "https://github.com/shakfu/cycdp"
+Repository = "https://github.com/shakfu/cycdp"
+Issues = "https://github.com/shakfu/cycdp/issues"
+Changelog = "https://github.com/shakfu/cycdp/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
@@ -41,7 +58,22 @@ cmake.args = []
 cmake.define = {}
 cmake.build-type = "Release"
 cmake.source-dir = "."
-sdist.include = ["projects/libcdp/**", "projects/cpd8/dev/**"]
-sdist.exclude = []
-wheel.exclude = []
+sdist.include = [
+    "projects/libcdp/src/**",
+    "projects/libcdp/cdp_lib/**",
+    "projects/libcdp/include/**",
+    "projects/cpd8/dev/pv/mxfft.c",
+    "projects/cpd8/dev/newinclude/**",
+    "projects/cpd8/dev/include/**",
+]
+sdist.exclude = [
+    "**/*.zip",
+    "**/*.wav",
+    "**/build/**",
+    "**/__pycache__/**",
+]
+wheel.exclude = [
+    "*.pxd",
+    "*.pyx",
+]
 

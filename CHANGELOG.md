@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1]
+
 ### Added (Demos)
 
 **Synthesis Demos (01-07)** - Generate test sounds and demonstrate API:
@@ -162,7 +164,7 @@ Standard DSP functions not derived from CDP algorithms:
 - Phase vocoder frequency calculation now uses correct hop size
 - Spectral filters now use bin center frequency for accurate filtering
 
-## [0.1.0] - 2025-01-31
+## [0.1.0]
 
 ### Added
 - Native CDP library integration (no subprocess overhead)

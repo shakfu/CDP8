@@ -36,7 +36,6 @@ from cycdp._core import (
     gain_db,
     normalize,
     normalize_db,
-    phase_invert,
     peak,
     # File I/O
     read_file,
@@ -388,4 +387,5 @@ __all__ = [
     "wrappage",
 ]
 
-__version__ = version()
+__version__ = "0.1.1"
+

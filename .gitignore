@@ -5,6 +5,9 @@ dist/
 *.so
 *.pyd
 
+# Cython generated
+src/cycdp/_core.c
+
 # Virtual environments
 .venv/
 venv/
@@ -22,12 +25,19 @@ __pycache__/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
+compile_commands.json
 
 # IDE
 .idea/
 .vscode/
+.clangd
 *.swp
 *~
 
 # OS
 .DS_Store
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml

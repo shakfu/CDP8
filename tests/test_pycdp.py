@@ -16,7 +16,7 @@ class TestVersion:
         assert isinstance(v, str)
         assert len(v) > 0
         # Should be semver-like
-        parts = v.split('.')
+        parts = v.split(".")
         assert len(parts) >= 2
 
 
@@ -62,7 +62,7 @@ class TestBuffer:
         assert len(buf) == 2000
 
     def test_from_array(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
         assert buf.sample_count == 100
         assert buf[0] == pytest.approx(0.5)
@@ -75,7 +75,7 @@ class TestBuffer:
         assert buf[50] == pytest.approx(-0.3)
 
     def test_to_list(self):
-        samples = array.array('f', [0.1, 0.2, 0.3])
+        samples = array.array("f", [0.1, 0.2, 0.3])
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
         lst = buf.to_list()
         assert lst == pytest.approx([0.1, 0.2, 0.3], rel=1e-6)
@@ -86,28 +86,28 @@ class TestBuffer:
         buf[0] = 0.5
         # Create memoryview from buffer
         mv = memoryview(buf)
-        assert mv.format == 'f'
+        assert mv.format == "f"
         assert len(mv) == 100
 
 
 class TestGain:
     def test_unity_gain(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         result = cycdp.gain(samples, gain_factor=1.0)
         assert result[0] == pytest.approx(0.5, rel=1e-6)
 
     def test_double_gain(self):
-        samples = array.array('f', [0.25] * 100)
+        samples = array.array("f", [0.25] * 100)
         result = cycdp.gain(samples, gain_factor=2.0)
         assert result[0] == pytest.approx(0.5, rel=1e-6)
 
     def test_half_gain(self):
-        samples = array.array('f', [0.8] * 100)
+        samples = array.array("f", [0.8] * 100)
         result = cycdp.gain(samples, gain_factor=0.5)
         assert result[0] == pytest.approx(0.4, rel=1e-6)
 
     def test_clipping(self):
-        samples = array.array('f', [0.6] * 100)
+        samples = array.array("f", [0.6] * 100)
         # Without clipping - should exceed 1.0
         result_no_clip = cycdp.gain(samples, gain_factor=2.0, clip=False)
         assert result_no_clip[0] == pytest.approx(1.2, rel=1e-6)
@@ -119,18 +119,18 @@ class TestGain:
 
 class TestGainDb:
     def test_zero_db(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         result = cycdp.gain_db(samples, db=0.0)
         assert result[0] == pytest.approx(0.5, rel=1e-5)
 
     def test_plus_six_db(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         result = cycdp.gain_db(samples, db=6.0)
         # 6dB ~= 2x
         assert result[0] == pytest.approx(1.0, rel=0.02)
 
     def test_minus_six_db(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         result = cycdp.gain_db(samples, db=-6.0)
         # -6dB ~= 0.5x
         assert result[0] == pytest.approx(0.25, rel=0.02)
@@ -138,23 +138,23 @@ class TestGainDb:
 
 class TestNormalize:
     def test_normalize_to_unity(self):
-        samples = array.array('f', [0.25, -0.5, 0.3])
+        samples = array.array("f", [0.25, -0.5, 0.3])
         result = cycdp.normalize(samples, target=1.0)
         # Peak should be 1.0 (at index 1, which was -0.5)
         assert abs(result[1]) == pytest.approx(1.0, rel=1e-6)
 
     def test_normalize_to_target(self):
-        samples = array.array('f', [0.25, -0.5, 0.3])
+        samples = array.array("f", [0.25, -0.5, 0.3])
         result = cycdp.normalize(samples, target=0.8)
         assert abs(result[1]) == pytest.approx(0.8, rel=1e-6)
 
     def test_normalize_silent_raises(self):
-        samples = array.array('f', [0.0] * 100)
+        samples = array.array("f", [0.0] * 100)
         with pytest.raises(cycdp.CDPError):
             cycdp.normalize(samples)
 
     def test_preserves_relative_levels(self):
-        samples = array.array('f', [0.2, -0.4, 0.1])
+        samples = array.array("f", [0.2, -0.4, 0.1])
         result = cycdp.normalize(samples, target=1.0)
         # Ratios should be preserved
         assert result[0] / abs(result[1]) == pytest.approx(0.5, rel=1e-6)
@@ -163,19 +163,19 @@ class TestNormalize:
 
 class TestPhaseInvert:
     def test_invert_positive(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
         result = cycdp.phase_invert(buf)
         assert result[0] == pytest.approx(-0.5, rel=1e-6)
 
     def test_invert_negative(self):
-        samples = array.array('f', [-0.3] * 100)
+        samples = array.array("f", [-0.3] * 100)
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
         result = cycdp.phase_invert(buf)
         assert result[0] == pytest.approx(0.3, rel=1e-6)
 
     def test_double_invert_identity(self):
-        samples = array.array('f', [0.1, -0.2, 0.3, -0.4, 0.5])
+        samples = array.array("f", [0.1, -0.2, 0.3, -0.4, 0.5])
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
         result1 = cycdp.phase_invert(buf)
         result2 = cycdp.phase_invert(result1)
@@ -185,13 +185,13 @@ class TestPhaseInvert:
 
 class TestPeak:
     def test_find_peak_positive(self):
-        samples = array.array('f', [0.5, 0.8, 0.3, 0.1])
+        samples = array.array("f", [0.5, 0.8, 0.3, 0.1])
         level, pos = cycdp.peak(samples)
         assert level == pytest.approx(0.8, rel=1e-6)
         assert pos == 1
 
     def test_find_peak_negative(self):
-        samples = array.array('f', [0.5, -0.9, 0.3, 0.1])
+        samples = array.array("f", [0.5, -0.9, 0.3, 0.1])
         level, pos = cycdp.peak(samples)
         assert level == pytest.approx(0.9, rel=1e-6)
         assert pos == 1
@@ -215,7 +215,7 @@ class TestLowLevelAPI:
 
     def test_apply_normalize(self):
         ctx = cycdp.Context()
-        samples = array.array('f', [0.25, -0.5, 0.3])
+        samples = array.array("f", [0.25, -0.5, 0.3])
         buf = cycdp.Buffer.from_memoryview(samples)
 
         cycdp.apply_normalize(ctx, buf, target_level=1.0)
@@ -229,18 +229,18 @@ class TestBufferInterop:
     """Test interoperability with various buffer types."""
 
     def test_with_array_array(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         result = cycdp.gain(samples, gain_factor=2.0)
         assert result[0] == pytest.approx(1.0, rel=1e-6)
 
     def test_with_memoryview(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         mv = memoryview(samples)
         result = cycdp.gain(mv, gain_factor=2.0)
         assert result[0] == pytest.approx(1.0, rel=1e-6)
 
     def test_result_supports_memoryview(self):
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         result = cycdp.gain(samples, gain_factor=2.0)
         # Result should support buffer protocol
         mv = memoryview(result)
@@ -252,7 +252,7 @@ class TestBufferUtilities:
 
     def test_reverse(self):
         """Reverse should reverse sample order."""
-        samples = array.array('f', [1.0, 2.0, 3.0, 4.0, 5.0])
+        samples = array.array("f", [1.0, 2.0, 3.0, 4.0, 5.0])
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         rev = cycdp.reverse(buf)
@@ -327,9 +327,9 @@ class TestBufferUtilities:
 
     def test_concat(self):
         """Concat should join buffers end-to-end."""
-        a_samples = array.array('f', [1.0] * 50)
-        b_samples = array.array('f', [2.0] * 30)
-        c_samples = array.array('f', [3.0] * 20)
+        a_samples = array.array("f", [1.0] * 50)
+        b_samples = array.array("f", [2.0] * 30)
+        c_samples = array.array("f", [3.0] * 20)
         a = cycdp.Buffer.from_memoryview(a_samples, channels=1, sample_rate=44100)
         b = cycdp.Buffer.from_memoryview(b_samples, channels=1, sample_rate=44100)
         c = cycdp.Buffer.from_memoryview(c_samples, channels=1, sample_rate=44100)
@@ -352,7 +352,7 @@ class TestSpatial:
 
     def test_pan_center(self):
         """Center pan should give equal L and R."""
-        samples = array.array('f', [0.8] * 100)
+        samples = array.array("f", [0.8] * 100)
         mono = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         stereo = cycdp.pan(mono, position=0.0)
@@ -365,7 +365,7 @@ class TestSpatial:
 
     def test_pan_left(self):
         """Full left pan should have L > R."""
-        samples = array.array('f', [1.0] * 100)
+        samples = array.array("f", [1.0] * 100)
         mono = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         stereo = cycdp.pan(mono, position=-1.0)
@@ -376,7 +376,7 @@ class TestSpatial:
 
     def test_pan_right(self):
         """Full right pan should have R > L."""
-        samples = array.array('f', [1.0] * 100)
+        samples = array.array("f", [1.0] * 100)
         mono = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         stereo = cycdp.pan(mono, position=1.0)
@@ -394,7 +394,7 @@ class TestSpatial:
     def test_pan_envelope_left_to_right(self):
         """Pan envelope should move sound from left to right."""
         # 1 second of audio at 1000 Hz sample rate for easy calculation
-        samples = array.array('f', [1.0] * 1000)
+        samples = array.array("f", [1.0] * 1000)
         mono = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=1000)
 
         # Pan from left (-1) to right (+1) over 1 second
@@ -420,7 +420,7 @@ class TestSpatial:
 
     def test_pan_envelope_static(self):
         """Pan envelope with single point should behave like static pan."""
-        samples = array.array('f', [0.8] * 100)
+        samples = array.array("f", [0.8] * 100)
         mono = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         # Single point at center
@@ -433,7 +433,7 @@ class TestSpatial:
 
     def test_pan_envelope_empty_raises(self):
         """pan_envelope should fail with empty points list."""
-        samples = array.array('f', [1.0] * 100)
+        samples = array.array("f", [1.0] * 100)
         mono = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         with pytest.raises(ValueError):
@@ -443,14 +443,14 @@ class TestSpatial:
         """Mirror should swap L and R."""
         stereo = cycdp.Buffer.create(100, channels=2, sample_rate=44100)
         for i in range(100):
-            stereo[i * 2] = 0.3      # Left
+            stereo[i * 2] = 0.3  # Left
             stereo[i * 2 + 1] = 0.9  # Right
 
         mirrored = cycdp.mirror(stereo)
         assert mirrored.channels == 2
 
         for i in range(100):
-            assert mirrored[i * 2] == pytest.approx(0.9, rel=1e-6)      # New L = old R
+            assert mirrored[i * 2] == pytest.approx(0.9, rel=1e-6)  # New L = old R
             assert mirrored[i * 2 + 1] == pytest.approx(0.3, rel=1e-6)  # New R = old L
 
     def test_mirror_requires_stereo(self):
@@ -498,8 +498,8 @@ class TestMixing:
 
     def test_mix2_equal_length(self):
         """Mix two buffers of equal length."""
-        a_samples = array.array('f', [0.3] * 100)
-        b_samples = array.array('f', [0.5] * 100)
+        a_samples = array.array("f", [0.3] * 100)
+        b_samples = array.array("f", [0.5] * 100)
         a = cycdp.Buffer.from_memoryview(a_samples, channels=1, sample_rate=44100)
         b = cycdp.Buffer.from_memoryview(b_samples, channels=1, sample_rate=44100)
 
@@ -511,8 +511,8 @@ class TestMixing:
 
     def test_mix2_with_gains(self):
         """Mix two buffers with gains."""
-        a_samples = array.array('f', [1.0] * 100)
-        b_samples = array.array('f', [1.0] * 100)
+        a_samples = array.array("f", [1.0] * 100)
+        b_samples = array.array("f", [1.0] * 100)
         a = cycdp.Buffer.from_memoryview(a_samples, channels=1, sample_rate=44100)
         b = cycdp.Buffer.from_memoryview(b_samples, channels=1, sample_rate=44100)
 
@@ -543,8 +543,10 @@ class TestMixing:
         """Mix multiple buffers."""
         bufs = []
         for val in [0.2, 0.3, 0.1]:
-            samples = array.array('f', [val] * 100)
-            bufs.append(cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100))
+            samples = array.array("f", [val] * 100)
+            bufs.append(
+                cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
+            )
 
         result = cycdp.mix(bufs)
 
@@ -554,8 +556,8 @@ class TestMixing:
 
     def test_mix_with_gains(self):
         """Mix multiple buffers with gains."""
-        a_samples = array.array('f', [1.0] * 100)
-        b_samples = array.array('f', [1.0] * 100)
+        a_samples = array.array("f", [1.0] * 100)
+        b_samples = array.array("f", [1.0] * 100)
         a = cycdp.Buffer.from_memoryview(a_samples, channels=1, sample_rate=44100)
         b = cycdp.Buffer.from_memoryview(b_samples, channels=1, sample_rate=44100)
 
@@ -572,7 +574,7 @@ class TestMixing:
 
     def test_mix_gains_length_mismatch_raises(self):
         """mix should fail if gains length doesn't match."""
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         with pytest.raises(ValueError):
@@ -587,7 +589,7 @@ class TestChannelOperations:
         # Create stereo buffer: L=0.4, R=0.8 -> mono should be 0.6
         stereo = cycdp.Buffer.create(100, channels=2, sample_rate=44100)
         for i in range(100):
-            stereo[i * 2] = 0.4      # Left
+            stereo[i * 2] = 0.4  # Left
             stereo[i * 2 + 1] = 0.8  # Right
 
         mono = cycdp.to_mono(stereo)
@@ -600,7 +602,7 @@ class TestChannelOperations:
 
     def test_to_mono_already_mono(self):
         """Converting mono to mono should just copy."""
-        samples = array.array('f', [0.5] * 100)
+        samples = array.array("f", [0.5] * 100)
         mono_in = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         mono_out = cycdp.to_mono(mono_in)
@@ -612,7 +614,7 @@ class TestChannelOperations:
 
     def test_to_stereo(self):
         """Convert mono to stereo by duplicating."""
-        samples = array.array('f', [0.7] * 100)
+        samples = array.array("f", [0.7] * 100)
         mono = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         stereo = cycdp.to_stereo(mono)
@@ -620,7 +622,7 @@ class TestChannelOperations:
         assert stereo.frame_count == 100
 
         for i in range(100):
-            assert stereo[i * 2] == pytest.approx(0.7, rel=1e-6)      # Left
+            assert stereo[i * 2] == pytest.approx(0.7, rel=1e-6)  # Left
             assert stereo[i * 2 + 1] == pytest.approx(0.7, rel=1e-6)  # Right
 
     def test_to_stereo_requires_mono(self):
@@ -633,7 +635,7 @@ class TestChannelOperations:
         """Extract left and right channels from stereo."""
         stereo = cycdp.Buffer.create(100, channels=2, sample_rate=44100)
         for i in range(100):
-            stereo[i * 2] = 0.3      # Left
+            stereo[i * 2] = 0.3  # Left
             stereo[i * 2 + 1] = 0.9  # Right
 
         left = cycdp.extract_channel(stereo, 0)
@@ -654,10 +656,12 @@ class TestChannelOperations:
 
     def test_merge_channels(self):
         """Merge two mono buffers into stereo."""
-        left_samples = array.array('f', [0.2] * 100)
-        right_samples = array.array('f', [0.8] * 100)
+        left_samples = array.array("f", [0.2] * 100)
+        right_samples = array.array("f", [0.8] * 100)
         left = cycdp.Buffer.from_memoryview(left_samples, channels=1, sample_rate=44100)
-        right = cycdp.Buffer.from_memoryview(right_samples, channels=1, sample_rate=44100)
+        right = cycdp.Buffer.from_memoryview(
+            right_samples, channels=1, sample_rate=44100
+        )
 
         stereo = cycdp.merge_channels(left, right)
         assert stereo.channels == 2
@@ -685,9 +689,9 @@ class TestChannelOperations:
 
     def test_interleave(self):
         """Interleave multiple mono buffers."""
-        ch0_samples = array.array('f', [0.1] * 100)
-        ch1_samples = array.array('f', [0.5] * 100)
-        ch2_samples = array.array('f', [0.9] * 100)
+        ch0_samples = array.array("f", [0.1] * 100)
+        ch1_samples = array.array("f", [0.5] * 100)
+        ch2_samples = array.array("f", [0.9] * 100)
         ch0 = cycdp.Buffer.from_memoryview(ch0_samples, channels=1, sample_rate=44100)
         ch1 = cycdp.Buffer.from_memoryview(ch1_samples, channels=1, sample_rate=44100)
         ch2 = cycdp.Buffer.from_memoryview(ch2_samples, channels=1, sample_rate=44100)
@@ -729,7 +733,7 @@ class TestFileIO:
     def test_write_and_read_float(self, tmp_path):
         """Test writing and reading a float WAV file."""
         # Create test data
-        samples = array.array('f', [0.5, -0.5, 0.25, -0.25, 0.0])
+        samples = array.array("f", [0.5, -0.5, 0.25, -0.25, 0.0])
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         # Write to file
@@ -748,7 +752,7 @@ class TestFileIO:
 
     def test_write_and_read_pcm16(self, tmp_path):
         """Test writing and reading a PCM16 WAV file."""
-        samples = array.array('f', [0.5, -0.5, 0.25, -0.25, 0.0])
+        samples = array.array("f", [0.5, -0.5, 0.25, -0.25, 0.0])
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         path = str(tmp_path / "test_pcm16.wav")
@@ -766,7 +770,7 @@ class TestFileIO:
 
     def test_write_and_read_pcm24(self, tmp_path):
         """Test writing and reading a PCM24 WAV file."""
-        samples = array.array('f', [0.5, -0.5, 0.25, -0.25, 0.0])
+        samples = array.array("f", [0.5, -0.5, 0.25, -0.25, 0.0])
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         path = str(tmp_path / "test_pcm24.wav")
@@ -785,7 +789,7 @@ class TestFileIO:
     def test_stereo_file(self, tmp_path):
         """Test writing and reading a stereo WAV file."""
         # Interleaved stereo: L R L R L R
-        samples = array.array('f', [0.5, -0.5, 0.25, -0.25, 0.1, -0.1])
+        samples = array.array("f", [0.5, -0.5, 0.25, -0.25, 0.1, -0.1])
         buf = cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=48000)
 
         path = str(tmp_path / "test_stereo.wav")
@@ -806,7 +810,7 @@ class TestFileIO:
 
     def test_write_invalid_format_raises(self, tmp_path):
         """Test that writing with invalid format raises ValueError."""
-        samples = array.array('f', [0.5])
+        samples = array.array("f", [0.5])
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         path = str(tmp_path / "test.wav")
@@ -821,13 +825,19 @@ class TestSpectral:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_time_stretch_double(self, sine_wave):
         """Time stretch should approximately double the length."""
@@ -894,13 +904,19 @@ class TestEnvelope:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_dovetail(self, sine_wave):
         """Dovetail should apply fades."""
@@ -929,13 +945,19 @@ class TestDistortion:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_distort_overload(self, sine_wave):
         """Overload distortion should run without error."""
@@ -1186,27 +1208,36 @@ class TestDistortWarp:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_wave(self):
         """Create a stereo sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         num_frames = int(sample_rate * duration)
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(num_frames):
             val = 0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
             samples.append(val)  # Left
             samples.append(val)  # Right
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     def test_distort_warp_basic(self, sine_wave):
         """Distort warp should produce output."""
@@ -1277,13 +1308,19 @@ class TestReverb:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_reverb(self, sine_wave):
         """Reverb should run without error and add a tail."""
@@ -1301,13 +1338,19 @@ class TestGranular:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_brassage(self, sine_wave):
         """Brassage should run without error."""
@@ -1323,12 +1366,7 @@ class TestGranular:
 
     def test_freeze(self, sine_wave):
         """Freeze should produce specified duration."""
-        result = cycdp.freeze(
-            sine_wave,
-            start_time=0.1,
-            end_time=0.2,
-            duration=1.0
-        )
+        result = cycdp.freeze(sine_wave, start_time=0.1, end_time=0.2, duration=1.0)
         # Should be roughly 1 second (44100 samples at 44.1kHz)
         expected_samples = 44100
         assert result.frame_count > expected_samples * 0.9
@@ -1342,13 +1380,19 @@ class TestFilters:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_filter_bandpass(self, sine_wave):
         """Bandpass filter should pass frequencies in range."""
@@ -1394,13 +1438,19 @@ class TestGate:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_gate(self, sine_wave):
         """Gate should run without error."""
@@ -1410,11 +1460,13 @@ class TestGate:
     def test_gate_silence_quiet(self):
         """Gate should silence very quiet audio."""
         # Create very quiet signal
-        samples = array.array('f', [0.001 * i / 1000 for i in range(44100)])
+        samples = array.array("f", [0.001 * i / 1000 for i in range(44100)])
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
         result = cycdp.gate(buf, threshold_db=-20.0)
         # Most should be gated to zero (threshold is 0.1 amplitude)
-        quiet_count = sum(1 for i in range(result.sample_count) if abs(result[i]) < 0.0001)
+        quiet_count = sum(
+            1 for i in range(result.sample_count) if abs(result[i]) < 0.0001
+        )
         assert quiet_count > result.sample_count * 0.5
 
 
@@ -1425,13 +1477,19 @@ class TestBitcrush:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_bitcrush(self, sine_wave):
         """Bitcrush should run without error."""
@@ -1465,13 +1523,19 @@ class TestRingMod:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_ring_mod(self, sine_wave):
         """Ring modulation should run without error."""
@@ -1493,13 +1557,19 @@ class TestDelay:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_delay(self, sine_wave):
         """Delay should run without error."""
@@ -1519,13 +1589,19 @@ class TestChorus:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_chorus(self, sine_wave):
         """Chorus should run without error."""
@@ -1547,13 +1623,19 @@ class TestFlanger:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_flanger(self, sine_wave):
         """Flanger should run without error."""
@@ -1580,13 +1662,19 @@ class TestParametricEQ:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_eq_parametric_boost(self, sine_wave):
         """EQ boost should run without error."""
@@ -1614,17 +1702,25 @@ class TestEnvelopeFollow:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_envelope_follow_peak(self, sine_wave):
         """Envelope follow (peak) should produce mono envelope."""
-        result = cycdp.envelope_follow(sine_wave, attack_ms=1.0, release_ms=50.0, mode="peak")
+        result = cycdp.envelope_follow(
+            sine_wave, attack_ms=1.0, release_ms=50.0, mode="peak"
+        )
         assert result.channels == 1
         assert result.frame_count == sine_wave.frame_count
         # Envelope should be non-negative
@@ -1633,7 +1729,9 @@ class TestEnvelopeFollow:
 
     def test_envelope_follow_rms(self, sine_wave):
         """Envelope follow (RMS) should produce smooth envelope."""
-        result = cycdp.envelope_follow(sine_wave, attack_ms=1.0, release_ms=50.0, mode="rms")
+        result = cycdp.envelope_follow(
+            sine_wave, attack_ms=1.0, release_ms=50.0, mode="rms"
+        )
         assert result.channels == 1
         assert result.frame_count == sine_wave.frame_count
 
@@ -1645,18 +1743,24 @@ class TestEnvelopeApply:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_envelope_apply(self, sine_wave):
         """Envelope apply should modulate amplitude."""
         # Create a simple ramp envelope
-        samples = array.array('f', [i / 22050 for i in range(22050)])
+        samples = array.array("f", [i / 22050 for i in range(22050)])
         envelope = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
 
         result = cycdp.envelope_apply(sine_wave, envelope, depth=1.0)
@@ -1678,13 +1782,19 @@ class TestCompressor:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_compressor(self, sine_wave):
         """Compressor should run without error."""
@@ -1695,8 +1805,9 @@ class TestCompressor:
         """Compressor should reduce peaks above threshold."""
         # Original peak is 0.5 = -6dB
         # Threshold at -10dB should compress
-        result = cycdp.compressor(sine_wave, threshold_db=-10.0, ratio=4.0,
-                                  attack_ms=0.1, release_ms=50.0)
+        result = cycdp.compressor(
+            sine_wave, threshold_db=-10.0, ratio=4.0, attack_ms=0.1, release_ms=50.0
+        )
         result_peak = max(abs(result[i]) for i in range(result.sample_count))
         original_peak = max(abs(sine_wave[i]) for i in range(sine_wave.sample_count))
         # Compressed peak should be lower than original
@@ -1704,8 +1815,9 @@ class TestCompressor:
 
     def test_compressor_with_makeup(self, sine_wave):
         """Compressor makeup gain should boost output."""
-        result = cycdp.compressor(sine_wave, threshold_db=-10.0, ratio=4.0,
-                                  makeup_gain_db=6.0)
+        result = cycdp.compressor(
+            sine_wave, threshold_db=-10.0, ratio=4.0, makeup_gain_db=6.0
+        )
         assert result.frame_count == sine_wave.frame_count
 
 
@@ -1716,13 +1828,19 @@ class TestLimiter:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_limiter(self, sine_wave):
         """Limiter should run without error."""
@@ -1733,14 +1851,18 @@ class TestLimiter:
         """Limiter should cap peaks at threshold."""
         # Original peak is 0.5 = -6dB
         # Limit at -12dB = 0.25
-        result = cycdp.limiter(sine_wave, threshold_db=-12.0, attack_ms=0.0, release_ms=50.0)
+        result = cycdp.limiter(
+            sine_wave, threshold_db=-12.0, attack_ms=0.0, release_ms=50.0
+        )
         result_peak = max(abs(result[i]) for i in range(result.sample_count))
         # Peak should be at or below threshold (0.25)
         assert result_peak <= 0.26  # Small tolerance
 
     def test_limiter_hard(self, sine_wave):
         """Hard limiter (attack=0) should strictly limit."""
-        result = cycdp.limiter(sine_wave, threshold_db=-6.0, attack_ms=0.0, release_ms=50.0)
+        result = cycdp.limiter(
+            sine_wave, threshold_db=-6.0, attack_ms=0.0, release_ms=50.0
+        )
         threshold_lin = 10 ** (-6.0 / 20.0)  # ~0.5
         # All samples should be at or below threshold
         for i in range(result.sample_count):
@@ -1754,14 +1876,23 @@ class TestGrainCloud:
     def short_sound(self):
         """Create a short sound with amplitude variations for grain detection."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate) *
-            (0.5 + 0.5 * math.sin(2 * math.pi * 10 * i / sample_rate))  # AM modulation
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5
+                * math.sin(2 * math.pi * 440 * i / sample_rate)
+                * (
+                    0.5 + 0.5 * math.sin(2 * math.pi * 10 * i / sample_rate)
+                )  # AM modulation
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_cloud_runs(self, short_sound):
         """Grain cloud should run without error."""
@@ -1771,7 +1902,9 @@ class TestGrainCloud:
     def test_grain_cloud_duration(self, short_sound):
         """Grain cloud should respect duration parameter."""
         duration = 2.0
-        result = cycdp.grain_cloud(short_sound, duration=duration, density=10.0, seed=42)
+        result = cycdp.grain_cloud(
+            short_sound, duration=duration, density=10.0, seed=42
+        )
         expected_samples = int(duration * short_sound.sample_rate)
         assert abs(result.frame_count - expected_samples) < 100
 
@@ -1791,13 +1924,19 @@ class TestGrainExtend:
     def short_sound(self):
         """Create a short sound for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_extend_runs(self, short_sound):
         """Grain extend should run without error."""
@@ -1821,13 +1960,19 @@ class TestTextureSimple:
     def short_sound(self):
         """Create a short sound for texture source."""
         import math
+
         sample_rate = 44100
         duration = 0.2
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_texture_simple_runs(self, short_sound):
         """Texture simple should run without error."""
@@ -1842,7 +1987,9 @@ class TestTextureSimple:
     def test_texture_simple_duration(self, short_sound):
         """Texture simple should respect duration."""
         duration = 2.0
-        result = cycdp.texture_simple(short_sound, duration=duration, density=5.0, seed=42)
+        result = cycdp.texture_simple(
+            short_sound, duration=duration, density=5.0, seed=42
+        )
         expected_samples = int(duration * short_sound.sample_rate)
         assert abs(result.frame_count - expected_samples) < 100
 
@@ -1854,13 +2001,19 @@ class TestTextureMulti:
     def short_sound(self):
         """Create a short sound for texture source."""
         import math
+
         sample_rate = 44100
         duration = 0.2
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_texture_multi_runs(self, short_sound):
         """Texture multi should run without error."""
@@ -1874,8 +2027,12 @@ class TestTextureMulti:
 
     def test_texture_multi_groups(self, short_sound):
         """Texture multi should support different group sizes."""
-        result1 = cycdp.texture_multi(short_sound, duration=1.0, density=2.0, group_size=2, seed=42)
-        result2 = cycdp.texture_multi(short_sound, duration=1.0, density=2.0, group_size=8, seed=42)
+        result1 = cycdp.texture_multi(
+            short_sound, duration=1.0, density=2.0, group_size=2, seed=42
+        )
+        result2 = cycdp.texture_multi(
+            short_sound, duration=1.0, density=2.0, group_size=8, seed=42
+        )
         # Both should produce output
         assert result1.frame_count > 0
         assert result2.frame_count > 0
@@ -1893,8 +2050,9 @@ class TestGrainReorder:
     def rhythmic_sound(self):
         """Create a sound with distinct grains (pulses)."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         # Create 5 pulses at 0.1s intervals
         for pulse in range(5):
             # Silence before pulse
@@ -1903,10 +2061,14 @@ class TestGrainReorder:
             freq = 220 * (pulse + 1)  # 220, 440, 660, 880, 1100 Hz
             for i in range(int(sample_rate * 0.04)):
                 env = 1.0 - i / (sample_rate * 0.04)  # decay
-                samples.append(0.8 * env * math.sin(2 * math.pi * freq * i / sample_rate))
+                samples.append(
+                    0.8 * env * math.sin(2 * math.pi * freq * i / sample_rate)
+                )
             # Silence after pulse
             samples.extend([0.0] * int(sample_rate * 0.01))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_reorder_runs(self, rhythmic_sound):
         """Grain reorder should run without error."""
@@ -1934,15 +2096,20 @@ class TestGrainRerhythm:
     def rhythmic_sound(self):
         """Create a sound with distinct grains."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         for pulse in range(4):
             samples.extend([0.0] * int(sample_rate * 0.05))
             for i in range(int(sample_rate * 0.04)):
                 env = 1.0 - i / (sample_rate * 0.04)
-                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+                samples.append(
+                    0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate)
+                )
             samples.extend([0.0] * int(sample_rate * 0.01))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_rerhythm_runs(self, rhythmic_sound):
         """Grain rerhythm should run without error."""
@@ -1967,16 +2134,21 @@ class TestGrainReverse:
     def rhythmic_sound(self):
         """Create a sound with distinct grains."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         for pulse in range(4):
             samples.extend([0.0] * int(sample_rate * 0.05))
             freq = 220 * (pulse + 1)
             for i in range(int(sample_rate * 0.04)):
                 env = 1.0 - i / (sample_rate * 0.04)
-                samples.append(0.8 * env * math.sin(2 * math.pi * freq * i / sample_rate))
+                samples.append(
+                    0.8 * env * math.sin(2 * math.pi * freq * i / sample_rate)
+                )
             samples.extend([0.0] * int(sample_rate * 0.01))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_reverse_runs(self, rhythmic_sound):
         """Grain reverse should run without error."""
@@ -1991,15 +2163,20 @@ class TestGrainTimewarp:
     def rhythmic_sound(self):
         """Create a sound with distinct grains."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         for pulse in range(4):
             samples.extend([0.0] * int(sample_rate * 0.05))
             for i in range(int(sample_rate * 0.04)):
                 env = 1.0 - i / (sample_rate * 0.04)
-                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+                samples.append(
+                    0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate)
+                )
             samples.extend([0.0] * int(sample_rate * 0.01))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_timewarp_runs(self, rhythmic_sound):
         """Grain timewarp should run without error."""
@@ -2026,15 +2203,20 @@ class TestGrainRepitch:
     def rhythmic_sound(self):
         """Create a sound with distinct grains."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         for pulse in range(4):
             samples.extend([0.0] * int(sample_rate * 0.05))
             for i in range(int(sample_rate * 0.04)):
                 env = 1.0 - i / (sample_rate * 0.04)
-                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+                samples.append(
+                    0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate)
+                )
             samples.extend([0.0] * int(sample_rate * 0.01))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_repitch_runs(self, rhythmic_sound):
         """Grain repitch should run without error."""
@@ -2055,15 +2237,20 @@ class TestGrainPosition:
     def rhythmic_sound(self):
         """Create a sound with distinct grains."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         for pulse in range(4):
             samples.extend([0.0] * int(sample_rate * 0.05))
             for i in range(int(sample_rate * 0.04)):
                 env = 1.0 - i / (sample_rate * 0.04)
-                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+                samples.append(
+                    0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate)
+                )
             samples.extend([0.0] * int(sample_rate * 0.01))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_position_runs(self, rhythmic_sound):
         """Grain position should run without error."""
@@ -2072,7 +2259,9 @@ class TestGrainPosition:
 
     def test_grain_position_with_duration(self, rhythmic_sound):
         """Grain position should respect duration parameter."""
-        result = cycdp.grain_position(rhythmic_sound, positions=[0.0, 0.3, 0.6], duration=2.0)
+        result = cycdp.grain_position(
+            rhythmic_sound, positions=[0.0, 0.3, 0.6], duration=2.0
+        )
         # Output should be approximately 2 seconds + grain length
         expected_samples = int(2.0 * rhythmic_sound.sample_rate)
         assert result.frame_count >= expected_samples * 0.8
@@ -2085,15 +2274,20 @@ class TestGrainOmit:
     def rhythmic_sound(self):
         """Create a sound with distinct grains."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         for pulse in range(6):
             samples.extend([0.0] * int(sample_rate * 0.05))
             for i in range(int(sample_rate * 0.04)):
                 env = 1.0 - i / (sample_rate * 0.04)
-                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+                samples.append(
+                    0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate)
+                )
             samples.extend([0.0] * int(sample_rate * 0.01))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_omit_runs(self, rhythmic_sound):
         """Grain omit should run without error."""
@@ -2114,15 +2308,20 @@ class TestGrainDuplicate:
     def rhythmic_sound(self):
         """Create a sound with distinct grains."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         for pulse in range(3):
             samples.extend([0.0] * int(sample_rate * 0.05))
             for i in range(int(sample_rate * 0.04)):
                 env = 1.0 - i / (sample_rate * 0.04)
-                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+                samples.append(
+                    0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate)
+                )
             samples.extend([0.0] * int(sample_rate * 0.01))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_grain_duplicate_runs(self, rhythmic_sound):
         """Grain duplicate should run without error."""
@@ -2150,25 +2349,37 @@ class TestMorph:
     def sine_440(self):
         """Create a 440Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def sine_880(self):
         """Create a 880Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_morph_runs(self, sine_440, sine_880):
         """Morph should run without error."""
@@ -2195,25 +2406,37 @@ class TestMorphGlide:
     def sine_440(self):
         """Create a 440Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def sine_880(self):
         """Create a 880Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_morph_glide_runs(self, sine_440, sine_880):
         """Morph glide should run without error."""
@@ -2235,9 +2458,10 @@ class TestCrossSynth:
     def voice_like(self):
         """Create a voice-like sound with harmonics."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             # Fundamental with harmonics
@@ -2245,21 +2469,28 @@ class TestCrossSynth:
             val += 0.2 * math.sin(2 * math.pi * 440 * t)
             val += 0.1 * math.sin(2 * math.pi * 660 * t)
             samples.append(val)
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def noise_like(self):
         """Create a noise-like sound."""
-        import math
         import random
+
         random.seed(42)
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.3 * (random.random() * 2 - 1)
-            for _ in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.3 * (random.random() * 2 - 1)
+                for _ in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_cross_synth_runs(self, voice_like, noise_like):
         """Cross-synthesis should run without error."""
@@ -2293,25 +2524,37 @@ class TestMorphGlideNative:
     def sine_440(self):
         """Create a 440Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def sine_880(self):
         """Create a 880Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_morph_glide_native_runs(self, sine_440, sine_880):
         """Native morph glide should run without error."""
@@ -2333,25 +2576,37 @@ class TestMorphBridgeNative:
     def sine_440(self):
         """Create a 440Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def sine_880(self):
         """Create a 880Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_morph_bridge_native_runs(self, sine_440, sine_880):
         """Native morph bridge should run without error."""
@@ -2371,7 +2626,8 @@ class TestMorphBridgeNative:
     def test_morph_bridge_native_interp_timing(self, sine_440, sine_880):
         """Native morph bridge should support interpolation timing."""
         result = cycdp.morph_bridge_native(
-            sine_440, sine_880, interp_start=0.25, interp_end=0.75)
+            sine_440, sine_880, interp_start=0.25, interp_end=0.75
+        )
         assert result.frame_count > 0
 
 
@@ -2382,25 +2638,37 @@ class TestMorphNative:
     def sine_440(self):
         """Create a 440Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def sine_880(self):
         """Create a 880Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_morph_native_runs(self, sine_440, sine_880):
         """Native morph should run without error."""
@@ -2417,9 +2685,8 @@ class TestMorphNative:
     def test_morph_native_separate_timing(self, sine_440, sine_880):
         """Native morph should support separate amp/freq timing."""
         result = cycdp.morph_native(
-            sine_440, sine_880,
-            amp_start=0.0, amp_end=0.5,
-            freq_start=0.5, freq_end=1.0)
+            sine_440, sine_880, amp_start=0.0, amp_end=0.5, freq_start=0.5, freq_end=1.0
+        )
         assert result.frame_count > 0
 
     def test_morph_native_exponents(self, sine_440, sine_880):
@@ -2442,29 +2709,32 @@ class TestPitch:
     def tone_440(self):
         """Create a 440 Hz sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             samples.append(0.8 * math.sin(2 * math.pi * 440 * t))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_pitch_runs(self, tone_440):
         """Pitch analysis should run without error."""
         result = cycdp.pitch(tone_440)
-        assert 'pitch' in result
-        assert 'confidence' in result
-        assert 'num_frames' in result
-        assert result['num_frames'] > 0
-        assert len(result['pitch']) == result['num_frames']
-        assert len(result['confidence']) == result['num_frames']
+        assert "pitch" in result
+        assert "confidence" in result
+        assert "num_frames" in result
+        assert result["num_frames"] > 0
+        assert len(result["pitch"]) == result["num_frames"]
+        assert len(result["confidence"]) == result["num_frames"]
 
     def test_pitch_detects_440hz(self, tone_440):
         """Pitch analysis should detect 440 Hz in a sine wave."""
         result = cycdp.pitch(tone_440, min_freq=100, max_freq=1000)
         # Check that some frames detected pitch near 440 Hz
-        detected = [p for p in result['pitch'] if p > 0]
+        detected = [p for p in result["pitch"] if p > 0]
         assert len(detected) > 0
         avg_pitch = sum(detected) / len(detected)
         # Allow 10% tolerance
@@ -2472,9 +2742,10 @@ class TestPitch:
 
     def test_pitch_with_params(self, tone_440):
         """Pitch analysis should accept parameter overrides."""
-        result = cycdp.pitch(tone_440, min_freq=200, max_freq=1000,
-                             frame_size=1024, hop_size=256)
-        assert result['num_frames'] > 0
+        result = cycdp.pitch(
+            tone_440, min_freq=200, max_freq=1000, frame_size=1024, hop_size=256
+        )
+        assert result["num_frames"] > 0
 
 
 class TestFormants:
@@ -2484,9 +2755,10 @@ class TestFormants:
     def complex_tone(self):
         """Create a complex tone with multiple frequencies."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             # Multiple frequencies to create formant-like structure
@@ -2495,24 +2767,27 @@ class TestFormants:
             val += 0.15 * math.sin(2 * math.pi * 2500 * t)
             val += 0.1 * math.sin(2 * math.pi * 3500 * t)
             samples.append(val)
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_formants_runs(self, complex_tone):
         """Formant analysis should run without error."""
         result = cycdp.formants(complex_tone)
-        assert 'f1' in result
-        assert 'f2' in result
-        assert 'f3' in result
-        assert 'f4' in result
-        assert 'b1' in result
-        assert 'num_frames' in result
-        assert result['num_frames'] > 0
+        assert "f1" in result
+        assert "f2" in result
+        assert "f3" in result
+        assert "f4" in result
+        assert "b1" in result
+        assert "num_frames" in result
+        assert result["num_frames"] > 0
 
     def test_formants_with_params(self, complex_tone):
         """Formant analysis should accept parameter overrides."""
-        result = cycdp.formants(complex_tone, lpc_order=16,
-                                frame_size=512, hop_size=128)
-        assert result['num_frames'] > 0
+        result = cycdp.formants(
+            complex_tone, lpc_order=16, frame_size=512, hop_size=128
+        )
+        assert result["num_frames"] > 0
 
 
 class TestGetPartials:
@@ -2522,9 +2797,10 @@ class TestGetPartials:
     def harmonic_tone(self):
         """Create a tone with clear harmonics."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             # Fundamental and harmonics
@@ -2533,33 +2809,40 @@ class TestGetPartials:
             val += 0.2 * math.sin(2 * math.pi * 660 * t)
             val += 0.1 * math.sin(2 * math.pi * 880 * t)
             samples.append(val)
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_get_partials_runs(self, harmonic_tone):
         """Partial tracking should run without error."""
         result = cycdp.get_partials(harmonic_tone)
-        assert 'tracks' in result
-        assert 'num_tracks' in result
-        assert 'total_frames' in result
-        assert result['total_frames'] > 0
+        assert "tracks" in result
+        assert "num_tracks" in result
+        assert "total_frames" in result
+        assert result["total_frames"] > 0
 
     def test_get_partials_finds_tracks(self, harmonic_tone):
         """Partial tracking should find some tracks."""
         result = cycdp.get_partials(harmonic_tone, min_amp_db=-40, max_partials=20)
-        assert result['num_tracks'] > 0
+        assert result["num_tracks"] > 0
         # Each track should have freq and amp arrays
-        for track in result['tracks']:
-            assert 'freq' in track
-            assert 'amp' in track
-            assert 'start_frame' in track
-            assert 'end_frame' in track
+        for track in result["tracks"]:
+            assert "freq" in track
+            assert "amp" in track
+            assert "start_frame" in track
+            assert "end_frame" in track
 
     def test_get_partials_with_params(self, harmonic_tone):
         """Partial tracking should accept parameter overrides."""
-        result = cycdp.get_partials(harmonic_tone, min_amp_db=-50,
-                                    max_partials=50, freq_tolerance=30,
-                                    fft_size=1024, hop_size=256)
-        assert result['total_frames'] > 0
+        result = cycdp.get_partials(
+            harmonic_tone,
+            min_amp_db=-50,
+            max_partials=50,
+            freq_tolerance=30,
+            fft_size=1024,
+            hop_size=256,
+        )
+        assert result["total_frames"] > 0
 
 
 class TestSpectralFocus:
@@ -2569,25 +2852,38 @@ class TestSpectralFocus:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_spectral_focus_returns_buffer(self, sine_buffer):
         """Spectral focus should return a Buffer."""
-        result = cycdp.spectral_focus(sine_buffer, center_freq=440.0, bandwidth=100.0, gain_db=6.0)
+        result = cycdp.spectral_focus(
+            sine_buffer, center_freq=440.0, bandwidth=100.0, gain_db=6.0
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_spectral_focus_with_params(self, sine_buffer):
         """Spectral focus should accept parameter overrides."""
-        result = cycdp.spectral_focus(sine_buffer, center_freq=1000.0, bandwidth=200.0,
-                                       gain_db=-3.0, fft_size=2048)
+        result = cycdp.spectral_focus(
+            sine_buffer,
+            center_freq=1000.0,
+            bandwidth=200.0,
+            gain_db=-3.0,
+            fft_size=2048,
+        )
         assert isinstance(result, cycdp.Buffer)
 
 
@@ -2598,27 +2894,36 @@ class TestSpectralHilite:
     def harmonic_buffer(self):
         """Create a harmonic tone buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 220.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate) +
-            0.25 * math.sin(2.0 * math.pi * 2 * freq * i / sample_rate) +
-            0.125 * math.sin(2.0 * math.pi * 3 * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                + 0.25 * math.sin(2.0 * math.pi * 2 * freq * i / sample_rate)
+                + 0.125 * math.sin(2.0 * math.pi * 3 * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_spectral_hilite_returns_buffer(self, harmonic_buffer):
         """Spectral hilite should return a Buffer."""
-        result = cycdp.spectral_hilite(harmonic_buffer, threshold_db=-20.0, boost_db=6.0)
+        result = cycdp.spectral_hilite(
+            harmonic_buffer, threshold_db=-20.0, boost_db=6.0
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_spectral_hilite_with_params(self, harmonic_buffer):
         """Spectral hilite should accept parameter overrides."""
-        result = cycdp.spectral_hilite(harmonic_buffer, threshold_db=-30.0,
-                                        boost_db=12.0, fft_size=2048)
+        result = cycdp.spectral_hilite(
+            harmonic_buffer, threshold_db=-30.0, boost_db=12.0, fft_size=2048
+        )
         assert isinstance(result, cycdp.Buffer)
 
 
@@ -2629,14 +2934,20 @@ class TestSpectralFold:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_spectral_fold_returns_buffer(self, sine_buffer):
         """Spectral fold should return a Buffer."""
@@ -2658,16 +2969,22 @@ class TestSpectralClean:
         """Create a noisy buffer for testing."""
         import math
         import random
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
         random.seed(42)
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate) +
-            0.01 * (random.random() * 2 - 1)  # Add some noise
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                + 0.01 * (random.random() * 2 - 1)  # Add some noise
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_spectral_clean_returns_buffer(self, noisy_buffer):
         """Spectral clean should return a Buffer."""
@@ -2688,14 +3005,20 @@ class TestStrange:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_strange_returns_buffer(self, sine_buffer):
         """Strange modulation should return a Buffer."""
@@ -2719,32 +3042,45 @@ class TestBrownian:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_brownian_returns_buffer(self, sine_buffer):
         """Brownian modulation should return a Buffer."""
-        result = cycdp.brownian(sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345)
+        result = cycdp.brownian(
+            sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_brownian_targets(self, sine_buffer):
         """Brownian modulation should work with all targets."""
         for target in [0, 1, 2]:  # pitch, amp, filter
-            result = cycdp.brownian(sine_buffer, step_size=0.1, smoothing=0.9,
-                                     target=target, seed=12345)
+            result = cycdp.brownian(
+                sine_buffer, step_size=0.1, smoothing=0.9, target=target, seed=12345
+            )
             assert isinstance(result, cycdp.Buffer)
 
     def test_brownian_reproducible(self, sine_buffer):
         """Brownian modulation with same seed should produce identical results."""
-        result1 = cycdp.brownian(sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345)
-        result2 = cycdp.brownian(sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345)
+        result1 = cycdp.brownian(
+            sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345
+        )
+        result2 = cycdp.brownian(
+            sine_buffer, step_size=0.1, smoothing=0.9, target=0, seed=12345
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -2756,31 +3092,45 @@ class TestCrystal:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_crystal_returns_buffer(self, sine_buffer):
         """Crystal texture should return a Buffer."""
-        result = cycdp.crystal(sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345)
+        result = cycdp.crystal(
+            sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_crystal_adds_tail(self, sine_buffer):
         """Crystal texture should add a decay tail."""
-        result = cycdp.crystal(sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345)
+        result = cycdp.crystal(
+            sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345
+        )
         # Output should be longer than input due to decay
         assert result.sample_count > sine_buffer.sample_count
 
     def test_crystal_reproducible(self, sine_buffer):
         """Crystal texture with same seed should produce identical results."""
-        result1 = cycdp.crystal(sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345)
-        result2 = cycdp.crystal(sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345)
+        result1 = cycdp.crystal(
+            sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345
+        )
+        result2 = cycdp.crystal(
+            sine_buffer, density=50.0, decay=0.5, pitch_scatter=2.0, seed=12345
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -2792,25 +3142,37 @@ class TestFractal:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_fractal_returns_buffer(self, sine_buffer):
         """Fractal processing should return a Buffer."""
-        result = cycdp.fractal(sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345)
+        result = cycdp.fractal(
+            sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_fractal_reproducible(self, sine_buffer):
         """Fractal with same seed should produce identical results."""
-        result1 = cycdp.fractal(sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345)
-        result2 = cycdp.fractal(sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345)
+        result1 = cycdp.fractal(
+            sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345
+        )
+        result2 = cycdp.fractal(
+            sine_buffer, depth=3, pitch_ratio=0.5, decay=0.7, seed=12345
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -2822,31 +3184,45 @@ class TestQuirk:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_quirk_returns_buffer(self, sine_buffer):
         """Quirk should return a Buffer."""
-        result = cycdp.quirk(sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345)
+        result = cycdp.quirk(
+            sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_quirk_modes(self, sine_buffer):
         """Quirk should work with all modes."""
         for mode in [0, 1, 2]:
-            result = cycdp.quirk(sine_buffer, probability=0.3, intensity=0.5, mode=mode, seed=12345)
+            result = cycdp.quirk(
+                sine_buffer, probability=0.3, intensity=0.5, mode=mode, seed=12345
+            )
             assert isinstance(result, cycdp.Buffer)
 
     def test_quirk_reproducible(self, sine_buffer):
         """Quirk with same seed should produce identical results."""
-        result1 = cycdp.quirk(sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345)
-        result2 = cycdp.quirk(sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345)
+        result1 = cycdp.quirk(
+            sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345
+        )
+        result2 = cycdp.quirk(
+            sine_buffer, probability=0.3, intensity=0.5, mode=2, seed=12345
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -2858,25 +3234,37 @@ class TestChirikov:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_chirikov_returns_buffer(self, sine_buffer):
         """Chirikov modulation should return a Buffer."""
-        result = cycdp.chirikov(sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345)
+        result = cycdp.chirikov(
+            sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_chirikov_reproducible(self, sine_buffer):
         """Chirikov with same seed should produce identical results."""
-        result1 = cycdp.chirikov(sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345)
-        result2 = cycdp.chirikov(sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345)
+        result1 = cycdp.chirikov(
+            sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345
+        )
+        result2 = cycdp.chirikov(
+            sine_buffer, k_param=2.0, mod_depth=0.5, rate=2.0, seed=12345
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -2888,30 +3276,44 @@ class TestCantor:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_cantor_returns_buffer(self, sine_buffer):
         """Cantor gating should return a Buffer."""
-        result = cycdp.cantor(sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345)
+        result = cycdp.cantor(
+            sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_cantor_same_length(self, sine_buffer):
         """Cantor gating should preserve length."""
-        result = cycdp.cantor(sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345)
+        result = cycdp.cantor(
+            sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345
+        )
         assert result.sample_count == sine_buffer.sample_count
 
     def test_cantor_reproducible(self, sine_buffer):
         """Cantor with same seed should produce identical results."""
-        result1 = cycdp.cantor(sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345)
-        result2 = cycdp.cantor(sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345)
+        result1 = cycdp.cantor(
+            sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345
+        )
+        result2 = cycdp.cantor(
+            sine_buffer, depth=4, duty_cycle=0.5, smooth_ms=5.0, seed=12345
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -2923,14 +3325,20 @@ class TestCascade:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_cascade_returns_buffer(self, sine_buffer):
         """Cascade should return a Buffer."""
@@ -2958,25 +3366,37 @@ class TestFracture:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_fracture_returns_buffer(self, sine_buffer):
         """Fracture should return a Buffer."""
-        result = cycdp.fracture(sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345)
+        result = cycdp.fracture(
+            sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_fracture_reproducible(self, sine_buffer):
         """Fracture with same seed should produce identical results."""
-        result1 = cycdp.fracture(sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345)
-        result2 = cycdp.fracture(sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345)
+        result1 = cycdp.fracture(
+            sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345
+        )
+        result2 = cycdp.fracture(
+            sine_buffer, fragment_ms=50.0, gap_ratio=0.5, scatter=0.3, seed=12345
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -2988,36 +3408,52 @@ class TestTesselate:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_tesselate_returns_buffer(self, sine_buffer):
         """Tesselate should return a Buffer."""
-        result = cycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345)
+        result = cycdp.tesselate(
+            sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_tesselate_patterns(self, sine_buffer):
         """Tesselate should work with all patterns."""
         for pattern in [0, 1, 2, 3]:
-            result = cycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=pattern, seed=12345)
+            result = cycdp.tesselate(
+                sine_buffer, tile_ms=50.0, pattern=pattern, seed=12345
+            )
             assert isinstance(result, cycdp.Buffer)
 
     def test_tesselate_same_length(self, sine_buffer):
         """Tesselate should preserve length."""
-        result = cycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345)
+        result = cycdp.tesselate(
+            sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345
+        )
         assert result.sample_count == sine_buffer.sample_count
 
     def test_tesselate_reproducible(self, sine_buffer):
         """Tesselate with same seed should produce identical results."""
-        result1 = cycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345)
-        result2 = cycdp.tesselate(sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345)
+        result1 = cycdp.tesselate(
+            sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345
+        )
+        result2 = cycdp.tesselate(
+            sine_buffer, tile_ms=50.0, pattern=1, overlap=0.25, seed=12345
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -3029,14 +3465,20 @@ class TestZigzag:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_zigzag_returns_buffer(self, sine_buffer):
         """Zigzag should return a Buffer."""
@@ -3069,14 +3511,20 @@ class TestIterate:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.2
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_iterate_returns_buffer(self, sine_buffer):
         """Iterate should return a Buffer."""
@@ -3093,8 +3541,15 @@ class TestIterate:
 
     def test_iterate_with_variations(self, sine_buffer):
         """Iterate should work with pitch and gain variations."""
-        result = cycdp.iterate(sine_buffer, repeats=3, delay=0.2,
-                               delay_rand=0.1, pitch_shift=2.0, gain_decay=0.8, seed=12345)
+        result = cycdp.iterate(
+            sine_buffer,
+            repeats=3,
+            delay=0.2,
+            delay_rand=0.1,
+            pitch_shift=2.0,
+            gain_decay=0.8,
+            seed=12345,
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_iterate_reproducible(self, sine_buffer):
@@ -3119,14 +3574,20 @@ class TestStutter:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_stutter_returns_buffer(self, sine_buffer):
         """Stutter should return a Buffer."""
@@ -3137,21 +3598,31 @@ class TestStutter:
     def test_stutter_duration(self, sine_buffer):
         """Stutter should produce output of specified duration."""
         target_duration = 2.0
-        result = cycdp.stutter(sine_buffer, segment_ms=50.0, duration=target_duration, seed=12345)
+        result = cycdp.stutter(
+            sine_buffer, segment_ms=50.0, duration=target_duration, seed=12345
+        )
         expected_samples = int(target_duration * sine_buffer.sample_rate)
         # Allow some tolerance for segment boundaries
         assert abs(result.sample_count - expected_samples) < expected_samples * 0.1
 
     def test_stutter_with_silences(self, sine_buffer):
         """Stutter should work with silence insertions."""
-        result = cycdp.stutter(sine_buffer, segment_ms=50.0, duration=1.0,
-                               silence_prob=0.5, silence_min_ms=20.0, silence_max_ms=50.0, seed=12345)
+        result = cycdp.stutter(
+            sine_buffer,
+            segment_ms=50.0,
+            duration=1.0,
+            silence_prob=0.5,
+            silence_min_ms=20.0,
+            silence_max_ms=50.0,
+            seed=12345,
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_stutter_with_transpose(self, sine_buffer):
         """Stutter should work with transposition."""
-        result = cycdp.stutter(sine_buffer, segment_ms=50.0, duration=1.0,
-                               transpose_range=3.0, seed=12345)
+        result = cycdp.stutter(
+            sine_buffer, segment_ms=50.0, duration=1.0, transpose_range=3.0, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_stutter_reproducible(self, sine_buffer):
@@ -3176,14 +3647,20 @@ class TestBounce:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.1
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_bounce_returns_buffer(self, sine_buffer):
         """Bounce should return a Buffer."""
@@ -3198,13 +3675,21 @@ class TestBounce:
 
     def test_bounce_with_cut(self, sine_buffer):
         """Bounce should work with cut_bounces option."""
-        result = cycdp.bounce(sine_buffer, bounces=5, initial_delay=0.2, shrink=0.7, cut_bounces=True)
+        result = cycdp.bounce(
+            sine_buffer, bounces=5, initial_delay=0.2, shrink=0.7, cut_bounces=True
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_bounce_with_level_curve(self, sine_buffer):
         """Bounce should work with different level curves."""
-        result = cycdp.bounce(sine_buffer, bounces=5, initial_delay=0.2, shrink=0.7,
-                              end_level=0.05, level_curve=2.0)
+        result = cycdp.bounce(
+            sine_buffer,
+            bounces=5,
+            initial_delay=0.2,
+            shrink=0.7,
+            end_level=0.05,
+            level_curve=2.0,
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_bounce_invalid_params(self, sine_buffer):
@@ -3228,14 +3713,20 @@ class TestDrunk:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_drunk_returns_buffer(self, sine_buffer):
         """Drunk should return a Buffer."""
@@ -3246,21 +3737,25 @@ class TestDrunk:
     def test_drunk_duration(self, sine_buffer):
         """Drunk should produce output of specified duration."""
         target_duration = 3.0
-        result = cycdp.drunk(sine_buffer, duration=target_duration, step_ms=100.0, seed=12345)
+        result = cycdp.drunk(
+            sine_buffer, duration=target_duration, step_ms=100.0, seed=12345
+        )
         expected_samples = int(target_duration * sine_buffer.sample_rate)
         # Allow some tolerance
         assert abs(result.sample_count - expected_samples) < expected_samples * 0.1
 
     def test_drunk_with_locus_ambitus(self, sine_buffer):
         """Drunk should work with custom locus and ambitus."""
-        result = cycdp.drunk(sine_buffer, duration=2.0, step_ms=100.0,
-                             locus=0.5, ambitus=0.3, seed=12345)
+        result = cycdp.drunk(
+            sine_buffer, duration=2.0, step_ms=100.0, locus=0.5, ambitus=0.3, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_drunk_with_overlap(self, sine_buffer):
         """Drunk should work with overlap."""
-        result = cycdp.drunk(sine_buffer, duration=2.0, step_ms=100.0,
-                             overlap=0.3, seed=12345)
+        result = cycdp.drunk(
+            sine_buffer, duration=2.0, step_ms=100.0, overlap=0.3, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_drunk_reproducible(self, sine_buffer):
@@ -3285,45 +3780,74 @@ class TestLoop:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_loop_returns_buffer(self, sine_buffer):
         """Loop should return a Buffer."""
-        result = cycdp.loop(sine_buffer, start=0.0, length_ms=200.0, repeats=5, seed=12345)
+        result = cycdp.loop(
+            sine_buffer, start=0.0, length_ms=200.0, repeats=5, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_loop_extends_length(self, sine_buffer):
         """Loop should extend the audio with repetitions."""
-        result = cycdp.loop(sine_buffer, start=0.0, length_ms=200.0, repeats=10, seed=12345)
+        result = cycdp.loop(
+            sine_buffer, start=0.0, length_ms=200.0, repeats=10, seed=12345
+        )
         # With 10 repeats of 200ms, should be longer than original
         assert result.sample_count > sine_buffer.sample_count
 
     def test_loop_with_step(self, sine_buffer):
         """Loop should work with step between iterations."""
-        result = cycdp.loop(sine_buffer, start=0.0, length_ms=100.0,
-                            step_ms=50.0, repeats=5, seed=12345)
+        result = cycdp.loop(
+            sine_buffer, start=0.0, length_ms=100.0, step_ms=50.0, repeats=5, seed=12345
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_loop_with_search(self, sine_buffer):
         """Loop should work with random search field."""
-        result = cycdp.loop(sine_buffer, start=0.0, length_ms=100.0,
-                            search_ms=20.0, repeats=5, seed=12345)
+        result = cycdp.loop(
+            sine_buffer,
+            start=0.0,
+            length_ms=100.0,
+            search_ms=20.0,
+            repeats=5,
+            seed=12345,
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_loop_reproducible(self, sine_buffer):
         """Loop with same seed should produce identical results."""
-        result1 = cycdp.loop(sine_buffer, start=0.0, length_ms=200.0,
-                             search_ms=20.0, repeats=5, seed=12345)
-        result2 = cycdp.loop(sine_buffer, start=0.0, length_ms=200.0,
-                             search_ms=20.0, repeats=5, seed=12345)
+        result1 = cycdp.loop(
+            sine_buffer,
+            start=0.0,
+            length_ms=200.0,
+            search_ms=20.0,
+            repeats=5,
+            seed=12345,
+        )
+        result2 = cycdp.loop(
+            sine_buffer,
+            start=0.0,
+            length_ms=200.0,
+            search_ms=20.0,
+            repeats=5,
+            seed=12345,
+        )
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
@@ -3344,14 +3868,20 @@ class TestRetime:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_retime_returns_buffer(self, sine_buffer):
         """Retime should return a Buffer."""
@@ -3433,14 +3963,20 @@ class TestScramble:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5  # Shorter for faster waveset detection
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_scramble_returns_buffer(self, sine_buffer):
         """Scramble should return a Buffer."""
@@ -3523,14 +4059,20 @@ class TestSplinter:
     def sine_buffer(self):
         """Create a sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_splinter_returns_buffer(self, sine_buffer):
         """Splinter should return a Buffer."""
@@ -3565,14 +4107,18 @@ class TestSplinter:
     def test_splinter_with_accel(self, sine_buffer):
         """Splinter should work with different acceleration values."""
         result1 = cycdp.splinter(sine_buffer, repeats=15, accel=0.75)  # Slowing
-        result2 = cycdp.splinter(sine_buffer, repeats=15, accel=2.0)   # Accelerating
+        result2 = cycdp.splinter(sine_buffer, repeats=15, accel=2.0)  # Accelerating
         assert isinstance(result1, cycdp.Buffer)
         assert isinstance(result2, cycdp.Buffer)
 
     def test_splinter_reproducible(self, sine_buffer):
         """Splinter with same parameters should produce consistent results."""
-        result1 = cycdp.splinter(sine_buffer, start=0.1, duration_ms=50, repeats=15, seed=12345)
-        result2 = cycdp.splinter(sine_buffer, start=0.1, duration_ms=50, repeats=15, seed=12345)
+        result1 = cycdp.splinter(
+            sine_buffer, start=0.1, duration_ms=50, repeats=15, seed=12345
+        )
+        result2 = cycdp.splinter(
+            sine_buffer, start=0.1, duration_ms=50, repeats=15, seed=12345
+        )
         assert result1.sample_count == result2.sample_count
         for i in range(min(100, result1.sample_count)):
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
@@ -3620,28 +4166,37 @@ class TestSpin:
     def mono_buffer(self):
         """Create a mono sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_buffer(self):
         """Create a stereo sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         freq = 440.0
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             val = 0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
             samples.append(val)  # Left
             samples.append(val)  # Right
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     def test_spin_returns_buffer(self, mono_buffer):
         """Spin should return a Buffer."""
@@ -3723,28 +4278,37 @@ class TestRotor:
     def mono_buffer(self):
         """Create a mono sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 2.0  # Longer for modulation effects
         freq = 440.0
-        samples = array.array('f', [
-            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_buffer(self):
         """Create a stereo sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 2.0
         freq = 440.0
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             val = 0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
             samples.append(val)  # Left
             samples.append(val)  # Right
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     def test_rotor_returns_buffer(self, mono_buffer):
         """Rotor should return a Buffer."""
@@ -3761,7 +4325,9 @@ class TestRotor:
 
     def test_rotor_pitch_only(self, mono_buffer):
         """Rotor with pitch modulation only (no amplitude)."""
-        result = cycdp.rotor(mono_buffer, pitch_rate=2.0, pitch_depth=3.0, amp_depth=0.0)
+        result = cycdp.rotor(
+            mono_buffer, pitch_rate=2.0, pitch_depth=3.0, amp_depth=0.0
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
@@ -3842,34 +4408,46 @@ class TestSynthWave:
 
     def test_synth_wave_returns_buffer(self):
         """Synth wave should return a Buffer."""
-        result = cycdp.synth_wave(waveform=cycdp.WAVE_SINE, frequency=440.0, duration=0.5)
+        result = cycdp.synth_wave(
+            waveform=cycdp.WAVE_SINE, frequency=440.0, duration=0.5
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.sample_count > 0
 
     def test_synth_wave_sine(self):
         """Synth wave should generate sine wave."""
-        result = cycdp.synth_wave(waveform=cycdp.WAVE_SINE, frequency=440.0, duration=0.1)
+        result = cycdp.synth_wave(
+            waveform=cycdp.WAVE_SINE, frequency=440.0, duration=0.1
+        )
         assert isinstance(result, cycdp.Buffer)
         assert result.channels == 1
 
     def test_synth_wave_square(self):
         """Synth wave should generate square wave."""
-        result = cycdp.synth_wave(waveform=cycdp.WAVE_SQUARE, frequency=440.0, duration=0.1)
+        result = cycdp.synth_wave(
+            waveform=cycdp.WAVE_SQUARE, frequency=440.0, duration=0.1
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_synth_wave_saw(self):
         """Synth wave should generate sawtooth wave."""
-        result = cycdp.synth_wave(waveform=cycdp.WAVE_SAW, frequency=440.0, duration=0.1)
+        result = cycdp.synth_wave(
+            waveform=cycdp.WAVE_SAW, frequency=440.0, duration=0.1
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_synth_wave_ramp(self):
         """Synth wave should generate ramp wave."""
-        result = cycdp.synth_wave(waveform=cycdp.WAVE_RAMP, frequency=440.0, duration=0.1)
+        result = cycdp.synth_wave(
+            waveform=cycdp.WAVE_RAMP, frequency=440.0, duration=0.1
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_synth_wave_triangle(self):
         """Synth wave should generate triangle wave."""
-        result = cycdp.synth_wave(waveform=cycdp.WAVE_TRIANGLE, frequency=440.0, duration=0.1)
+        result = cycdp.synth_wave(
+            waveform=cycdp.WAVE_TRIANGLE, frequency=440.0, duration=0.1
+        )
         assert isinstance(result, cycdp.Buffer)
 
     def test_synth_wave_stereo(self):
@@ -4124,13 +4702,19 @@ class TestPsowStretch:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_psow_stretch_basic(self, sine_wave):
         """PSOW stretch should produce output."""
@@ -4180,13 +4764,19 @@ class TestPsowGrab:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_psow_grab_single_grain(self, sine_wave):
         """PSOW grab with duration=0 should return single grain."""
@@ -4230,13 +4820,19 @@ class TestPsowDupl:
     def sine_wave(self):
         """Create a simple sine wave buffer for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.3
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
-            for i in range(int(sample_rate * duration))
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+                for i in range(int(sample_rate * duration))
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_psow_dupl_basic(self, sine_wave):
         """PSOW dupl should produce output."""
@@ -4270,37 +4866,53 @@ class TestPsowInterp:
     def grain1(self):
         """Create first grain for testing."""
         import math
+
         sample_rate = 44100
         # One period of 220Hz (about 200 samples)
         period_samples = int(sample_rate / 220)
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * i / period_samples)
-            for i in range(period_samples)
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * i / period_samples)
+                for i in range(period_samples)
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def grain2(self):
         """Create second grain for testing."""
         import math
+
         sample_rate = 44100
         # One period of 330Hz (about 134 samples)
         period_samples = int(sample_rate / 330)
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * i / period_samples)
-            for i in range(period_samples)
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * i / period_samples)
+                for i in range(period_samples)
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_psow_interp_basic(self, grain1, grain2):
         """PSOW interp should produce output."""
-        result = cycdp.psow_interp(grain1, grain2, start_dur=0.1, interp_dur=0.3, end_dur=0.1)
+        result = cycdp.psow_interp(
+            grain1, grain2, start_dur=0.1, interp_dur=0.3, end_dur=0.1
+        )
         assert result.frame_count > 0
         assert result.channels == 1
 
     def test_psow_interp_duration(self, grain1, grain2):
         """PSOW interp output length should reflect durations."""
-        result = cycdp.psow_interp(grain1, grain2, start_dur=0.1, interp_dur=0.5, end_dur=0.1)
+        result = cycdp.psow_interp(
+            grain1, grain2, start_dur=0.1, interp_dur=0.5, end_dur=0.1
+        )
         expected_samples = int(44100 * 0.7)  # Approximate
         # Allow significant tolerance due to grain-based output
         assert result.frame_count > expected_samples * 0.5
@@ -4308,7 +4920,9 @@ class TestPsowInterp:
 
     def test_psow_interp_no_start_end(self, grain1, grain2):
         """PSOW interp with no start/end should work."""
-        result = cycdp.psow_interp(grain1, grain2, start_dur=0.0, interp_dur=0.3, end_dur=0.0)
+        result = cycdp.psow_interp(
+            grain1, grain2, start_dur=0.0, interp_dur=0.3, end_dur=0.0
+        )
         assert result.frame_count > 0
 
     def test_psow_interp_default_params(self, grain1, grain2):
@@ -4321,6 +4935,7 @@ class TestPsowInterp:
 # FOF Extraction and Synthesis (FOFEX) Tests
 # =============================================================================
 
+
 class TestFofexExtract:
     """Test fofex_extract - extract single FOF."""
 
@@ -4328,15 +4943,21 @@ class TestFofexExtract:
     def pitched_audio(self):
         """Create pitched audio for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         frequency = 220.0  # A3
         num_samples = int(sample_rate * duration)
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
-            for i in range(num_samples)
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+                for i in range(num_samples)
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_fofex_extract_basic(self, pitched_audio):
         """FOFEX extract should produce output."""
@@ -4366,11 +4987,15 @@ class TestFofexExtract:
     def test_fofex_extract_from_buffer(self):
         """FOFEX extract should work with Buffer from array.array."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
-            for i in range(int(sample_rate * 0.3))
-        ])
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+                for i in range(int(sample_rate * 0.3))
+            ],
+        )
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
         result = cycdp.fofex_extract(buf, time=0.1)
         assert result.frame_count > 0
@@ -4383,15 +5008,21 @@ class TestFofexExtractAll:
     def pitched_audio(self):
         """Create pitched audio for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         frequency = 220.0
         num_samples = int(sample_rate * duration)
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
-            for i in range(num_samples)
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+                for i in range(num_samples)
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_fofex_extract_all_basic(self, pitched_audio):
         """FOFEX extract_all should return bank and info."""
@@ -4411,13 +5042,17 @@ class TestFofexExtractAll:
 
     def test_fofex_extract_all_with_threshold(self, pitched_audio):
         """FOFEX extract_all with level threshold should work."""
-        result, num_fofs, unit_len = cycdp.fofex_extract_all(pitched_audio, min_level_db=-20.0)
+        result, num_fofs, unit_len = cycdp.fofex_extract_all(
+            pitched_audio, min_level_db=-20.0
+        )
         assert result.frame_count > 0
         assert num_fofs > 0
 
     def test_fofex_extract_all_no_window(self, pitched_audio):
         """FOFEX extract_all without window should work."""
-        result, num_fofs, unit_len = cycdp.fofex_extract_all(pitched_audio, window=False)
+        result, num_fofs, unit_len = cycdp.fofex_extract_all(
+            pitched_audio, window=False
+        )
         assert result.frame_count > 0
         assert num_fofs > 0
 
@@ -4429,22 +5064,27 @@ class TestFofexSynth:
     def fof_bank(self):
         """Create FOF bank for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         frequency = 220.0
         num_samples = int(sample_rate * duration)
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
-            for i in range(num_samples)
-        ])
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+                for i in range(num_samples)
+            ],
+        )
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
         return cycdp.fofex_extract_all(buf)
 
     def test_fofex_synth_basic(self, fof_bank):
         """FOFEX synth should produce output."""
         bank, num_fofs, unit_len = fof_bank
-        result = cycdp.fofex_synth(bank, duration=0.5, frequency=440.0,
-                                   fof_unit_len=unit_len)
+        result = cycdp.fofex_synth(
+            bank, duration=0.5, frequency=440.0, fof_unit_len=unit_len
+        )
         assert result.frame_count > 0
         assert result.channels == 1
 
@@ -4452,27 +5092,33 @@ class TestFofexSynth:
         """FOFEX synth should produce correct duration."""
         bank, num_fofs, unit_len = fof_bank
         duration = 1.0
-        result = cycdp.fofex_synth(bank, duration=duration, frequency=440.0,
-                                   fof_unit_len=unit_len)
+        result = cycdp.fofex_synth(
+            bank, duration=duration, frequency=440.0, fof_unit_len=unit_len
+        )
         expected_samples = int(44100 * duration)
         assert abs(result.frame_count - expected_samples) < 100
 
     def test_fofex_synth_specific_fof(self, fof_bank):
         """FOFEX synth with specific FOF index should work."""
         bank, num_fofs, unit_len = fof_bank
-        result = cycdp.fofex_synth(bank, duration=0.5, frequency=440.0,
-                                   fof_index=0, fof_unit_len=unit_len)
+        result = cycdp.fofex_synth(
+            bank, duration=0.5, frequency=440.0, fof_index=0, fof_unit_len=unit_len
+        )
         assert result.frame_count > 0
 
     def test_fofex_synth_single_fof(self):
         """FOFEX synth with single FOF (no bank) should work."""
         import math
+
         sample_rate = 44100
         # Extract a single FOF
-        source = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
-            for i in range(int(sample_rate * 0.3))
-        ])
+        source = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+                for i in range(int(sample_rate * 0.3))
+            ],
+        )
         buf = cycdp.Buffer.from_memoryview(source, channels=1, sample_rate=sample_rate)
         fof = cycdp.fofex_extract(buf, time=0.1)
 
@@ -4483,8 +5129,12 @@ class TestFofexSynth:
     def test_fofex_synth_different_frequencies(self, fof_bank):
         """FOFEX synth at different frequencies should work."""
         bank, num_fofs, unit_len = fof_bank
-        result1 = cycdp.fofex_synth(bank, duration=0.3, frequency=220.0, fof_unit_len=unit_len)
-        result2 = cycdp.fofex_synth(bank, duration=0.3, frequency=880.0, fof_unit_len=unit_len)
+        result1 = cycdp.fofex_synth(
+            bank, duration=0.3, frequency=220.0, fof_unit_len=unit_len
+        )
+        result2 = cycdp.fofex_synth(
+            bank, duration=0.3, frequency=880.0, fof_unit_len=unit_len
+        )
         assert result1.frame_count > 0
         assert result2.frame_count > 0
 
@@ -4496,15 +5146,21 @@ class TestFofexRepitch:
     def pitched_audio(self):
         """Create pitched audio for testing."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         frequency = 220.0
         num_samples = int(sample_rate * duration)
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
-            for i in range(num_samples)
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+                for i in range(num_samples)
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_fofex_repitch_up(self, pitched_audio):
         """FOFEX repitch up should produce output."""
@@ -4529,15 +5185,22 @@ class TestFofexRepitch:
 
     def test_fofex_repitch_preserve_formants_true(self, pitched_audio):
         """FOFEX repitch with formant preservation should maintain duration."""
-        result = cycdp.fofex_repitch(pitched_audio, pitch_shift=5.0, preserve_formants=True)
+        result = cycdp.fofex_repitch(
+            pitched_audio, pitch_shift=5.0, preserve_formants=True
+        )
         # With formant preservation, duration should be similar
         assert result.frame_count > 0
         # Duration should be close to original
-        assert abs(result.frame_count - pitched_audio.frame_count) < pitched_audio.frame_count * 0.2
+        assert (
+            abs(result.frame_count - pitched_audio.frame_count)
+            < pitched_audio.frame_count * 0.2
+        )
 
     def test_fofex_repitch_preserve_formants_false(self, pitched_audio):
         """FOFEX repitch without formant preservation changes duration."""
-        result = cycdp.fofex_repitch(pitched_audio, pitch_shift=5.0, preserve_formants=False)
+        result = cycdp.fofex_repitch(
+            pitched_audio, pitch_shift=5.0, preserve_formants=False
+        )
         assert result.frame_count > 0
         # Duration changes with pitch (pitch up = shorter)
         assert result.frame_count < pitched_audio.frame_count
@@ -4545,11 +5208,15 @@ class TestFofexRepitch:
     def test_fofex_repitch_from_buffer(self):
         """FOFEX repitch should work with Buffer from array.array."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
-            for i in range(int(sample_rate * 0.3))
-        ])
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+                for i in range(int(sample_rate * 0.3))
+            ],
+        )
         buf = cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
         result = cycdp.fofex_repitch(buf, pitch_shift=3.0)
         assert result.frame_count > 0
@@ -4559,6 +5226,7 @@ class TestFofexRepitch:
 # Flutter (Spatial Tremolo) Tests
 # =============================================================================
 
+
 class TestFlutter:
     """Test flutter - spatial tremolo effect."""
 
@@ -4566,30 +5234,39 @@ class TestFlutter:
     def mono_audio(self):
         """Create mono audio for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         frequency = 440.0
         num_samples = int(sample_rate * duration)
-        samples = array.array('f', [
-            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
-            for i in range(num_samples)
-        ])
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        samples = array.array(
+            "f",
+            [
+                0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+                for i in range(num_samples)
+            ],
+        )
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_audio(self):
         """Create stereo audio for testing."""
         import math
+
         sample_rate = 44100
         duration = 1.0
         frequency = 440.0
         num_frames = int(sample_rate * duration)
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(num_frames):
             val = 0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
             samples.append(val)  # Left
             samples.append(val)  # Right
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     def test_flutter_mono_to_stereo(self, mono_audio):
         """Flutter should convert mono to stereo."""
@@ -4643,7 +5320,7 @@ class TestFlutter:
         mv = memoryview(result)
         differences = 0
         for i in range(0, len(mv), 2):
-            if abs(mv[i] - mv[i+1]) > 0.001:
+            if abs(mv[i] - mv[i + 1]) > 0.001:
                 differences += 1
         # Should have significant differences
         assert differences > result.frame_count * 0.1
@@ -4676,30 +5353,36 @@ class TestHover:
     def mono_audio(self):
         """Create a mono test buffer with a sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.5  # 0.5 seconds
         freq = 440.0  # 440 Hz sine wave
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             val = 0.5 * math.sin(2 * math.pi * freq * t)
             samples.append(val)
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_audio(self):
         """Create a stereo test buffer."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             val = 0.5 * math.sin(2 * math.pi * freq * t)
             samples.append(val)  # Left
             samples.append(val)  # Right
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     def test_hover_mono_input(self, mono_audio):
         """Hover should work with mono input."""
@@ -4811,8 +5494,9 @@ class TestConstrict:
     def mono_with_silence(self):
         """Create a mono buffer with silence gaps."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         # Sound: 0.1s sine wave
         for i in range(int(sample_rate * 0.1)):
             t = i / sample_rate
@@ -4824,14 +5508,17 @@ class TestConstrict:
         for i in range(int(sample_rate * 0.1)):
             t = i / sample_rate
             samples.append(0.5 * math.sin(2 * math.pi * 440 * t))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_with_silence(self):
         """Create a stereo buffer with silence gaps."""
         import math
+
         sample_rate = 44100
-        samples = array.array('f')
+        samples = array.array("f")
         # Sound: 0.1s sine wave
         for i in range(int(sample_rate * 0.1)):
             t = i / sample_rate
@@ -4848,21 +5535,26 @@ class TestConstrict:
             val = 0.5 * math.sin(2 * math.pi * 440 * t)
             samples.append(val)  # Left
             samples.append(val)  # Right
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def mono_no_silence(self):
         """Create a mono buffer with no silence (no zero samples)."""
         import math
+
         sample_rate = 44100
         duration = 0.5
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             # Use phase offset to avoid zero at t=0, and add DC offset to ensure no zeros
             val = 0.5 * math.sin(2 * math.pi * 440 * t + 0.5) + 0.1
             samples.append(val)
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     def test_constrict_mono(self, mono_with_silence):
         """Constrict should work with mono input."""
@@ -4958,22 +5650,26 @@ class TestPhase:
     def mono_audio(self):
         """Create a mono test buffer with a sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.1
         freq = 440.0
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             samples.append(0.5 * math.sin(2 * math.pi * freq * t))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_audio(self):
         """Create a stereo test buffer with different L/R content."""
         import math
+
         sample_rate = 44100
         duration = 0.1
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             # Left: 440 Hz, Right: 880 Hz (different to have stereo difference)
@@ -4981,22 +5677,27 @@ class TestPhase:
             right = 0.5 * math.sin(2 * math.pi * 880 * t)
             samples.append(left)
             samples.append(right)
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_centered(self):
         """Create a stereo buffer with identical L/R (centered sound)."""
         import math
+
         sample_rate = 44100
         duration = 0.1
         freq = 440.0
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             val = 0.5 * math.sin(2 * math.pi * freq * t)
             samples.append(val)  # Left
             samples.append(val)  # Right (identical)
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     # phase_invert tests
     def test_phase_invert_mono(self, mono_audio):
@@ -5090,29 +5791,35 @@ class TestWrappage:
     def mono_audio(self):
         """Create a mono test buffer with a sine wave."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             samples.append(0.5 * math.sin(2 * math.pi * freq * t))
-        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=1, sample_rate=sample_rate
+        )
 
     @pytest.fixture
     def stereo_audio(self):
         """Create a stereo test buffer."""
         import math
+
         sample_rate = 44100
         duration = 0.5
         freq = 440.0
-        samples = array.array('f')
+        samples = array.array("f")
         for i in range(int(sample_rate * duration)):
             t = i / sample_rate
             val = 0.5 * math.sin(2 * math.pi * freq * t)
             samples.append(val)  # Left
             samples.append(val)  # Right
-        return cycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(
+            samples, channels=2, sample_rate=sample_rate
+        )
 
     def test_wrappage_basic(self, mono_audio):
         """Wrappage should work with default parameters."""
@@ -5142,9 +5849,7 @@ class TestWrappage:
     def test_wrappage_velocity_stretch(self, mono_audio):
         """Wrappage with velocity < 1 should time stretch."""
         result = cycdp.wrappage(mono_audio, velocity=0.5)
-        # Time stretch should produce longer output
-        expected_frames = int(mono_audio.frame_count / 0.5)
-        # Allow some tolerance
+        # Time stretch should produce longer output (allow some tolerance)
         assert result.frame_count > mono_audio.frame_count * 1.5
 
     def test_wrappage_velocity_compress(self, mono_audio):
