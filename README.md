@@ -1,39 +1,521 @@
-# CDP System Software, Release 8.
-### Full release as of 24 October 2023
+# cycdp
 
-#### Copyright (c) 2022 Composers Desktop Project Ltd
+Python bindings for the CDP (Composers Desktop Project) audio processing library.
 
-![The CDP logo]( http://composersdesktop.com/logo.gif) 
+## Overview
 
-	The CDP System is free software; you can redistribute them and/or modify them  
-	under the  terms of the GNU Lesser General Public License as published by   
-	the Free Software Foundation; either version 2.1 of the License,   
-	or (at your option) any later version.
+cycdp provides Python access to CDP's extensive audio processing algorithms. It uses Cython with memoryviews and the buffer protocol for zero-copy interoperability with numpy, `array.array`, and other buffer-compatible objects - **no numpy dependency required**.
 
-	The CDP System is distributed in the hope that it will be useful, but WITHOUT  
-	ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-	FITNESS FOR A PARTICULAR PURPOSE.  
-	See the GNU Lesser General Public License for more details.
+## Installation
 
-	You should have received a copy of the GNU Lesser General Public License  
-	along with this software (see the top-level file LICENSE); if not, write to  
-	the Free Software  Foundation, Inc., 51 Franklin St, Fifth Floor,  
-	Boston, MA 02110-1301 USA
-	
+```bash
+# Build and install in development mode
+make build
 
-What's New?
+# Or with uv directly
+uv sync
+```
 
-* approximately 80 new programs/processes by Trevor Wishart. See details in the [docs](./docs) folder.
-*  majority already available for use in Soundloom 17.0.4.
-*  includes new programs for multichannel (<= 8 channels) production, waveset distortion, speech/voice processing.
-*  ***PVOCEX*** (.pvx) analysis file support for all pvoc-related programs. This is the standard phase vocoder analysis file format used in Csound. See also the downloadable utilities (Mac, Win32), with example files, in the companion PVXTOOLS distribution:
-*  play program **pvplay** will play  mono/stereo .pvx files.
-*  classic CDP directory utility **dirsf** now recognises .pvx files with format details.
-*  See also Tabula Vigilans (TV): some bugs fixed, full MIDI device I/O now working on Linux.
+## Quick Start
 
-What's needed?
+```python
+import cycdp
 
-* Developers to get involved (whether CDP8 programs or TV), especially to add new software, create new user interfaces, create libraries, and so many other things we have not thought of. Join the new **cdp-dev** mailing list (see *building.txt* for details); get immediate news of any updates pushed to github.
+# Load audio file
+buf = cycdp.read_file("input.wav")
 
+# Apply processing
+stretched = cycdp.time_stretch(buf, stretch_factor=2.0)
+shifted = cycdp.pitch_shift(buf, semitones=5)
 
-[updated 28/12/2023]
+# Save result
+cycdp.write_file("output.wav", stretched)
+```
+
+## Usage
+
+### High-level API
+
+Works with any float32 buffer (numpy arrays, `array.array('f')`, memoryview, etc.):
+
+```python
+import array
+import cycdp
+
+# Create sample data
+samples = array.array('f', [0.5, 0.3, -0.2, 0.8, -0.4])
+
+# Apply gain (linear or decibels)
+result = cycdp.gain(samples, gain_factor=2.0)
+result = cycdp.gain_db(samples, db=6.0)  # +6dB = ~2x
+
+# Normalize to target peak level
+result = cycdp.normalize(samples, target=1.0)
+result = cycdp.normalize_db(samples, target_db=-3.0)  # -3dBFS
+
+# Phase invert
+result = cycdp.phase_invert(samples)
+
+# Find peak level
+level, position = cycdp.peak(samples)
+```
+
+### With numpy
+
+```python
+import numpy as np
+import cycdp
+
+samples = np.random.randn(44100).astype(np.float32) * 0.5
+result = cycdp.normalize(samples, target=0.9)
+
+# Result supports buffer protocol - zero-copy to numpy
+output = np.asarray(result)
+```
+
+### File I/O
+
+```python
+import cycdp
+
+# Read audio file (returns Buffer)
+buf = cycdp.read_file("input.wav")
+
+# Write audio file
+cycdp.write_file("output.wav", buf)
+```
+
+### Low-level API
+
+For more control, use explicit Context and Buffer objects:
+
+```python
+import cycdp
+
+# Create context and buffer
+ctx = cycdp.Context()
+buf = cycdp.Buffer.create(1000, channels=2, sample_rate=44100)
+
+# Fill buffer
+for i in range(len(buf)):
+    buf[i] = 0.5
+
+# Process in-place
+cycdp.apply_gain(ctx, buf, 2.0, clip=True)
+cycdp.apply_normalize(ctx, buf, target_level=0.9)
+
+# Get peak info
+level, pos = cycdp.get_peak(ctx, buf)
+
+# Access via buffer protocol
+mv = memoryview(buf)
+```
+
+## API Reference
+
+### File I/O
+
+| Function | Description |
+|----------|-------------|
+| `read_file(path)` | Read audio file, returns Buffer |
+| `write_file(path, buffer)` | Write buffer to audio file |
+
+### Gain and Normalization
+
+| Function | Description |
+|----------|-------------|
+| `gain(samples, gain_factor, ...)` | Apply linear gain |
+| `gain_db(samples, db, ...)` | Apply gain in decibels |
+| `normalize(samples, target, ...)` | Normalize to target peak (0-1) |
+| `normalize_db(samples, target_db, ...)` | Normalize to target dB |
+| `phase_invert(samples, ...)` | Invert phase |
+| `peak(samples, ...)` | Find peak level and position |
+
+### Spatial and Panning
+
+| Function | Description |
+|----------|-------------|
+| `pan(samples, position, ...)` | Pan mono to stereo (-1 to 1) |
+| `pan_envelope(samples, envelope, ...)` | Pan with time-varying envelope |
+| `mirror(samples, ...)` | Mirror/swap stereo channels |
+| `narrow(samples, width, ...)` | Adjust stereo width (0=mono, 1=full) |
+
+### Mixing
+
+| Function | Description |
+|----------|-------------|
+| `mix(buffers, ...)` | Mix multiple buffers together |
+| `mix2(buf1, buf2, ...)` | Mix two buffers |
+
+### Buffer Utilities
+
+| Function | Description |
+|----------|-------------|
+| `reverse(samples, ...)` | Reverse audio |
+| `fade_in(samples, duration, ...)` | Apply fade in |
+| `fade_out(samples, duration, ...)` | Apply fade out |
+| `concat(buffers, ...)` | Concatenate buffers |
+
+### Channel Operations
+
+| Function | Description |
+|----------|-------------|
+| `to_mono(samples, ...)` | Convert to mono |
+| `to_stereo(samples, ...)` | Convert mono to stereo |
+| `extract_channel(samples, channel, ...)` | Extract single channel |
+| `merge_channels(left, right, ...)` | Merge two mono buffers to stereo |
+| `split_channels(samples, ...)` | Split stereo to two mono buffers |
+| `interleave(channels, ...)` | Interleave multiple mono buffers |
+
+### Time and Pitch
+
+| Function | Description |
+|----------|-------------|
+| `time_stretch(samples, stretch_factor, ...)` | Time stretch without pitch change |
+| `modify_speed(samples, speed, ...)` | Change speed (affects pitch) |
+| `pitch_shift(samples, semitones, ...)` | Shift pitch without time change |
+
+### Spectral Processing
+
+| Function | Description |
+|----------|-------------|
+| `spectral_blur(samples, blur_amount, ...)` | Blur/smear spectrum over time |
+| `spectral_shift(samples, shift, ...)` | Shift spectrum up/down |
+| `spectral_stretch(samples, stretch, ...)` | Stretch/compress spectrum |
+| `spectral_focus(samples, freq, bandwidth, ...)` | Focus on frequency region |
+| `spectral_hilite(samples, freq, gain, ...)` | Highlight frequency region |
+| `spectral_fold(samples, freq, ...)` | Fold spectrum around frequency |
+| `spectral_clean(samples, threshold, ...)` | Remove spectral noise |
+
+### Filters
+
+| Function | Description |
+|----------|-------------|
+| `filter_lowpass(samples, cutoff, ...)` | Low-pass filter |
+| `filter_highpass(samples, cutoff, ...)` | High-pass filter |
+| `filter_bandpass(samples, low, high, ...)` | Band-pass filter |
+| `filter_notch(samples, freq, width, ...)` | Notch/band-reject filter |
+
+### Dynamics and EQ
+
+| Function | Description |
+|----------|-------------|
+| `gate(samples, threshold, ...)` | Noise gate |
+| `compressor(samples, threshold, ratio, ...)` | Dynamic range compressor |
+| `limiter(samples, threshold, ...)` | Peak limiter |
+| `eq_parametric(samples, freq, gain, q, ...)` | Parametric EQ band |
+| `envelope_follow(samples, ...)` | Extract amplitude envelope |
+| `envelope_apply(samples, envelope, ...)` | Apply envelope to audio |
+
+### Effects
+
+| Function | Description |
+|----------|-------------|
+| `bitcrush(samples, bits, ...)` | Bit depth reduction |
+| `ring_mod(samples, freq, ...)` | Ring modulation |
+| `delay(samples, time, feedback, ...)` | Delay effect |
+| `chorus(samples, depth, rate, ...)` | Chorus effect |
+| `flanger(samples, depth, rate, ...)` | Flanger effect |
+| `reverb(samples, size, damping, ...)` | Reverb effect |
+
+### Envelope Shaping
+
+| Function | Description |
+|----------|-------------|
+| `dovetail(samples, fade_time, ...)` | Apply dovetail fades |
+| `tremolo(samples, rate, depth, ...)` | Tremolo effect |
+| `attack(samples, attack_time, ...)` | Modify attack transient |
+
+### Distortion
+
+| Function | Description |
+|----------|-------------|
+| `distort_overload(samples, gain, ...)` | Overload/saturation distortion |
+| `distort_reverse(samples, ...)` | Reverse distortion effect |
+| `distort_fractal(samples, ...)` | Fractal distortion |
+| `distort_shuffle(samples, ...)` | Shuffle distortion |
+| `distort_cut(samples, cycle_count, ...)` | Waveset cut with decaying envelope |
+| `distort_mark(samples, markers, ...)` | Interpolate wavesets at time markers |
+| `distort_repeat(samples, multiplier, ...)` | Time-stretch by repeating wavecycles |
+| `distort_shift(samples, group_size, ...)` | Shift/swap half-wavecycle groups |
+| `distort_warp(samples, warp, ...)` | Progressive warp distortion with sample folding |
+
+### Granular Processing
+
+| Function | Description |
+|----------|-------------|
+| `brassage(samples, ...)` | Granular brassage |
+| `freeze(samples, position, ...)` | Granular freeze at position |
+| `grain_cloud(samples, density, ...)` | Granular cloud synthesis |
+| `grain_extend(samples, extension, ...)` | Granular time extension |
+| `texture_simple(samples, ...)` | Simple texture synthesis |
+| `texture_multi(samples, ...)` | Multi-layer texture synthesis |
+
+### Morphing and Cross-synthesis
+
+| Function | Description |
+|----------|-------------|
+| `morph(buf1, buf2, amount, ...)` | Spectral morph between sounds |
+| `morph_glide(buf1, buf2, ...)` | Gliding morph over time |
+| `cross_synth(carrier, modulator, ...)` | Cross-synthesis (vocoder-like) |
+
+### Analysis
+
+| Function | Description |
+|----------|-------------|
+| `pitch(samples, ...)` | Extract pitch data |
+| `formants(samples, ...)` | Extract formant data |
+| `get_partials(samples, ...)` | Extract partial/harmonic data |
+
+### Experimental/Chaos
+
+| Function | Description |
+|----------|-------------|
+| `strange(samples, ...)` | Strange attractor transformation |
+| `brownian(samples, ...)` | Brownian motion transformation |
+| `crystal(samples, ...)` | Crystal growth patterns |
+| `fractal(samples, ...)` | Fractal transformation |
+| `quirk(samples, ...)` | Quirky transformation |
+| `chirikov(samples, ...)` | Chirikov map transformation |
+| `cantor(samples, ...)` | Cantor set transformation |
+| `cascade(samples, ...)` | Cascade transformation |
+| `fracture(samples, ...)` | Fracture transformation |
+| `tesselate(samples, ...)` | Tesselation transformation |
+
+### Playback/Time Manipulation
+
+| Function | Description |
+|----------|-------------|
+| `zigzag(samples, times, ...)` | Alternating forward/backward playback through time points |
+| `iterate(samples, repeats, ...)` | Repeat audio with pitch shift and gain decay variations |
+| `stutter(samples, segment_ms, ...)` | Segment-based stuttering with silence inserts |
+| `bounce(samples, bounces, ...)` | Bouncing ball effect with accelerating repeats |
+| `drunk(samples, duration, ...)` | Random "drunk walk" navigation through audio |
+| `loop(samples, start, length_ms, ...)` | Loop a section with crossfades and variations |
+| `retime(samples, ratio, ...)` | Time-domain time stretch/compress (TDOLA) |
+| `scramble(samples, mode, ...)` | Reorder wavesets (shuffle, reverse, by size/level) |
+| `splinter(samples, start, ...)` | Fragmenting effect with shrinking repeats |
+| `hover(samples, frequency, location, ...)` | Zigzag reading at specified frequency for hovering pitch effect |
+| `constrict(samples, constriction)` | Shorten or remove silent sections |
+| `phase_invert(samples)` | Invert phase (multiply all samples by -1) |
+| `phase_stereo(samples, transfer)` | Enhance stereo separation via phase subtraction |
+| `wrappage(samples, grain_size, density, ...)` | Granular texture with stereo spatial distribution |
+
+### Spatial Effects
+
+| Function | Description |
+|----------|-------------|
+| `spin(samples, rate, ...)` | Rotate audio around stereo field with optional doppler |
+| `rotor(samples, pitch_rate, amp_rate, ...)` | Dual-rotation modulation (pitch + amplitude interference) |
+| `flutter(samples, frequency, depth, ...)` | Spatial tremolo (loudness modulation alternating L/R) |
+
+### Extended Granular
+
+| Function | Description |
+|----------|-------------|
+| `grain_reorder(samples, mode, ...)` | Reorder detected grains (shuffle, reverse, rotate) |
+| `grain_rerhythm(samples, factor, ...)` | Change timing/rhythm of grains |
+| `grain_reverse(samples, ...)` | Reverse individual grains in place |
+| `grain_timewarp(samples, factor, ...)` | Time-stretch/compress grain spacing |
+| `grain_repitch(samples, semitones, ...)` | Pitch-shift grains with interpolation |
+| `grain_position(samples, spread, ...)` | Reposition grains in stereo field |
+| `grain_omit(samples, probability, ...)` | Probabilistically omit grains |
+| `grain_duplicate(samples, count, ...)` | Duplicate grains with variations |
+
+### Pitch-Synchronous Operations (PSOW)
+
+| Function | Description |
+|----------|-------------|
+| `psow_stretch(samples, stretch_factor, ...)` | Time-stretch while preserving pitch (PSOLA) |
+| `psow_grab(samples, time, duration, ...)` | Extract pitch-synchronous grains from position |
+| `psow_dupl(samples, repeat_count, ...)` | Duplicate grains for time-stretching |
+| `psow_interp(grain1, grain2, ...)` | Interpolate between two grains |
+
+### FOF Extraction and Synthesis (FOFEX)
+
+| Function | Description |
+|----------|-------------|
+| `fofex_extract(samples, time, ...)` | Extract single FOF (pitch-synchronous grain) at time |
+| `fofex_extract_all(samples, ...)` | Extract all FOFs to uniform-length bank |
+| `fofex_synth(fof_bank, duration, frequency, ...)` | Synthesize audio from FOFs at target pitch |
+| `fofex_repitch(samples, pitch_shift, ...)` | Repitch audio with optional formant preservation |
+
+### Synthesis
+
+| Function | Description |
+|----------|-------------|
+| `synth_wave(waveform, frequency, ...)` | Generate waveforms (sine, square, saw, ramp, triangle) |
+| `synth_noise(pink, amplitude, ...)` | Generate white or pink noise |
+| `synth_click(tempo, beats_per_bar, ...)` | Generate click/metronome track |
+| `synth_chord(midi_notes, ...)` | Synthesize chord from MIDI note list |
+
+### Utility Functions
+
+| Function | Description |
+|----------|-------------|
+| `gain_to_db(gain)` | Convert linear gain to decibels |
+| `db_to_gain(db)` | Convert decibels to linear gain |
+| `version()` | Get library version string |
+
+### Low-level Functions
+
+These work with explicit Context and Buffer objects:
+
+| Function | Description |
+|----------|-------------|
+| `apply_gain(ctx, buf, gain, clip)` | Apply gain in-place |
+| `apply_gain_db(ctx, buf, db, clip)` | Apply dB gain in-place |
+| `apply_normalize(ctx, buf, target)` | Normalize in-place |
+| `apply_normalize_db(ctx, buf, target_db)` | Normalize to dB in-place |
+| `apply_phase_invert(ctx, buf)` | Invert phase in-place |
+| `get_peak(ctx, buf)` | Get peak level and position |
+
+### Classes
+
+- `Context` - Processing context (holds error state)
+- `Buffer` - Audio buffer with buffer protocol support
+  - `Buffer.create(frames, channels, sample_rate)` - Create new buffer
+  - Supports indexing, len(), and memoryview
+
+### Constants
+
+**Processing flags:**
+- `FLAG_NONE` - No processing flags
+- `FLAG_CLIP` - Clip output to [-1.0, 1.0]
+
+**Waveform types (for `synth_wave`):**
+- `WAVE_SINE` - Sine wave
+- `WAVE_SQUARE` - Square wave
+- `WAVE_SAW` - Sawtooth wave
+- `WAVE_RAMP` - Ramp (reverse sawtooth) wave
+- `WAVE_TRIANGLE` - Triangle wave
+
+**Scramble modes (for `scramble`):**
+- `SCRAMBLE_SHUFFLE` - Random shuffle
+- `SCRAMBLE_REVERSE` - Reverse order
+- `SCRAMBLE_SIZE_UP` - Sort by size (smallest first)
+- `SCRAMBLE_SIZE_DOWN` - Sort by size (largest first)
+- `SCRAMBLE_LEVEL_UP` - Sort by level (quietest first)
+- `SCRAMBLE_LEVEL_DOWN` - Sort by level (loudest first)
+
+### Exceptions
+
+- `CDPError` - Raised on processing errors
+
+## Architecture
+
+```
+cycdp/                      # Python package
+  src/cycdp/
+    __init__.py             # Public exports
+    _core.pyx               # Cython bindings
+    cdp_lib.pxd             # Cython declarations
+  CMakeLists.txt            # Builds extension
+
+libcdp/                     # C library
+  include/
+    cdp.h                   # Main public API
+    cdp_error.h             # Error codes
+    cdp_types.h             # Type definitions
+  cdp_lib/
+    cdp_lib.h               # Library internal header
+    cdp_*.h                 # Category headers (filters, effects, etc.)
+  src/
+    context.c               # Context management
+    buffer.c                # Buffer management
+    gain.c                  # Gain/amplitude operations
+    io.c                    # File I/O
+    channel.c               # Channel operations
+    mix.c                   # Mixing operations
+    spatial.c               # Spatial/panning
+    utils.c                 # Utilities
+    error.c                 # Error handling
+```
+
+## Demos
+
+The `demos/` directory contains example scripts demonstrating cycdp usage.
+
+### Run All Demos
+
+```bash
+make demos        # Run all demos, output WAV files to build/
+make demos-clean  # Remove generated WAV files
+```
+
+### Synthesis Demos (01-07)
+
+These generate test sounds programmatically and demonstrate the API:
+
+```bash
+python demos/01_basic_operations.py   # Buffers, gain, fades, panning, mixing
+python demos/02_effects_and_processing.py  # Delay, reverb, modulation, filters
+python demos/03_spectral_processing.py     # Blur, time stretch, pitch shift, freeze
+python demos/04_granular_synthesis.py      # Brassage, wrappage, grain ops
+python demos/05_pitch_synchronous.py       # PSOW, FOF, hover
+python demos/06_creative_techniques.py     # Effect chains, recipes
+python demos/07_morphing.py                # Morph, glide, cross-synthesis
+```
+
+### FX Processing Demos (fx01-fx07)
+
+CLI tools for processing real audio files:
+
+```bash
+# Basic usage
+python demos/fx01_time_and_pitch.py input.wav -o output_dir/
+
+# All FX demos:
+python demos/fx01_time_and_pitch.py input.wav      # Time stretch, pitch shift
+python demos/fx02_spectral_effects.py input.wav    # Blur, focus, fold, freeze
+python demos/fx03_granular.py input.wav            # Brassage, wrappage, grains
+python demos/fx04_reverb_delay_mod.py input.wav    # Reverb, delay, modulation
+python demos/fx05_distortion_dynamics.py input.wav # Distortion, filters, dynamics
+python demos/fx06_psow_fof.py input.wav            # PSOW, FOF, hover
+python demos/fx07_creative_chains.py input.wav     # Complex effect chains
+```
+
+Each FX demo generates multiple output files showcasing different parameter settings.
+
+## Development
+
+```bash
+# Build
+make build
+
+# Run tests
+make test
+
+# Lint and format
+make lint
+make format
+
+# Type check
+make typecheck
+
+# Full QA
+make qa
+
+# Build wheel
+make wheel
+
+# See all targets
+make help
+```
+
+## Adding New Operations
+
+To add more CDP operations:
+
+1. Add C implementation to `libcdp/cdp_lib/<operation>.c`
+2. Add function declarations to appropriate header in `libcdp/cdp_lib/`
+3. Export from `libcdp/cdp_lib/cdp_lib.h`
+4. Update `libcdp/CMakeLists.txt` to include new source file
+5. Add Cython declarations to `cycdp/src/cycdp/cdp_lib.pxd`
+6. Add Cython bindings to `cycdp/src/cycdp/_core.pyx`
+7. Export from `cycdp/src/cycdp/__init__.py`
+8. Add tests to both `libcdp/tests/` and `cycdp/tests/`
+
+## License
+
+LGPL-2.1-or-later (same as CDP)

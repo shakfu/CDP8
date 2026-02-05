@@ -41,7 +41,7 @@ cmake.args = []
 cmake.define = {}
 cmake.build-type = "Release"
 cmake.source-dir = "."
-sdist.include = []
+sdist.include = ["projects/libcdp/**", "projects/cpd8/dev/**"]
 sdist.exclude = []
 wheel.exclude = []
 

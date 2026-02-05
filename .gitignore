@@ -1,42 +1,33 @@
-# Intermediate object files
-*.o
-*.os
+# Build
+build/
+dist/
+*.egg-info/
 *.so
-**/*.a
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+.uv/
+
+# Cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# IDE
+.idea/
+.vscode/
+*.swp
 *~
 
-
-# libraries and executables
-/lib*.*/
-.libs
-/build/
-/bin
-*.exe
-Release
-NewRelease
+# OS
 .DS_Store
-*.xcodeproj
-
-*.wav
-!cycdp/demos/s01.wav
-*.ana
-
-#Generated files if running in-source CMake build
-build*/
-cmake_install.cmake
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-/cmake_uninstall.cmake
-CTestTestfile.cmake
-CPackConfig.cmake
-CPackSourceConfig.cmake
-/CMakeCache.txt
-Custom.cmake
-
-.cache/
-# created by for example 
-#cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-# used by clangd lsp
-compile_commands.json 
-.cache/
