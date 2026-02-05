@@ -7,7 +7,12 @@
 #include "cdp.h"
 #include <stdlib.h>
 #include <string.h>
+#define _USE_MATH_DEFINES
 #include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 /* Internal helper to set error on context */
 extern void cdp_set_error(cdp_context* ctx, cdp_error err, const char* msg);

@@ -378,11 +378,11 @@ cdp_error cdp_write_file_pcm16(cdp_context* ctx, const char* path, const cdp_buf
     size_t sample_count = buf->sample_count;
 
     /* Write in chunks to avoid huge allocations */
-    const size_t CHUNK_SIZE = 4096;
-    int16_t chunk[CHUNK_SIZE];
+#define CHUNK_SIZE_PCM16 4096
+    int16_t chunk[CHUNK_SIZE_PCM16];
 
-    for (size_t i = 0; i < sample_count; i += CHUNK_SIZE) {
-        size_t count = (i + CHUNK_SIZE <= sample_count) ? CHUNK_SIZE : (sample_count - i);
+    for (size_t i = 0; i < sample_count; i += CHUNK_SIZE_PCM16) {
+        size_t count = (i + CHUNK_SIZE_PCM16 <= sample_count) ? CHUNK_SIZE_PCM16 : (sample_count - i);
 
         for (size_t j = 0; j < count; j++) {
             float v = samples[i + j];
@@ -469,11 +469,11 @@ cdp_error cdp_write_file_pcm24(cdp_context* ctx, const char* path, const cdp_buf
     size_t sample_count = buf->sample_count;
 
     /* Write in chunks */
-    const size_t CHUNK_SAMPLES = 4096;
-    uint8_t chunk[CHUNK_SAMPLES * 3];
+#define CHUNK_SAMPLES_PCM24 4096
+    uint8_t chunk[CHUNK_SAMPLES_PCM24 * 3];
 
-    for (size_t i = 0; i < sample_count; i += CHUNK_SAMPLES) {
-        size_t count = (i + CHUNK_SAMPLES <= sample_count) ? CHUNK_SAMPLES : (sample_count - i);
+    for (size_t i = 0; i < sample_count; i += CHUNK_SAMPLES_PCM24) {
+        size_t count = (i + CHUNK_SAMPLES_PCM24 <= sample_count) ? CHUNK_SAMPLES_PCM24 : (sample_count - i);
 
         for (size_t j = 0; j < count; j++) {
             float_to_int24(chunk + j * 3, samples[i + j]);
