@@ -17,6 +17,7 @@ on:
         type: boolean
 
 env:
+  # Note: cp314 excluded due to Cython compatibility issues on macOS x86_64
   CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
   CIBW_SKIP: "*-musllinux_* pp*"
   CIBW_TEST_REQUIRES: pytest

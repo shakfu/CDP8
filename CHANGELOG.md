@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Buffer overflow in `cdp_flutter.c` mono-to-stereo conversion causing segfaults
+- Variable Length Array (VLA) compatibility for MSVC in `io.c`
+- `M_PI` undefined error for MSVC in `utils.c`
+- Linux build failure by enabling position-independent code
+
+### Added
+- Type stubs (`_core.pyi`) for IDE autocompletion and type checking
+- PyPI publication metadata (URLs, classifiers, keywords)
+
 ## [0.1.1]
 
 ### Added (Demos)

@@ -104,7 +104,8 @@ cdp_lib_buffer* cdp_lib_flutter(cdp_lib_ctx* ctx,
     if (input->channels == 1) {
         /* Manually convert mono to stereo */
         size_t num_frames = input->length;
-        stereo = cdp_lib_buffer_create(num_frames, 2, input->sample_rate);
+        /* Allocate num_frames * 2 floats for stereo output */
+        stereo = cdp_lib_buffer_create(num_frames * 2, 2, input->sample_rate);
         if (stereo == NULL) {
             cdp_lib_set_error(ctx, "Failed to allocate stereo buffer");
             return NULL;
@@ -114,7 +115,7 @@ cdp_lib_buffer* cdp_lib_flutter(cdp_lib_ctx* ctx,
             stereo->data[i * 2 + 1] = input->data[i];
         }
     } else if (input->channels == 2) {
-        /* Copy stereo input - length is total samples, keep as is */
+        /* Copy stereo input - length is total samples */
         stereo = cdp_lib_buffer_create(input->length, 2, input->sample_rate);
         if (stereo == NULL) {
             cdp_lib_set_error(ctx, "Failed to allocate output buffer");
