@@ -78,6 +78,16 @@ check:
 # Build both wheel and sdist
 dist: wheel sdist check
 
+# Release multiple versions
+release:
+	@uv build --sdist
+	@uv build --wheel --python 3.10
+	@uv build --wheel --python 3.11
+	@uv build --wheel --python 3.12
+	@uv build --wheel --python 3.13
+	@uv build --wheel --python 3.14
+	@uv run twine check dist/*
+
 # Publish to TestPyPI
 publish-test: check
 	@uv run twine upload --repository testpypi dist/*
