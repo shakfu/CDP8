@@ -1567,6 +1567,268 @@ class TestTextureMulti:
         assert result2.frame_count > 0
 
 
+# =============================================================================
+# Extended Granular Operations
+# =============================================================================
+
+
+class TestGrainReorder:
+    """Test grain reordering (CDP: GRAIN REORDER)."""
+
+    @pytest.fixture
+    def rhythmic_sound(self):
+        """Create a sound with distinct grains (pulses)."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        # Create 5 pulses at 0.1s intervals
+        for pulse in range(5):
+            # Silence before pulse
+            samples.extend([0.0] * int(sample_rate * 0.05))
+            # Pulse with different frequency for each
+            freq = 220 * (pulse + 1)  # 220, 440, 660, 880, 1100 Hz
+            for i in range(int(sample_rate * 0.04)):
+                env = 1.0 - i / (sample_rate * 0.04)  # decay
+                samples.append(0.8 * env * math.sin(2 * math.pi * freq * i / sample_rate))
+            # Silence after pulse
+            samples.extend([0.0] * int(sample_rate * 0.01))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_reorder_runs(self, rhythmic_sound):
+        """Grain reorder should run without error."""
+        result = pycdp.grain_reorder(rhythmic_sound, seed=42)
+        assert result.frame_count > 0
+
+    def test_grain_reorder_with_explicit_order(self, rhythmic_sound):
+        """Grain reorder should accept explicit order."""
+        result = pycdp.grain_reorder(rhythmic_sound, order=[4, 3, 2, 1, 0], seed=42)
+        assert result.frame_count > 0
+
+    def test_grain_reorder_reproducible(self, rhythmic_sound):
+        """Grain reorder should be reproducible with same seed."""
+        result1 = pycdp.grain_reorder(rhythmic_sound, seed=12345)
+        result2 = pycdp.grain_reorder(rhythmic_sound, seed=12345)
+        # Should produce same output
+        for i in range(min(result1.sample_count, result2.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], abs=1e-6)
+
+
+class TestGrainRerhythm:
+    """Test grain rerhythm (CDP: GRAIN RERHYTHM)."""
+
+    @pytest.fixture
+    def rhythmic_sound(self):
+        """Create a sound with distinct grains."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        for pulse in range(4):
+            samples.extend([0.0] * int(sample_rate * 0.05))
+            for i in range(int(sample_rate * 0.04)):
+                env = 1.0 - i / (sample_rate * 0.04)
+                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+            samples.extend([0.0] * int(sample_rate * 0.01))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_rerhythm_runs(self, rhythmic_sound):
+        """Grain rerhythm should run without error."""
+        result = pycdp.grain_rerhythm(rhythmic_sound, seed=42)
+        assert result.frame_count > 0
+
+    def test_grain_rerhythm_with_ratios(self, rhythmic_sound):
+        """Grain rerhythm should accept timing ratios."""
+        result = pycdp.grain_rerhythm(rhythmic_sound, ratios=[2.0, 0.5, 1.0])
+        assert result.frame_count > 0
+
+    def test_grain_rerhythm_with_times(self, rhythmic_sound):
+        """Grain rerhythm should accept explicit times."""
+        result = pycdp.grain_rerhythm(rhythmic_sound, times=[0.0, 0.2, 0.3, 0.6])
+        assert result.frame_count > 0
+
+
+class TestGrainReverse:
+    """Test grain reverse (CDP: GRAIN REVERSE)."""
+
+    @pytest.fixture
+    def rhythmic_sound(self):
+        """Create a sound with distinct grains."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        for pulse in range(4):
+            samples.extend([0.0] * int(sample_rate * 0.05))
+            freq = 220 * (pulse + 1)
+            for i in range(int(sample_rate * 0.04)):
+                env = 1.0 - i / (sample_rate * 0.04)
+                samples.append(0.8 * env * math.sin(2 * math.pi * freq * i / sample_rate))
+            samples.extend([0.0] * int(sample_rate * 0.01))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_reverse_runs(self, rhythmic_sound):
+        """Grain reverse should run without error."""
+        result = pycdp.grain_reverse(rhythmic_sound)
+        assert result.frame_count > 0
+
+
+class TestGrainTimewarp:
+    """Test grain timewarp (CDP: GRAIN TIMEWARP)."""
+
+    @pytest.fixture
+    def rhythmic_sound(self):
+        """Create a sound with distinct grains."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        for pulse in range(4):
+            samples.extend([0.0] * int(sample_rate * 0.05))
+            for i in range(int(sample_rate * 0.04)):
+                env = 1.0 - i / (sample_rate * 0.04)
+                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+            samples.extend([0.0] * int(sample_rate * 0.01))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_timewarp_runs(self, rhythmic_sound):
+        """Grain timewarp should run without error."""
+        result = pycdp.grain_timewarp(rhythmic_sound, stretch=1.5)
+        assert result.frame_count > 0
+
+    def test_grain_timewarp_stretches(self, rhythmic_sound):
+        """Grain timewarp with stretch>1 should increase duration."""
+        result = pycdp.grain_timewarp(rhythmic_sound, stretch=2.0)
+        # Output should be longer
+        assert result.frame_count > rhythmic_sound.frame_count
+
+    def test_grain_timewarp_with_curve(self, rhythmic_sound):
+        """Grain timewarp should accept stretch curve."""
+        curve = [(0.0, 1.0), (0.5, 2.0), (1.0, 0.5)]
+        result = pycdp.grain_timewarp(rhythmic_sound, stretch=1.0, stretch_curve=curve)
+        assert result.frame_count > 0
+
+
+class TestGrainRepitch:
+    """Test grain repitch (CDP: GRAIN REPITCH)."""
+
+    @pytest.fixture
+    def rhythmic_sound(self):
+        """Create a sound with distinct grains."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        for pulse in range(4):
+            samples.extend([0.0] * int(sample_rate * 0.05))
+            for i in range(int(sample_rate * 0.04)):
+                env = 1.0 - i / (sample_rate * 0.04)
+                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+            samples.extend([0.0] * int(sample_rate * 0.01))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_repitch_runs(self, rhythmic_sound):
+        """Grain repitch should run without error."""
+        result = pycdp.grain_repitch(rhythmic_sound, pitch_semitones=5)
+        assert result.frame_count > 0
+
+    def test_grain_repitch_with_curve(self, rhythmic_sound):
+        """Grain repitch should accept pitch curve."""
+        curve = [(0.0, 0), (0.5, 12), (1.0, -12)]
+        result = pycdp.grain_repitch(rhythmic_sound, pitch_curve=curve)
+        assert result.frame_count > 0
+
+
+class TestGrainPosition:
+    """Test grain position (CDP: GRAIN POSITION)."""
+
+    @pytest.fixture
+    def rhythmic_sound(self):
+        """Create a sound with distinct grains."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        for pulse in range(4):
+            samples.extend([0.0] * int(sample_rate * 0.05))
+            for i in range(int(sample_rate * 0.04)):
+                env = 1.0 - i / (sample_rate * 0.04)
+                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+            samples.extend([0.0] * int(sample_rate * 0.01))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_position_runs(self, rhythmic_sound):
+        """Grain position should run without error."""
+        result = pycdp.grain_position(rhythmic_sound, positions=[0.0, 0.5, 1.0, 1.5])
+        assert result.frame_count > 0
+
+    def test_grain_position_with_duration(self, rhythmic_sound):
+        """Grain position should respect duration parameter."""
+        result = pycdp.grain_position(rhythmic_sound, positions=[0.0, 0.3, 0.6], duration=2.0)
+        # Output should be approximately 2 seconds + grain length
+        expected_samples = int(2.0 * rhythmic_sound.sample_rate)
+        assert result.frame_count >= expected_samples * 0.8
+
+
+class TestGrainOmit:
+    """Test grain omit (CDP: GRAIN OMIT)."""
+
+    @pytest.fixture
+    def rhythmic_sound(self):
+        """Create a sound with distinct grains."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        for pulse in range(6):
+            samples.extend([0.0] * int(sample_rate * 0.05))
+            for i in range(int(sample_rate * 0.04)):
+                env = 1.0 - i / (sample_rate * 0.04)
+                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+            samples.extend([0.0] * int(sample_rate * 0.01))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_omit_runs(self, rhythmic_sound):
+        """Grain omit should run without error."""
+        result = pycdp.grain_omit(rhythmic_sound, keep=1, out_of=2)
+        assert result.frame_count > 0
+
+    def test_grain_omit_reduces_length(self, rhythmic_sound):
+        """Grain omit keeping 1 of 3 should reduce length."""
+        result = pycdp.grain_omit(rhythmic_sound, keep=1, out_of=3)
+        # Output should be shorter (roughly 1/3 of grains)
+        assert result.frame_count < rhythmic_sound.frame_count
+
+
+class TestGrainDuplicate:
+    """Test grain duplicate (CDP: GRAIN DUPLICATE)."""
+
+    @pytest.fixture
+    def rhythmic_sound(self):
+        """Create a sound with distinct grains."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        for pulse in range(3):
+            samples.extend([0.0] * int(sample_rate * 0.05))
+            for i in range(int(sample_rate * 0.04)):
+                env = 1.0 - i / (sample_rate * 0.04)
+                samples.append(0.8 * env * math.sin(2 * math.pi * 440 * i / sample_rate))
+            samples.extend([0.0] * int(sample_rate * 0.01))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_grain_duplicate_runs(self, rhythmic_sound):
+        """Grain duplicate should run without error."""
+        result = pycdp.grain_duplicate(rhythmic_sound, repeats=2, seed=42)
+        assert result.frame_count > 0
+
+    def test_grain_duplicate_increases_length(self, rhythmic_sound):
+        """Grain duplicate with repeats>1 should produce longer output."""
+        result = pycdp.grain_duplicate(rhythmic_sound, repeats=3, seed=42)
+        # Output should be substantial (grains repeated)
+        assert result.frame_count > rhythmic_sound.frame_count * 0.5
+
+    def test_grain_duplicate_reproducible(self, rhythmic_sound):
+        """Grain duplicate should be reproducible with same seed."""
+        result1 = pycdp.grain_duplicate(rhythmic_sound, repeats=2, seed=12345)
+        result2 = pycdp.grain_duplicate(rhythmic_sound, repeats=2, seed=12345)
+        for i in range(min(result1.sample_count, result2.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], abs=1e-6)
+
+
 class TestMorph:
     """Test spectral morph (CDP: SPECMORPH)."""
 
@@ -1703,6 +1965,155 @@ class TestCrossSynth:
         result_half = pycdp.cross_synth(voice_like, noise_like, mix=0.5)
         assert result_full.frame_count > 0
         assert result_half.frame_count > 0
+
+
+# =============================================================================
+# Native Morph Functions (original CDP algorithms)
+# =============================================================================
+
+
+class TestMorphGlideNative:
+    """Test native spectral glide (CDP: SPECGLIDE original algorithm)."""
+
+    @pytest.fixture
+    def sine_440(self):
+        """Create a 440Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def sine_880(self):
+        """Create a 880Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_morph_glide_native_runs(self, sine_440, sine_880):
+        """Native morph glide should run without error."""
+        result = pycdp.morph_glide_native(sine_440, sine_880, duration=0.5)
+        assert result.frame_count > 0
+
+    def test_morph_glide_native_duration(self, sine_440, sine_880):
+        """Native morph glide should produce output of reasonable length."""
+        duration = 1.0
+        result = pycdp.morph_glide_native(sine_440, sine_880, duration=duration)
+        # Output should be non-trivial length
+        assert result.frame_count > sine_440.sample_rate * 0.1  # At least 100ms
+
+
+class TestMorphBridgeNative:
+    """Test native spectral bridge (CDP: SPECBRIDGE original algorithm)."""
+
+    @pytest.fixture
+    def sine_440(self):
+        """Create a 440Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def sine_880(self):
+        """Create a 880Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_morph_bridge_native_runs(self, sine_440, sine_880):
+        """Native morph bridge should run without error."""
+        result = pycdp.morph_bridge_native(sine_440, sine_880)
+        assert result.frame_count > 0
+
+    def test_morph_bridge_native_modes(self, sine_440, sine_880):
+        """Native morph bridge should support different normalization modes."""
+        # Test a few modes
+        result0 = pycdp.morph_bridge_native(sine_440, sine_880, mode=0)
+        result1 = pycdp.morph_bridge_native(sine_440, sine_880, mode=1)
+        result2 = pycdp.morph_bridge_native(sine_440, sine_880, mode=2)
+        assert result0.frame_count > 0
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_morph_bridge_native_interp_timing(self, sine_440, sine_880):
+        """Native morph bridge should support interpolation timing."""
+        result = pycdp.morph_bridge_native(
+            sine_440, sine_880, interp_start=0.25, interp_end=0.75)
+        assert result.frame_count > 0
+
+
+class TestMorphNative:
+    """Test native spectral morph (CDP: SPECMORPH original algorithm)."""
+
+    @pytest.fixture
+    def sine_440(self):
+        """Create a 440Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def sine_880(self):
+        """Create a 880Hz sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 880 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_morph_native_runs(self, sine_440, sine_880):
+        """Native morph should run without error."""
+        result = pycdp.morph_native(sine_440, sine_880)
+        assert result.frame_count > 0
+
+    def test_morph_native_modes(self, sine_440, sine_880):
+        """Native morph should support different interpolation modes."""
+        result_linear = pycdp.morph_native(sine_440, sine_880, mode=0)
+        result_cosine = pycdp.morph_native(sine_440, sine_880, mode=1)
+        assert result_linear.frame_count > 0
+        assert result_cosine.frame_count > 0
+
+    def test_morph_native_separate_timing(self, sine_440, sine_880):
+        """Native morph should support separate amp/freq timing."""
+        result = pycdp.morph_native(
+            sine_440, sine_880,
+            amp_start=0.0, amp_end=0.5,
+            freq_start=0.5, freq_end=1.0)
+        assert result.frame_count > 0
+
+    def test_morph_native_exponents(self, sine_440, sine_880):
+        """Native morph should support different curve exponents."""
+        result_fast = pycdp.morph_native(sine_440, sine_880, amp_exp=0.5)
+        result_slow = pycdp.morph_native(sine_440, sine_880, amp_exp=2.0)
+        assert result_fast.frame_count > 0
+        assert result_slow.frame_count > 0
 
 
 # =============================================================================

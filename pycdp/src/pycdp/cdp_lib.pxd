@@ -178,6 +178,37 @@ cdef extern from "cdp_lib.h":
                                          double mix,
                                          int fft_size)
 
+cdef extern from "cdp_morph_native.h":
+    # Native morph wrappers (original CDP algorithms)
+    cdp_lib_buffer* cdp_morph_glide_native(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input1,
+                                            const cdp_lib_buffer* input2,
+                                            double duration,
+                                            int fft_size)
+
+    cdp_lib_buffer* cdp_morph_bridge_native(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input1,
+                                             const cdp_lib_buffer* input2,
+                                             int mode,
+                                             double offset,
+                                             double interp_start,
+                                             double interp_end,
+                                             int fft_size)
+
+    cdp_lib_buffer* cdp_morph_morph_native(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input1,
+                                            const cdp_lib_buffer* input2,
+                                            int mode,
+                                            double amp_start,
+                                            double amp_end,
+                                            double freq_start,
+                                            double freq_end,
+                                            double amp_exp,
+                                            double freq_exp,
+                                            double stagger,
+                                            int fft_size)
+
+cdef extern from "cdp_lib.h":
     # Analysis data structures
     ctypedef struct cdp_pitch_data:
         float *pitch
@@ -353,6 +384,71 @@ cdef extern from "cdp_granular.h":
                                            double amp_decay,
                                            unsigned int seed)
 
+cdef extern from "cdp_granular_ext.h":
+    # Extended granular operations
+    cdp_lib_buffer* cdp_lib_grain_reorder(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           const int* order,
+                                           size_t order_count,
+                                           double gate,
+                                           double grainsize_ms,
+                                           unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_grain_rerhythm(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            const double* times,
+                                            size_t time_count,
+                                            const double* ratios,
+                                            size_t ratio_count,
+                                            double gate,
+                                            double grainsize_ms,
+                                            unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_grain_reverse(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double gate,
+                                           double grainsize_ms)
+
+    cdp_lib_buffer* cdp_lib_grain_timewarp(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double stretch,
+                                            const double* stretch_curve,
+                                            size_t curve_points,
+                                            double gate,
+                                            double grainsize_ms)
+
+    cdp_lib_buffer* cdp_lib_grain_repitch(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double pitch_semitones,
+                                           const double* pitch_curve,
+                                           size_t curve_points,
+                                           double gate,
+                                           double grainsize_ms)
+
+    cdp_lib_buffer* cdp_lib_grain_position(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            const double* positions,
+                                            size_t position_count,
+                                            double duration,
+                                            double gate,
+                                            double grainsize_ms)
+
+    cdp_lib_buffer* cdp_lib_grain_omit(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        int keep,
+                                        int out_of,
+                                        double gate,
+                                        double grainsize_ms,
+                                        unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_grain_duplicate(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             int repeats,
+                                             double gate,
+                                             double grainsize_ms,
+                                             unsigned int seed)
+
+cdef extern from "cdp_granular.h":
     # Spectral operations
     cdp_lib_buffer* cdp_lib_spectral_focus(cdp_lib_ctx* ctx,
                                             const cdp_lib_buffer* input,

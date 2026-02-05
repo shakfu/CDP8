@@ -13,9 +13,14 @@ cdp_shim_ctx *g_cdp_shim = NULL;
 /* CDP global error string - used by mxfft.c */
 char errstr[2400];
 
-/* Internal input/output buffers */
-static cdp_membuf g_input_buf;
+/* Internal input/output buffers - multi-slot support */
+static cdp_membuf g_input_slots[SHIM_MAX_INPUT_SLOTS];
 static cdp_membuf g_output_buf;
+static cdp_membuf g_temp_slots[SHIM_MAX_INPUT_SLOTS];
+static int g_temp_slot_used[SHIM_MAX_INPUT_SLOTS];
+
+/* Legacy single input buffer pointer (for backwards compatibility) */
+static cdp_membuf *g_input_buf = NULL;
 
 int cdp_shim_init(void) {
     if (g_cdp_shim != NULL) {
@@ -27,10 +32,14 @@ int cdp_shim_init(void) {
         return -1;
     }
 
-    memset(&g_input_buf, 0, sizeof(cdp_membuf));
+    memset(g_input_slots, 0, sizeof(g_input_slots));
     memset(&g_output_buf, 0, sizeof(cdp_membuf));
+    memset(g_temp_slots, 0, sizeof(g_temp_slots));
+    memset(g_temp_slot_used, 0, sizeof(g_temp_slot_used));
 
-    g_cdp_shim->input = &g_input_buf;
+    /* Legacy single input points to slot 0 */
+    g_input_buf = &g_input_slots[0];
+    g_cdp_shim->input = &g_input_slots[0];
     g_cdp_shim->input_count = 1;
     g_cdp_shim->output = &g_output_buf;
     g_cdp_shim->initialized = 1;
@@ -43,34 +52,161 @@ void cdp_shim_cleanup(void) {
         return;
     }
 
-    /* Free output buffer if we allocated it */
-    if (g_output_buf.data != NULL && g_output_buf.capacity > 0) {
-        /* Only free if we own it (capacity was set by shim) */
-        /* For now, don't free - caller manages memory */
+    /* Free any temp buffers we allocated */
+    for (int i = 0; i < SHIM_MAX_INPUT_SLOTS; i++) {
+        if (g_temp_slot_used[i] && g_temp_slots[i].data != NULL) {
+            free(g_temp_slots[i].data);
+        }
     }
 
-    memset(&g_input_buf, 0, sizeof(cdp_membuf));
+    memset(g_input_slots, 0, sizeof(g_input_slots));
     memset(&g_output_buf, 0, sizeof(cdp_membuf));
+    memset(g_temp_slots, 0, sizeof(g_temp_slots));
+    memset(g_temp_slot_used, 0, sizeof(g_temp_slot_used));
+    g_input_buf = NULL;
 
     free(g_cdp_shim);
     g_cdp_shim = NULL;
 }
 
 int cdp_shim_set_input(float *data, size_t length, int channels, int sample_rate) {
+    /* Legacy function - sets slot 0, returns 0 on success for backwards compatibility */
+    int fd = cdp_shim_set_input_slot(0, data, length, channels, sample_rate);
+    return (fd >= 0) ? 0 : -1;
+}
+
+int cdp_shim_set_input_slot(int slot, float *data, size_t length,
+                            int channels, int sample_rate) {
+    if (slot < 0 || slot >= SHIM_MAX_INPUT_SLOTS) {
+        return -1;
+    }
+
     if (g_cdp_shim == NULL) {
         if (cdp_shim_init() != 0) {
             return -1;
         }
     }
 
-    g_input_buf.data = data;
-    g_input_buf.capacity = length;
-    g_input_buf.length = length;
-    g_input_buf.position = 0;
-    g_input_buf.channels = channels;
-    g_input_buf.sample_rate = sample_rate;
+    g_input_slots[slot].data = data;
+    g_input_slots[slot].capacity = length;
+    g_input_slots[slot].length = length;
+    g_input_slots[slot].position = 0;
+    g_input_slots[slot].channels = channels;
+    g_input_slots[slot].sample_rate = sample_rate;
 
-    return 0;
+    /* Update input count if needed */
+    if (slot >= g_cdp_shim->input_count) {
+        g_cdp_shim->input_count = slot + 1;
+    }
+
+    return SHIM_INPUT_FD_BASE + slot;
+}
+
+int cdp_shim_get_input_fd(int slot) {
+    if (slot < 0 || slot >= SHIM_MAX_INPUT_SLOTS) {
+        return -1;
+    }
+    if (g_input_slots[slot].data == NULL) {
+        return -1;
+    }
+    return SHIM_INPUT_FD_BASE + slot;
+}
+
+cdp_membuf* cdp_shim_get_membuf(int fd) {
+    /* Check for legacy single input FD */
+    if (fd == SHIM_INPUT_FD) {
+        return &g_input_slots[0];
+    }
+
+    /* Check for output FD */
+    if (fd == SHIM_OUTPUT_FD) {
+        return &g_output_buf;
+    }
+
+    /* Check for multi-input slot FD */
+    if (fd >= SHIM_INPUT_FD_BASE && fd < SHIM_INPUT_FD_BASE + SHIM_MAX_INPUT_SLOTS) {
+        int slot = fd - SHIM_INPUT_FD_BASE;
+        if (g_input_slots[slot].data != NULL) {
+            return &g_input_slots[slot];
+        }
+        return NULL;
+    }
+
+    /* Check for temp slot FD */
+    if (fd >= SHIM_TEMP_FD_BASE && fd < SHIM_TEMP_FD_BASE + SHIM_MAX_INPUT_SLOTS) {
+        int slot = fd - SHIM_TEMP_FD_BASE;
+        if (g_temp_slot_used[slot]) {
+            return &g_temp_slots[slot];
+        }
+        return NULL;
+    }
+
+    return NULL;
+}
+
+int cdp_shim_create_temp(int channels, int sample_rate) {
+    if (g_cdp_shim == NULL) {
+        if (cdp_shim_init() != 0) {
+            return -1;
+        }
+    }
+
+    /* Find a free temp slot */
+    int slot = -1;
+    for (int i = 0; i < SHIM_MAX_INPUT_SLOTS; i++) {
+        if (!g_temp_slot_used[i]) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot < 0) {
+        return -1;  /* No free slots */
+    }
+
+    /* Allocate initial buffer */
+    size_t initial_capacity = 65536;
+    g_temp_slots[slot].data = (float *)malloc(initial_capacity * sizeof(float));
+    if (g_temp_slots[slot].data == NULL) {
+        return -1;
+    }
+
+    g_temp_slots[slot].capacity = initial_capacity;
+    g_temp_slots[slot].length = 0;
+    g_temp_slots[slot].position = 0;
+    g_temp_slots[slot].channels = channels;
+    g_temp_slots[slot].sample_rate = sample_rate;
+    g_temp_slot_used[slot] = 1;
+
+    return SHIM_TEMP_FD_BASE + slot;
+}
+
+void cdp_shim_free_temp(int fd) {
+    if (fd < SHIM_TEMP_FD_BASE || fd >= SHIM_TEMP_FD_BASE + SHIM_MAX_INPUT_SLOTS) {
+        return;
+    }
+
+    int slot = fd - SHIM_TEMP_FD_BASE;
+    if (g_temp_slot_used[slot] && g_temp_slots[slot].data != NULL) {
+        free(g_temp_slots[slot].data);
+    }
+    memset(&g_temp_slots[slot], 0, sizeof(cdp_membuf));
+    g_temp_slot_used[slot] = 0;
+}
+
+void cdp_shim_reset_slot(int slot) {
+    if (slot >= 0 && slot < SHIM_MAX_INPUT_SLOTS) {
+        g_input_slots[slot].position = 0;
+    }
+}
+
+void cdp_shim_reset_all(void) {
+    for (int i = 0; i < SHIM_MAX_INPUT_SLOTS; i++) {
+        g_input_slots[i].position = 0;
+        g_temp_slots[i].position = 0;
+        g_temp_slots[i].length = 0;
+    }
+    g_output_buf.position = 0;
+    g_output_buf.length = 0;
 }
 
 int cdp_shim_set_output(float *data, size_t capacity, int channels, int sample_rate) {
@@ -139,12 +275,13 @@ int shim_sndcloseEx(int sfd) {
 int shim_fgetfbufEx(float *fp, int count, int sfd, int expect_floats) {
     (void)expect_floats;
 
-    if (sfd != SHIM_INPUT_FD || g_cdp_shim == NULL) {
+    if (g_cdp_shim == NULL) {
         return -1;
     }
 
-    cdp_membuf *buf = g_cdp_shim->input;
-    if (buf->data == NULL) {
+    /* Get the appropriate buffer based on file descriptor */
+    cdp_membuf *buf = cdp_shim_get_membuf(sfd);
+    if (buf == NULL || buf->data == NULL) {
         return -1;
     }
 
@@ -167,11 +304,15 @@ int shim_fgetfbufEx(float *fp, int count, int sfd, int expect_floats) {
 }
 
 int shim_fputfbufEx(float *fp, int count, int sfd) {
-    if (sfd != SHIM_OUTPUT_FD || g_cdp_shim == NULL) {
+    if (g_cdp_shim == NULL) {
         return -1;
     }
 
-    cdp_membuf *buf = g_cdp_shim->output;
+    /* Get the appropriate buffer based on file descriptor */
+    cdp_membuf *buf = cdp_shim_get_membuf(sfd);
+    if (buf == NULL) {
+        return -1;
+    }
 
     /* Check if we need to grow the buffer */
     size_t needed = buf->position + (size_t)count;
@@ -203,14 +344,7 @@ int shim_fputfbufEx(float *fp, int count, int sfd) {
 }
 
 int shim_sndseekEx(int sfd, int dist, int whence) {
-    cdp_membuf *buf = NULL;
-
-    if (sfd == SHIM_INPUT_FD) {
-        buf = g_cdp_shim ? g_cdp_shim->input : NULL;
-    } else if (sfd == SHIM_OUTPUT_FD) {
-        buf = g_cdp_shim ? g_cdp_shim->output : NULL;
-    }
-
+    cdp_membuf *buf = cdp_shim_get_membuf(sfd);
     if (buf == NULL) {
         return -1;
     }
@@ -239,14 +373,7 @@ int shim_sndseekEx(int sfd, int dist, int whence) {
 }
 
 int shim_sndsizeEx(int sfd) {
-    cdp_membuf *buf = NULL;
-
-    if (sfd == SHIM_INPUT_FD) {
-        buf = g_cdp_shim ? g_cdp_shim->input : NULL;
-    } else if (sfd == SHIM_OUTPUT_FD) {
-        buf = g_cdp_shim ? g_cdp_shim->output : NULL;
-    }
-
+    cdp_membuf *buf = cdp_shim_get_membuf(sfd);
     if (buf == NULL) {
         return -1;
     }

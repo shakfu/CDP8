@@ -49,7 +49,9 @@ set(SHIM_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_distort.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_reverb.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_granular.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_granular_ext.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_morph.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/cdp_morph_native.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_analysis.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_effects.c
     ${CMAKE_CURRENT_SOURCE_DIR}/cdp_dynamics.c
@@ -142,6 +144,9 @@ add_library(cdp_pvxio2 STATIC ${PVXIO2_SRCS})
 add_library(cdp_all INTERFACE)
 target_link_libraries(cdp_all INTERFACE cdp_processing cdp_sfsys cdp_pvxio2)
 
-# Test program
+# Test programs
 add_executable(test_cdp_lib test_cdp_lib.c)
 target_link_libraries(test_cdp_lib cdp_processing cdp_sfsys cdp_pvxio2 m)
+
+add_executable(test_shim_multi_input test_shim_multi_input.c)
+target_link_libraries(test_shim_multi_input cdp_processing m)

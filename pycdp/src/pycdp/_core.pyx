@@ -1284,6 +1284,37 @@ cdef extern from "cdp_lib.h":
                                          double mix,
                                          int fft_size)
 
+cdef extern from "cdp_morph_native.h":
+    # Native morph wrappers (original CDP algorithms)
+    cdp_lib_buffer* cdp_morph_glide_native(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input1,
+                                            const cdp_lib_buffer* input2,
+                                            double duration,
+                                            int fft_size)
+
+    cdp_lib_buffer* cdp_morph_bridge_native(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input1,
+                                             const cdp_lib_buffer* input2,
+                                             int mode,
+                                             double offset,
+                                             double interp_start,
+                                             double interp_end,
+                                             int fft_size)
+
+    cdp_lib_buffer* cdp_morph_morph_native(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input1,
+                                            const cdp_lib_buffer* input2,
+                                            int mode,
+                                            double amp_start,
+                                            double amp_end,
+                                            double freq_start,
+                                            double freq_end,
+                                            double amp_exp,
+                                            double freq_exp,
+                                            double stagger,
+                                            int fft_size)
+
+cdef extern from "cdp_lib.h":
     # Analysis data structures
     ctypedef struct cdp_pitch_data:
         float *pitch
@@ -1459,6 +1490,71 @@ cdef extern from "cdp_granular.h":
                                            double amp_decay,
                                            unsigned int seed)
 
+cdef extern from "cdp_granular_ext.h":
+    # Extended granular operations
+    cdp_lib_buffer* cdp_lib_grain_reorder(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           const int* order,
+                                           size_t order_count,
+                                           double gate,
+                                           double grainsize_ms,
+                                           unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_grain_rerhythm(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            const double* times,
+                                            size_t time_count,
+                                            const double* ratios,
+                                            size_t ratio_count,
+                                            double gate,
+                                            double grainsize_ms,
+                                            unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_grain_reverse(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double gate,
+                                           double grainsize_ms)
+
+    cdp_lib_buffer* cdp_lib_grain_timewarp(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            double stretch,
+                                            const double* stretch_curve,
+                                            size_t curve_points,
+                                            double gate,
+                                            double grainsize_ms)
+
+    cdp_lib_buffer* cdp_lib_grain_repitch(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double pitch_semitones,
+                                           const double* pitch_curve,
+                                           size_t curve_points,
+                                           double gate,
+                                           double grainsize_ms)
+
+    cdp_lib_buffer* cdp_lib_grain_position(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            const double* positions,
+                                            size_t position_count,
+                                            double duration,
+                                            double gate,
+                                            double grainsize_ms)
+
+    cdp_lib_buffer* cdp_lib_grain_omit(cdp_lib_ctx* ctx,
+                                        const cdp_lib_buffer* input,
+                                        int keep,
+                                        int out_of,
+                                        double gate,
+                                        double grainsize_ms,
+                                        unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_grain_duplicate(cdp_lib_ctx* ctx,
+                                             const cdp_lib_buffer* input,
+                                             int repeats,
+                                             double gate,
+                                             double grainsize_ms,
+                                             unsigned int seed)
+
+cdef extern from "cdp_granular.h":
     # Spectral operations
     cdp_lib_buffer* cdp_lib_spectral_focus(cdp_lib_ctx* ctx,
                                             const cdp_lib_buffer* input,
@@ -2977,6 +3073,397 @@ def texture_multi(Buffer buf not None, double duration=5.0, double density=2.0,
 
 
 # =============================================================================
+# Extended Granular Operations
+# =============================================================================
+
+def grain_reorder(Buffer buf not None, order=None, double gate=0.1,
+                  double grainsize_ms=50.0, unsigned int seed=0):
+    """Reorder grains in audio (CDP: GRAIN REORDER).
+
+    Detects grains using amplitude gating, then rearranges them according
+    to the provided order array, or shuffles randomly if no order given.
+
+    Args:
+        buf: Input Buffer.
+        order: List of grain indices for new order (None = shuffle). Default None.
+        gate: Amplitude threshold for grain detection (0-1). Default 0.1.
+        grainsize_ms: Typical grain size in ms. Default 50.0.
+        seed: Random seed for shuffling (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with reordered grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef int* order_ptr = NULL
+    cdef size_t order_count = 0
+
+    # Convert Python list to C array if provided
+    cdef list order_list
+    cdef int[:] order_view
+    import array
+    if order is not None:
+        order_list = list(order)
+        order_count = len(order_list)
+        order_arr = array.array('i', order_list)
+        order_view = order_arr
+        order_ptr = &order_view[0]
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_reorder(
+        ctx, input_buf, order_ptr, order_count, gate, grainsize_ms, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain reorder failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_rerhythm(Buffer buf not None, times=None, ratios=None,
+                   double gate=0.1, double grainsize_ms=50.0,
+                   unsigned int seed=0):
+    """Change the timing between grains (CDP: GRAIN RERHYTHM).
+
+    Detects grains and repositions them according to new timing values
+    or inter-grain duration ratios.
+
+    Args:
+        buf: Input Buffer.
+        times: List of new grain start times in seconds (None = use ratios). Default None.
+        ratios: List of inter-grain duration ratios (None = use times). Default None.
+        gate: Amplitude threshold for grain detection (0-1). Default 0.1.
+        grainsize_ms: Typical grain size in ms. Default 50.0.
+        seed: Random seed for variation. Default 0.
+
+    Returns:
+        New Buffer with rerhythmed grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef double* times_ptr = NULL
+    cdef size_t time_count = 0
+    cdef double* ratios_ptr = NULL
+    cdef size_t ratio_count = 0
+
+    cdef double[:] times_view
+    cdef double[:] ratios_view
+    import array
+
+    if times is not None:
+        times_list = list(times)
+        time_count = len(times_list)
+        times_arr = array.array('d', times_list)
+        times_view = times_arr
+        times_ptr = &times_view[0]
+
+    if ratios is not None:
+        ratios_list = list(ratios)
+        ratio_count = len(ratios_list)
+        ratios_arr = array.array('d', ratios_list)
+        ratios_view = ratios_arr
+        ratios_ptr = &ratios_view[0]
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_rerhythm(
+        ctx, input_buf, times_ptr, time_count, ratios_ptr, ratio_count,
+        gate, grainsize_ms, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain rerhythm failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_reverse(Buffer buf not None, double gate=0.1, double grainsize_ms=50.0):
+    """Reverse the order of grains (CDP: GRAIN REVERSE).
+
+    Detects grains and outputs them in reverse order. Individual grains
+    are NOT reversed internally.
+
+    Args:
+        buf: Input Buffer.
+        gate: Amplitude threshold for grain detection (0-1). Default 0.1.
+        grainsize_ms: Typical grain size in ms. Default 50.0.
+
+    Returns:
+        New Buffer with reversed grain order.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_reverse(
+        ctx, input_buf, gate, grainsize_ms)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain reverse failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_timewarp(Buffer buf not None, double stretch=1.0, stretch_curve=None,
+                   double gate=0.1, double grainsize_ms=50.0):
+    """Non-linear time stretch of grain sequence (CDP: GRAIN TIMEWARP).
+
+    Stretches or compresses the timing between grains according to a
+    stretch factor or time-varying curve.
+
+    Args:
+        buf: Input Buffer.
+        stretch: Uniform stretch factor (>1 = slower, <1 = faster). Default 1.0.
+        stretch_curve: List of (time, stretch) pairs for varying stretch. Default None.
+        gate: Amplitude threshold for grain detection (0-1). Default 0.1.
+        grainsize_ms: Typical grain size in ms. Default 50.0.
+
+    Returns:
+        New Buffer with time-warped grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef double* curve_ptr = NULL
+    cdef size_t curve_points = 0
+
+    cdef double[:] curve_view
+    import array
+
+    if stretch_curve is not None:
+        # Flatten list of tuples to single array [t0, v0, t1, v1, ...]
+        curve_list = []
+        for t, v in stretch_curve:
+            curve_list.append(float(t))
+            curve_list.append(float(v))
+        curve_points = len(stretch_curve)
+        curve_arr = array.array('d', curve_list)
+        curve_view = curve_arr
+        curve_ptr = &curve_view[0]
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_timewarp(
+        ctx, input_buf, stretch, curve_ptr, curve_points, gate, grainsize_ms)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain timewarp failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_repitch(Buffer buf not None, double pitch_semitones=0.0, pitch_curve=None,
+                  double gate=0.1, double grainsize_ms=50.0):
+    """Variable pitch shifting per grain (CDP: GRAIN REPITCH).
+
+    Time-stretches individual grains to change their pitch without
+    affecting overall timing.
+
+    Args:
+        buf: Input Buffer.
+        pitch_semitones: Uniform pitch shift in semitones. Default 0.0.
+        pitch_curve: List of (time, semitones) pairs for varying pitch. Default None.
+        gate: Amplitude threshold for grain detection (0-1). Default 0.1.
+        grainsize_ms: Typical grain size in ms. Default 50.0.
+
+    Returns:
+        New Buffer with repitched grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef double* curve_ptr = NULL
+    cdef size_t curve_points = 0
+
+    cdef double[:] curve_view
+    import array
+
+    if pitch_curve is not None:
+        curve_list = []
+        for t, v in pitch_curve:
+            curve_list.append(float(t))
+            curve_list.append(float(v))
+        curve_points = len(pitch_curve)
+        curve_arr = array.array('d', curve_list)
+        curve_view = curve_arr
+        curve_ptr = &curve_view[0]
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_repitch(
+        ctx, input_buf, pitch_semitones, curve_ptr, curve_points, gate, grainsize_ms)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain repitch failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_position(Buffer buf not None, positions=None, double duration=0.0,
+                   double gate=0.1, double grainsize_ms=50.0):
+    """Position grains at specific times (CDP: GRAIN POSITION).
+
+    Places grains at specified positions in the output.
+
+    Args:
+        buf: Input Buffer.
+        positions: List of output positions in seconds. Default None.
+        duration: Total output duration (0 = auto). Default 0.0.
+        gate: Amplitude threshold for grain detection (0-1). Default 0.1.
+        grainsize_ms: Typical grain size in ms. Default 50.0.
+
+    Returns:
+        New Buffer with repositioned grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef double* pos_ptr = NULL
+    cdef size_t pos_count = 0
+
+    cdef double[:] pos_view
+    import array
+
+    if positions is not None:
+        pos_list = [float(p) for p in positions]
+        pos_count = len(pos_list)
+        pos_arr = array.array('d', pos_list)
+        pos_view = pos_arr
+        pos_ptr = &pos_view[0]
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_position(
+        ctx, input_buf, pos_ptr, pos_count, duration, gate, grainsize_ms)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain position failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_omit(Buffer buf not None, int keep=1, int out_of=2,
+               double gate=0.1, double grainsize_ms=50.0,
+               unsigned int seed=0):
+    """Selectively remove grains (CDP: GRAIN OMIT).
+
+    Keeps only specified grains from the input.
+
+    Args:
+        buf: Input Buffer.
+        keep: Number of grains to keep out of each group. Default 1.
+        out_of: Group size (e.g., keep 1 out_of 3). Default 2.
+        gate: Amplitude threshold for grain detection (0-1). Default 0.1.
+        grainsize_ms: Typical grain size in ms. Default 50.0.
+        seed: Random seed (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with filtered grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_omit(
+        ctx, input_buf, keep, out_of, gate, grainsize_ms, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain omit failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def grain_duplicate(Buffer buf not None, int repeats=2,
+                    double gate=0.1, double grainsize_ms=50.0,
+                    unsigned int seed=0):
+    """Repeat grains (CDP: GRAIN DUPLICATE).
+
+    Duplicates each grain a specified number of times.
+
+    Args:
+        buf: Input Buffer.
+        repeats: Number of times to repeat each grain. Default 2.
+        gate: Amplitude threshold for grain detection (0-1). Default 0.1.
+        grainsize_ms: Typical grain size in ms. Default 50.0.
+        seed: Random seed for variation (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with duplicated grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_grain_duplicate(
+        ctx, input_buf, repeats, gate, grainsize_ms, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Grain duplicate failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
 # Spectral Operations
 # =============================================================================
 
@@ -3634,6 +4121,163 @@ def cross_synth(Buffer buf1 not None, Buffer buf2 not None,
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Cross-synthesis failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Native morph functions (original CDP algorithms)
+# =============================================================================
+
+def morph_glide_native(Buffer buf1 not None, Buffer buf2 not None,
+                       double duration=1.0, int fft_size=1024):
+    """Spectral glide using original CDP algorithm (CDP: SPECGLIDE).
+
+    Creates a smooth glide between two spectral frames - one from each input.
+    The original algorithm reads single windows from each file and interpolates
+    amplitudes linearly while frequencies follow an exponential curve.
+
+    Args:
+        buf1: First input Buffer.
+        buf2: Second input Buffer.
+        duration: Output duration in seconds. Default 1.0.
+        fft_size: FFT window size (power of 2). Default 1024.
+
+    Returns:
+        New Buffer with glided audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if buf1.sample_rate != buf2.sample_rate:
+        raise ValueError("Sample rates must match for glide")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input1_buf = _buffer_to_cdp_lib(buf1)
+    cdef cdp_lib_buffer* input2_buf = _buffer_to_cdp_lib(buf2)
+
+    cdef cdp_lib_buffer* output_buf = cdp_morph_glide_native(
+        ctx, input1_buf, input2_buf, duration, fft_size)
+
+    cdp_lib_buffer_free(input1_buf)
+    cdp_lib_buffer_free(input2_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Native morph glide failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def morph_bridge_native(Buffer buf1 not None, Buffer buf2 not None,
+                        int mode=0, double offset=0.0,
+                        double interp_start=0.0, double interp_end=1.0,
+                        int fft_size=1024):
+    """Spectral bridge using original CDP algorithm (CDP: SPECBRIDGE).
+
+    Creates a bridge (crossfade) between two spectral files with control over
+    normalization mode and interpolation timing.
+
+    Args:
+        buf1: First input Buffer.
+        buf2: Second input Buffer.
+        mode: Bridge normalization mode (0-5):
+              0 = No normalization
+              1 = Normalize to minimum level
+              2 = Normalize to file 1 level
+              3 = Normalize to file 2 level
+              4 = Progressive normalization 1->2
+              5 = Progressive normalization 2->1
+        offset: Time offset (seconds) to start file2 relative to file1. Default 0.0.
+        interp_start: Normalized position (0-1) where interpolation starts. Default 0.0.
+        interp_end: Normalized position (0-1) where interpolation ends. Default 1.0.
+        fft_size: FFT window size (power of 2). Default 1024.
+
+    Returns:
+        New Buffer with bridged audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if buf1.sample_rate != buf2.sample_rate:
+        raise ValueError("Sample rates must match for bridge")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input1_buf = _buffer_to_cdp_lib(buf1)
+    cdef cdp_lib_buffer* input2_buf = _buffer_to_cdp_lib(buf2)
+
+    cdef cdp_lib_buffer* output_buf = cdp_morph_bridge_native(
+        ctx, input1_buf, input2_buf, mode, offset, interp_start, interp_end, fft_size)
+
+    cdp_lib_buffer_free(input1_buf)
+    cdp_lib_buffer_free(input2_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Native morph bridge failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def morph_native(Buffer buf1 not None, Buffer buf2 not None,
+                 int mode=0,
+                 double amp_start=0.0, double amp_end=1.0,
+                 double freq_start=0.0, double freq_end=1.0,
+                 double amp_exp=1.0, double freq_exp=1.0,
+                 double stagger=0.0, int fft_size=1024):
+    """Full spectral morph using original CDP algorithm (CDP: SPECMORPH).
+
+    Full spectral morphing with separate control over amplitude and frequency
+    interpolation timing. Supports multiple interpolation curves.
+
+    Args:
+        buf1: First input Buffer.
+        buf2: Second input Buffer.
+        mode: Interpolation mode:
+              0 = Linear interpolation
+              1 = Cosine interpolation (smoother)
+        amp_start: Normalized time (0-1) where amplitude morph starts. Default 0.0.
+        amp_end: Normalized time (0-1) where amplitude morph ends. Default 1.0.
+        freq_start: Normalized time (0-1) where frequency morph starts. Default 0.0.
+        freq_end: Normalized time (0-1) where frequency morph ends. Default 1.0.
+        amp_exp: Exponent for amplitude curve (1=linear, >1=slow start). Default 1.0.
+        freq_exp: Exponent for frequency curve. Default 1.0.
+        stagger: Time offset (seconds) between file2 and output. Default 0.0.
+        fft_size: FFT window size (power of 2). Default 1024.
+
+    Returns:
+        New Buffer with morphed audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if buf1.sample_rate != buf2.sample_rate:
+        raise ValueError("Sample rates must match for morph")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input1_buf = _buffer_to_cdp_lib(buf1)
+    cdef cdp_lib_buffer* input2_buf = _buffer_to_cdp_lib(buf2)
+
+    cdef cdp_lib_buffer* output_buf = cdp_morph_morph_native(
+        ctx, input1_buf, input2_buf, mode,
+        amp_start, amp_end, freq_start, freq_end,
+        amp_exp, freq_exp, stagger, fft_size)
+
+    cdp_lib_buffer_free(input1_buf)
+    cdp_lib_buffer_free(input2_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Native morph failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)

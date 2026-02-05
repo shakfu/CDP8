@@ -103,10 +103,23 @@ from pycdp._core import (
     grain_extend,
     texture_simple,
     texture_multi,
+    # Extended granular operations
+    grain_reorder,
+    grain_rerhythm,
+    grain_reverse,
+    grain_timewarp,
+    grain_repitch,
+    grain_position,
+    grain_omit,
+    grain_duplicate,
     # Morphing/Cross-synthesis
     morph,
     morph_glide,
     cross_synth,
+    # Native morph (original CDP algorithms)
+    morph_glide_native,
+    morph_bridge_native,
+    morph_native,
     # Analysis
     pitch,
     formants,
@@ -222,10 +235,23 @@ __all__ = [
     "grain_extend",
     "texture_simple",
     "texture_multi",
+    # Extended granular operations
+    "grain_reorder",
+    "grain_rerhythm",
+    "grain_reverse",
+    "grain_timewarp",
+    "grain_repitch",
+    "grain_position",
+    "grain_omit",
+    "grain_duplicate",
     # Morphing/Cross-synthesis
     "morph",
     "morph_glide",
     "cross_synth",
+    # Native morph (original CDP algorithms)
+    "morph_glide_native",
+    "morph_bridge_native",
+    "morph_native",
     # Analysis
     "pitch",
     "formants",

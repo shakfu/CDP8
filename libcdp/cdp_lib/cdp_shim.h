@@ -99,8 +99,58 @@ int shim_sndseekEx(int sfd, int dist, int whence);
 int shim_sndsizeEx(int sfd);
 
 /* File descriptor constants for shim */
-#define SHIM_INPUT_FD  1000
-#define SHIM_OUTPUT_FD 1001
+#define SHIM_INPUT_FD       1000    /* Legacy single input FD */
+#define SHIM_OUTPUT_FD      1001
+#define SHIM_INPUT_FD_BASE  10000   /* Base FD for multi-input slots */
+#define SHIM_TEMP_FD_BASE   12000   /* Base FD for temporary buffers */
+#define SHIM_MAX_INPUT_SLOTS 16
+
+/*
+ * Multi-input support API
+ *
+ * These functions allow registering multiple input buffers for algorithms
+ * that require 2+ inputs (e.g., morph operations).
+ */
+
+/*
+ * Register input buffer at a specific slot (0-15).
+ * Returns a fake file descriptor for this slot.
+ */
+int cdp_shim_set_input_slot(int slot, float *data, size_t length,
+                            int channels, int sample_rate);
+
+/*
+ * Get the file descriptor for a registered input slot.
+ * Returns -1 if slot is not registered.
+ */
+int cdp_shim_get_input_fd(int slot);
+
+/*
+ * Get the membuf for a given file descriptor.
+ * Returns NULL if FD is not valid.
+ */
+cdp_membuf* cdp_shim_get_membuf(int fd);
+
+/*
+ * Create a temporary buffer (e.g., for specbridge offset padding).
+ * Returns a fake file descriptor.
+ */
+int cdp_shim_create_temp(int channels, int sample_rate);
+
+/*
+ * Free a temporary buffer by file descriptor.
+ */
+void cdp_shim_free_temp(int fd);
+
+/*
+ * Reset read position for a slot to beginning.
+ */
+void cdp_shim_reset_slot(int slot);
+
+/*
+ * Reset all slots and clear state for a new processing run.
+ */
+void cdp_shim_reset_all(void);
 
 #ifdef __cplusplus
 }
