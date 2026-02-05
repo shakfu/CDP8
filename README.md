@@ -405,31 +405,34 @@ These work with explicit Context and Buffer objects:
 ## Architecture
 
 ```
-cycdp/                      # Python package
-  src/cycdp/
-    __init__.py             # Public exports
-    _core.pyx               # Cython bindings
-    cdp_lib.pxd             # Cython declarations
-  CMakeLists.txt            # Builds extension
-
-libcdp/                     # C library
-  include/
-    cdp.h                   # Main public API
-    cdp_error.h             # Error codes
-    cdp_types.h             # Type definitions
-  cdp_lib/
-    cdp_lib.h               # Library internal header
-    cdp_*.h                 # Category headers (filters, effects, etc.)
-  src/
-    context.c               # Context management
-    buffer.c                # Buffer management
-    gain.c                  # Gain/amplitude operations
-    io.c                    # File I/O
-    channel.c               # Channel operations
-    mix.c                   # Mixing operations
-    spatial.c               # Spatial/panning
-    utils.c                 # Utilities
-    error.c                 # Error handling
+cycdp/                          # Project root
+  src/cycdp/                    # Python package
+    __init__.py                 # Public exports
+    _core.pyx                   # Cython bindings
+    cdp_lib.pxd                 # Cython declarations
+  projects/
+    libcdp/                     # C library
+      include/
+        cdp.h                   # Main public API
+        cdp_error.h             # Error codes
+        cdp_types.h             # Type definitions
+      cdp_lib/
+        cdp_lib.h               # Library internal header
+        cdp_*.h                 # Category headers (filters, effects, etc.)
+      src/
+        context.c               # Context management
+        buffer.c                # Buffer management
+        gain.c                  # Gain/amplitude operations
+        io.c                    # File I/O
+        channel.c               # Channel operations
+        mix.c                   # Mixing operations
+        spatial.c               # Spatial/panning
+        utils.c                 # Utilities
+        error.c                 # Error handling
+    cpd8/                       # CDP8 sources (FFT, includes)
+      dev/
+  tests/                        # Python tests
+  CMakeLists.txt                # Builds extension
 ```
 
 ## Demos
@@ -507,14 +510,14 @@ make help
 
 To add more CDP operations:
 
-1. Add C implementation to `libcdp/cdp_lib/<operation>.c`
-2. Add function declarations to appropriate header in `libcdp/cdp_lib/`
-3. Export from `libcdp/cdp_lib/cdp_lib.h`
-4. Update `libcdp/CMakeLists.txt` to include new source file
-5. Add Cython declarations to `cycdp/src/cycdp/cdp_lib.pxd`
-6. Add Cython bindings to `cycdp/src/cycdp/_core.pyx`
-7. Export from `cycdp/src/cycdp/__init__.py`
-8. Add tests to both `libcdp/tests/` and `cycdp/tests/`
+1. Add C implementation to `projects/libcdp/cdp_lib/<operation>.c`
+2. Add function declarations to appropriate header in `projects/libcdp/cdp_lib/`
+3. Export from `projects/libcdp/cdp_lib/cdp_lib.h`
+4. Update `CMakeLists.txt` to include new source file
+5. Add Cython declarations to `src/cycdp/cdp_lib.pxd`
+6. Add Cython bindings to `src/cycdp/_core.pyx`
+7. Export from `src/cycdp/__init__.py`
+8. Add tests to `tests/`
 
 ## License
 
