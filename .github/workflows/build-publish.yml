@@ -17,7 +17,7 @@ on:
         type: boolean
 
 env:
-  CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*-*"
+  CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
   CIBW_SKIP: "*-musllinux_* pp*"
   CIBW_TEST_REQUIRES: pytest
   CIBW_TEST_COMMAND: pytest {project}/tests -v
