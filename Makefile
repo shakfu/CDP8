@@ -4,7 +4,9 @@
 # This Makefile wraps common build commands for convenience.
 # The actual build is handled by scikit-build-core via pyproject.toml
 
-.PHONY: all sync build rebuild test lint format typecheck qa clean         distclean wheel sdist dist check publish-test publish upgrade         coverage coverage-html docs release demos demos-clean help
+.PHONY: all sync build rebuild test lint format typecheck qa clean \
+        distclean wheel sdist dist check publish-test publish upgrade \
+        coverage coverage-html docs release bump demos demos-clean help
 
 # Default target
 all: build
@@ -115,7 +117,7 @@ docs:
 	@uv run sphinx-build -b html docs/ docs/_build/html
 
 # Create a release (bump version, tag, push)
-release:
+bump:
 	@echo "Current version: $$(grep '^version' pyproject.toml | head -1)"
 	@read -p "New version: " version; 	sed -i '' "s/^version = .*/version = \"$$version\"/" pyproject.toml; 	git add pyproject.toml; 	git commit -m "Bump version to $$version"; 	git tag -a "v$$version" -m "Release $$version"; 	echo "Tagged v$$version. Run 'git push && git push --tags' to publish."
 

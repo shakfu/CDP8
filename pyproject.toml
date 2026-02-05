@@ -1,6 +1,6 @@
 [project]
 name = "cycdp"
-version = "make release"
+version = "0.1.1"
 description = "Cython bindings for the CDP audio processing library"
 readme = "README.md"
 license = { text = "LGPL-2.1-or-later" }
