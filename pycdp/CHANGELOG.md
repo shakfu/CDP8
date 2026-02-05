@@ -9,6 +9,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (CDP Algorithm Ports)
 
+**Analysis:**
+- `pitch` - pitch tracking using YIN algorithm (CDP: pitch)
+- `formants` - formant analysis using LPC (CDP: formants)
+- `get_partials` - partial/harmonic tracking (CDP: get_partials)
+
+**Spectral Processing:**
+- `spectral_focus` - super-Gaussian frequency enhancement (CDP: focus)
+- `spectral_hilite` - boost spectral peaks above threshold (CDP: hilite)
+- `spectral_fold` - fold spectrum at frequency for metallic effects (CDP: specfold)
+- `spectral_clean` - spectral noise gate (CDP: speclean)
+
+**Experimental/Chaos:**
+- `strange` - Lorenz attractor chaotic modulation (CDP: strange)
+- `brownian` - random walk modulation of pitch/amp/filter (CDP: brownian)
+- `crystal` - crystalline textures with decaying echoes (CDP: crystal)
+- `fractal` - recursive wavecycle overlay with pitch ratio and decay (CDP: fractal)
+- `quirk` - probabilistic reverse/dropout transformations (CDP: quirk)
+- `chirikov` - standard map chaotic modulation (CDP: chirikov)
+- `cantor` - Cantor set fractal gating pattern (CDP: cantor)
+- `cascade` - cascading echoes with pitch/amp/filter decay (CDP: cascade)
+- `fracture` - fragment and scatter audio with gaps (CDP: fracture)
+- `tesselate` - tile-based pattern transformations (CDP: tesselate)
+
+**Playback/Time Manipulation:**
+- `zigzag` - alternating forward/backward playback through time points (CDP: zigzag)
+- `iterate` - repeated playback with pitch/gain variations (CDP: iterate)
+- `stutter` - segment-based stuttering with silence inserts (CDP: stutter)
+- `bounce` - bouncing ball effect with accelerating repeats (CDP: bounce)
+- `drunk` - "drunk walk" random navigation through audio (CDP: drunk)
+- `loop` - looping with crossfades and variations (CDP: loop)
+- `retime` - time-domain time stretching/compression using TDOLA (CDP: retime)
+- `scramble` - waveset reordering (shuffle, reverse, by size/level) (CDP: scramble)
+- `splinter` - fragmenting effect with shrinking repeats (CDP: splinter)
+- `hover` - zigzag reading at specified frequency for hovering pitch effect (CDP: hover)
+- `constrict` - shorten or remove silent sections (CDP: constrict)
+- `phase_invert` - invert phase of audio signal (CDP: phase mode 1)
+- `phase_stereo` - enhance stereo separation via phase subtraction (CDP: phase mode 2)
+- `wrappage` - granular texture with stereo spatial distribution (CDP: wrappage)
+
+**Spatial Effects:**
+- `spin` - rotate audio around stereo field with optional doppler (CDP: spin)
+- `rotor` - dual-rotation modulation creating interference patterns (CDP: rotor)
+- `flutter` - spatial tremolo with loudness modulation alternating L/R (CDP: flutter)
+
+**Extended Granular:**
+- `grain_reorder` - reorder detected grains (shuffle, reverse, rotate) (CDP: grain)
+- `grain_rerhythm` - change timing/rhythm of grains (CDP: grain)
+- `grain_reverse` - reverse individual grains in place (CDP: grain)
+- `grain_timewarp` - time-stretch/compress grain spacing (CDP: grain)
+- `grain_repitch` - pitch-shift grains with interpolation (CDP: grain)
+- `grain_position` - reposition grains in stereo field (CDP: grain)
+- `grain_omit` - probabilistically omit grains (CDP: grain)
+- `grain_duplicate` - duplicate grains with variations (CDP: grain)
+
 **Granular/Texture:**
 - `grain_cloud` - grain cloud generation from amplitude-detected grains (CDP: grain)
 - `grain_extend` - extend duration using grain repetition (CDP: grainex extend)
@@ -19,6 +73,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `morph` - spectral interpolation between two sounds (CDP: SPECMORPH)
 - `morph_glide` - simple spectral glide between two sounds (CDP: SPECGLIDE)
 - `cross_synth` - combine amp from one sound with freq from another (CDP: combine)
+- `morph_glide_native` - native CDP specglide wrapper (original algorithm)
+- `morph_bridge_native` - native CDP specbridge wrapper (original algorithm)
+- `morph_native` - native CDP specmorph wrapper (original algorithm)
+
+**Synthesis:**
+- `synth_wave` - waveform synthesis (sine, square, saw, ramp, triangle) (CDP: wave)
+- `synth_noise` - noise generation (white, pink) (CDP: synth noise)
+- `synth_click` - click/metronome track generation (CDP: click)
+- `synth_chord` - chord synthesis from MIDI pitch list (CDP: multi_syn)
+
+**Pitch-Synchronous Operations (PSOW):**
+- `psow_stretch` - time-stretch while preserving pitch using PSOLA (CDP: psow stretch)
+- `psow_grab` - extract pitch-synchronous grains from a position (CDP: psow grab)
+- `psow_dupl` - duplicate grains for time-stretching (CDP: psow dupl)
+- `psow_interp` - interpolate between two grains (CDP: psow interp)
+
+**FOF Extraction and Synthesis (FOFEX):**
+- `fofex_extract` - extract single FOF at specified time (CDP: fofex)
+- `fofex_extract_all` - extract all FOFs to uniform-length bank (CDP: fofex)
+- `fofex_synth` - synthesize audio from FOFs at target pitch (CDP: fofex)
+- `fofex_repitch` - repitch audio with optional formant preservation (CDP: fofex)
+
+**Distortion:**
+- `distort_cut` - waveset segmentation with decaying envelope (CDP: distcut)
+- `distort_mark` - interpolate between waveset groups at time markers (CDP: distmark)
+- `distort_repeat` - time-stretch by repeating wavecycles (CDP: distrep)
+- `distort_shift` - shift/swap half-wavecycle groups (CDP: distshift)
+- `distort_warp` - progressive warp distortion with modular sample folding (CDP: distwarp)
 
 **Filtering:**
 - `filter_bandpass` - spectral bandpass filter
@@ -44,6 +126,11 @@ Standard DSP functions not derived from CDP algorithms:
 - `delay` - feedback delay with mix control
 - `chorus` - modulated delay (LFO-based)
 - `flanger` - short modulated delay with feedback
+
+### Added (Constants)
+
+- Waveform types: `WAVE_SINE`, `WAVE_SQUARE`, `WAVE_SAW`, `WAVE_RAMP`, `WAVE_TRIANGLE`
+- Scramble modes: `SCRAMBLE_SHUFFLE`, `SCRAMBLE_REVERSE`, `SCRAMBLE_SIZE_UP`, `SCRAMBLE_SIZE_DOWN`, `SCRAMBLE_LEVEL_UP`, `SCRAMBLE_LEVEL_DOWN`
 
 ### Fixed
 - Phase vocoder frequency calculation now uses correct hop size

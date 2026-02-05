@@ -234,6 +234,11 @@ mv = memoryview(buf)
 | `distort_reverse(samples, ...)` | Reverse distortion effect |
 | `distort_fractal(samples, ...)` | Fractal distortion |
 | `distort_shuffle(samples, ...)` | Shuffle distortion |
+| `distort_cut(samples, cycle_count, ...)` | Waveset cut with decaying envelope |
+| `distort_mark(samples, markers, ...)` | Interpolate wavesets at time markers |
+| `distort_repeat(samples, multiplier, ...)` | Time-stretch by repeating wavecycles |
+| `distort_shift(samples, group_size, ...)` | Shift/swap half-wavecycle groups |
+| `distort_warp(samples, warp, ...)` | Progressive warp distortion with sample folding |
 
 ### Granular Processing
 
@@ -277,6 +282,73 @@ mv = memoryview(buf)
 | `fracture(samples, ...)` | Fracture transformation |
 | `tesselate(samples, ...)` | Tesselation transformation |
 
+### Playback/Time Manipulation
+
+| Function | Description |
+|----------|-------------|
+| `zigzag(samples, times, ...)` | Alternating forward/backward playback through time points |
+| `iterate(samples, repeats, ...)` | Repeat audio with pitch shift and gain decay variations |
+| `stutter(samples, segment_ms, ...)` | Segment-based stuttering with silence inserts |
+| `bounce(samples, bounces, ...)` | Bouncing ball effect with accelerating repeats |
+| `drunk(samples, duration, ...)` | Random "drunk walk" navigation through audio |
+| `loop(samples, start, length_ms, ...)` | Loop a section with crossfades and variations |
+| `retime(samples, ratio, ...)` | Time-domain time stretch/compress (TDOLA) |
+| `scramble(samples, mode, ...)` | Reorder wavesets (shuffle, reverse, by size/level) |
+| `splinter(samples, start, ...)` | Fragmenting effect with shrinking repeats |
+| `hover(samples, frequency, location, ...)` | Zigzag reading at specified frequency for hovering pitch effect |
+| `constrict(samples, constriction)` | Shorten or remove silent sections |
+| `phase_invert(samples)` | Invert phase (multiply all samples by -1) |
+| `phase_stereo(samples, transfer)` | Enhance stereo separation via phase subtraction |
+| `wrappage(samples, grain_size, density, ...)` | Granular texture with stereo spatial distribution |
+
+### Spatial Effects
+
+| Function | Description |
+|----------|-------------|
+| `spin(samples, rate, ...)` | Rotate audio around stereo field with optional doppler |
+| `rotor(samples, pitch_rate, amp_rate, ...)` | Dual-rotation modulation (pitch + amplitude interference) |
+| `flutter(samples, frequency, depth, ...)` | Spatial tremolo (loudness modulation alternating L/R) |
+
+### Extended Granular
+
+| Function | Description |
+|----------|-------------|
+| `grain_reorder(samples, mode, ...)` | Reorder detected grains (shuffle, reverse, rotate) |
+| `grain_rerhythm(samples, factor, ...)` | Change timing/rhythm of grains |
+| `grain_reverse(samples, ...)` | Reverse individual grains in place |
+| `grain_timewarp(samples, factor, ...)` | Time-stretch/compress grain spacing |
+| `grain_repitch(samples, semitones, ...)` | Pitch-shift grains with interpolation |
+| `grain_position(samples, spread, ...)` | Reposition grains in stereo field |
+| `grain_omit(samples, probability, ...)` | Probabilistically omit grains |
+| `grain_duplicate(samples, count, ...)` | Duplicate grains with variations |
+
+### Pitch-Synchronous Operations (PSOW)
+
+| Function | Description |
+|----------|-------------|
+| `psow_stretch(samples, stretch_factor, ...)` | Time-stretch while preserving pitch (PSOLA) |
+| `psow_grab(samples, time, duration, ...)` | Extract pitch-synchronous grains from position |
+| `psow_dupl(samples, repeat_count, ...)` | Duplicate grains for time-stretching |
+| `psow_interp(grain1, grain2, ...)` | Interpolate between two grains |
+
+### FOF Extraction and Synthesis (FOFEX)
+
+| Function | Description |
+|----------|-------------|
+| `fofex_extract(samples, time, ...)` | Extract single FOF (pitch-synchronous grain) at time |
+| `fofex_extract_all(samples, ...)` | Extract all FOFs to uniform-length bank |
+| `fofex_synth(fof_bank, duration, frequency, ...)` | Synthesize audio from FOFs at target pitch |
+| `fofex_repitch(samples, pitch_shift, ...)` | Repitch audio with optional formant preservation |
+
+### Synthesis
+
+| Function | Description |
+|----------|-------------|
+| `synth_wave(waveform, frequency, ...)` | Generate waveforms (sine, square, saw, ramp, triangle) |
+| `synth_noise(pink, amplitude, ...)` | Generate white or pink noise |
+| `synth_click(tempo, beats_per_bar, ...)` | Generate click/metronome track |
+| `synth_chord(midi_notes, ...)` | Synthesize chord from MIDI note list |
+
 ### Utility Functions
 
 | Function | Description |
@@ -307,8 +379,24 @@ These work with explicit Context and Buffer objects:
 
 ### Constants
 
+**Processing flags:**
 - `FLAG_NONE` - No processing flags
 - `FLAG_CLIP` - Clip output to [-1.0, 1.0]
+
+**Waveform types (for `synth_wave`):**
+- `WAVE_SINE` - Sine wave
+- `WAVE_SQUARE` - Square wave
+- `WAVE_SAW` - Sawtooth wave
+- `WAVE_RAMP` - Ramp (reverse sawtooth) wave
+- `WAVE_TRIANGLE` - Triangle wave
+
+**Scramble modes (for `scramble`):**
+- `SCRAMBLE_SHUFFLE` - Random shuffle
+- `SCRAMBLE_REVERSE` - Reverse order
+- `SCRAMBLE_SIZE_UP` - Sort by size (smallest first)
+- `SCRAMBLE_SIZE_DOWN` - Sort by size (largest first)
+- `SCRAMBLE_LEVEL_UP` - Sort by level (quietest first)
+- `SCRAMBLE_LEVEL_DOWN` - Sort by level (loudest first)
 
 ### Exceptions
 

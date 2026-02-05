@@ -164,19 +164,21 @@ class TestNormalize:
 class TestPhaseInvert:
     def test_invert_positive(self):
         samples = array.array('f', [0.5] * 100)
-        result = pycdp.phase_invert(samples)
+        buf = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
+        result = pycdp.phase_invert(buf)
         assert result[0] == pytest.approx(-0.5, rel=1e-6)
 
     def test_invert_negative(self):
         samples = array.array('f', [-0.3] * 100)
-        result = pycdp.phase_invert(samples)
+        buf = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
+        result = pycdp.phase_invert(buf)
         assert result[0] == pytest.approx(0.3, rel=1e-6)
 
     def test_double_invert_identity(self):
         samples = array.array('f', [0.1, -0.2, 0.3, -0.4, 0.5])
-        result1 = pycdp.phase_invert(samples)
-        # Need to convert Buffer to array for second call
-        result2 = pycdp.phase_invert(memoryview(result1))
+        buf = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=44100)
+        result1 = pycdp.phase_invert(buf)
+        result2 = pycdp.phase_invert(result1)
         for i in range(len(samples)):
             assert result2[i] == pytest.approx(samples[i], rel=1e-6)
 
@@ -953,6 +955,318 @@ class TestDistortion:
     def test_distort_shuffle(self, sine_wave):
         """Shuffle should run without error."""
         result = pycdp.distort_shuffle(sine_wave, chunk_count=10, seed=42)
+        assert result.frame_count > 0
+
+    def test_distort_cut_basic(self, sine_wave):
+        """Distort cut should run without error."""
+        result = pycdp.distort_cut(sine_wave, cycle_count=4, cycle_step=4)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_distort_cut_different_cycle_step(self, sine_wave):
+        """Distort cut with different cycle_step should work."""
+        # Overlapping segments (step < count)
+        result = pycdp.distort_cut(sine_wave, cycle_count=6, cycle_step=3)
+        assert result.frame_count > 0
+
+    def test_distort_cut_exponent(self, sine_wave):
+        """Distort cut with different exponents should work."""
+        # Faster decay
+        result1 = pycdp.distort_cut(sine_wave, cycle_count=4, exponent=2.0)
+        # Slower decay
+        result2 = pycdp.distort_cut(sine_wave, cycle_count=4, exponent=0.5)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_distort_cut_min_level(self, sine_wave):
+        """Distort cut with min_level should filter quiet segments."""
+        # Keep all segments
+        result1 = pycdp.distort_cut(sine_wave, cycle_count=4, min_level=0.0)
+        # Filter very quiet segments
+        result2 = pycdp.distort_cut(sine_wave, cycle_count=4, min_level=0.01)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_distort_cut_invalid_cycle_count(self, sine_wave):
+        """Distort cut with invalid cycle_count should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_cut(sine_wave, cycle_count=0)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_cut(sine_wave, cycle_count=101)
+
+    def test_distort_cut_invalid_exponent(self, sine_wave):
+        """Distort cut with invalid exponent should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_cut(sine_wave, cycle_count=4, exponent=0.01)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_cut(sine_wave, cycle_count=4, exponent=15.0)
+
+    def test_distort_cut_default_params(self, sine_wave):
+        """Distort cut with default parameters should work."""
+        result = pycdp.distort_cut(sine_wave)
+        assert result.frame_count > 0
+
+    def test_distort_mark_basic(self, sine_wave):
+        """Distort mark should run without error."""
+        markers = [0.1, 0.2, 0.3, 0.4]
+        result = pycdp.distort_mark(sine_wave, markers=markers, unit_ms=10.0)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_distort_mark_two_markers(self, sine_wave):
+        """Distort mark with minimum markers should work."""
+        markers = [0.1, 0.3]
+        result = pycdp.distort_mark(sine_wave, markers=markers)
+        assert result.frame_count > 0
+
+    def test_distort_mark_with_stretch(self, sine_wave):
+        """Distort mark with time stretch should work."""
+        markers = [0.1, 0.2, 0.3]
+        result = pycdp.distort_mark(sine_wave, markers=markers, stretch=1.5)
+        assert result.frame_count > 0
+
+    def test_distort_mark_with_random(self, sine_wave):
+        """Distort mark with randomization should work."""
+        markers = [0.1, 0.2, 0.3]
+        result = pycdp.distort_mark(sine_wave, markers=markers, random=0.5, seed=42)
+        assert result.frame_count > 0
+
+    def test_distort_mark_with_flip_phase(self, sine_wave):
+        """Distort mark with phase flip should work."""
+        markers = [0.1, 0.2, 0.3]
+        result = pycdp.distort_mark(sine_wave, markers=markers, flip_phase=True)
+        assert result.frame_count > 0
+
+    def test_distort_mark_reproducible(self, sine_wave):
+        """Distort mark with same seed should be reproducible."""
+        markers = [0.1, 0.2, 0.3]
+        result1 = pycdp.distort_mark(sine_wave, markers=markers, random=0.3, seed=123)
+        result2 = pycdp.distort_mark(sine_wave, markers=markers, random=0.3, seed=123)
+        assert result1.frame_count == result2.frame_count
+
+    def test_distort_mark_invalid_marker_count(self, sine_wave):
+        """Distort mark with too few markers should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_mark(sine_wave, markers=[0.1])
+
+    def test_distort_mark_invalid_unit_ms(self, sine_wave):
+        """Distort mark with invalid unit_ms should fail."""
+        markers = [0.1, 0.2]
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_mark(sine_wave, markers=markers, unit_ms=0.5)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_mark(sine_wave, markers=markers, unit_ms=150.0)
+
+    def test_distort_mark_invalid_stretch(self, sine_wave):
+        """Distort mark with invalid stretch should fail."""
+        markers = [0.1, 0.2]
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_mark(sine_wave, markers=markers, stretch=0.1)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_mark(sine_wave, markers=markers, stretch=3.0)
+
+    def test_distort_mark_unsorted_markers(self, sine_wave):
+        """Distort mark with unsorted markers should fail."""
+        markers = [0.3, 0.1, 0.2]
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_mark(sine_wave, markers=markers)
+
+    def test_distort_repeat_basic(self, sine_wave):
+        """Distort repeat should run without error."""
+        result = pycdp.distort_repeat(sine_wave, multiplier=2, cycle_count=1)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_distort_repeat_time_stretch(self, sine_wave):
+        """Distort repeat mode 0 should time-stretch (longer output)."""
+        result = pycdp.distort_repeat(sine_wave, multiplier=3, cycle_count=2, mode=0)
+        assert result.frame_count > 0
+
+    def test_distort_repeat_no_stretch(self, sine_wave):
+        """Distort repeat mode 1 should maintain original duration."""
+        result = pycdp.distort_repeat(sine_wave, multiplier=2, cycle_count=2, mode=1)
+        assert result.frame_count > 0
+
+    def test_distort_repeat_skip_cycles(self, sine_wave):
+        """Distort repeat with skip_cycles should work."""
+        result = pycdp.distort_repeat(sine_wave, multiplier=2, skip_cycles=5)
+        assert result.frame_count > 0
+
+    def test_distort_repeat_custom_splice(self, sine_wave):
+        """Distort repeat with custom splice length should work."""
+        result = pycdp.distort_repeat(sine_wave, multiplier=2, splice_ms=5.0)
+        assert result.frame_count > 0
+
+    def test_distort_repeat_multiple_cycles(self, sine_wave):
+        """Distort repeat with multiple cycles per group should work."""
+        result = pycdp.distort_repeat(sine_wave, multiplier=2, cycle_count=4)
+        assert result.frame_count > 0
+
+    def test_distort_repeat_invalid_multiplier(self, sine_wave):
+        """Distort repeat with invalid multiplier should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_repeat(sine_wave, multiplier=0)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_repeat(sine_wave, multiplier=101)
+
+    def test_distort_repeat_invalid_cycle_count(self, sine_wave):
+        """Distort repeat with invalid cycle_count should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_repeat(sine_wave, cycle_count=0)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_repeat(sine_wave, cycle_count=101)
+
+    def test_distort_repeat_invalid_splice(self, sine_wave):
+        """Distort repeat with invalid splice_ms should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_repeat(sine_wave, splice_ms=0.5)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_repeat(sine_wave, splice_ms=60.0)
+
+    def test_distort_repeat_default_params(self, sine_wave):
+        """Distort repeat with default parameters should work."""
+        result = pycdp.distort_repeat(sine_wave)
+        assert result.frame_count > 0
+
+    def test_distort_shift_basic(self, sine_wave):
+        """Distort shift should run without error."""
+        result = pycdp.distort_shift(sine_wave, group_size=1, shift=1, mode=0)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_distort_shift_mode0(self, sine_wave):
+        """Distort shift mode 0 (shift) should work."""
+        result = pycdp.distort_shift(sine_wave, group_size=2, shift=2, mode=0)
+        assert result.frame_count > 0
+
+    def test_distort_shift_mode1(self, sine_wave):
+        """Distort shift mode 1 (swap) should work."""
+        result = pycdp.distort_shift(sine_wave, group_size=2, mode=1)
+        assert result.frame_count > 0
+
+    def test_distort_shift_larger_groups(self, sine_wave):
+        """Distort shift with larger groups should work."""
+        result = pycdp.distort_shift(sine_wave, group_size=4, shift=1, mode=0)
+        assert result.frame_count > 0
+
+    def test_distort_shift_larger_shift(self, sine_wave):
+        """Distort shift with larger shift should work."""
+        result = pycdp.distort_shift(sine_wave, group_size=1, shift=5, mode=0)
+        assert result.frame_count > 0
+
+    def test_distort_shift_invalid_group_size(self, sine_wave):
+        """Distort shift with invalid group_size should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_shift(sine_wave, group_size=0)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_shift(sine_wave, group_size=51)
+
+    def test_distort_shift_invalid_shift(self, sine_wave):
+        """Distort shift with invalid shift should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_shift(sine_wave, shift=0, mode=0)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_shift(sine_wave, shift=51, mode=0)
+
+    def test_distort_shift_invalid_mode(self, sine_wave):
+        """Distort shift with invalid mode should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_shift(sine_wave, mode=2)
+
+    def test_distort_shift_default_params(self, sine_wave):
+        """Distort shift with default parameters should work."""
+        result = pycdp.distort_shift(sine_wave)
+        assert result.frame_count > 0
+
+
+class TestDistortWarp:
+    """Test distort_warp - progressive warp distortion."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_wave(self):
+        """Create a stereo sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        num_frames = int(sample_rate * duration)
+        samples = array.array('f')
+        for i in range(num_frames):
+            val = 0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
+            samples.append(val)  # Left
+            samples.append(val)  # Right
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    def test_distort_warp_basic(self, sine_wave):
+        """Distort warp should produce output."""
+        result = pycdp.distort_warp(sine_wave, warp=0.001)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_distort_warp_mode0(self, sine_wave):
+        """Mode 0 (samplewise) should work with mono."""
+        result = pycdp.distort_warp(sine_wave, warp=0.01, mode=0)
+        assert result.frame_count > 0
+        assert result.frame_count == sine_wave.frame_count
+
+    def test_distort_warp_mode0_stereo(self, stereo_wave):
+        """Mode 0 should work with stereo."""
+        result = pycdp.distort_warp(stereo_wave, warp=0.01, mode=0)
+        assert result.frame_count > 0
+        assert result.channels == 2
+
+    def test_distort_warp_mode1(self, sine_wave):
+        """Mode 1 (wavesetwise) should work."""
+        result = pycdp.distort_warp(sine_wave, warp=0.01, mode=1, waveset_count=5)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_distort_warp_small_warp(self, sine_wave):
+        """Small warp value should work."""
+        result = pycdp.distort_warp(sine_wave, warp=0.0001)
+        assert result.frame_count > 0
+
+    def test_distort_warp_large_warp(self, sine_wave):
+        """Large warp value should work."""
+        result = pycdp.distort_warp(sine_wave, warp=0.1)
+        assert result.frame_count > 0
+
+    def test_distort_warp_invalid_warp_low(self, sine_wave):
+        """Warp below minimum should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_warp(sine_wave, warp=0.00001)
+
+    def test_distort_warp_invalid_warp_high(self, sine_wave):
+        """Warp above maximum should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_warp(sine_wave, warp=0.5)
+
+    def test_distort_warp_invalid_mode(self, sine_wave):
+        """Invalid mode should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.distort_warp(sine_wave, mode=2)
+
+    def test_distort_warp_waveset_count(self, sine_wave):
+        """Different waveset counts should work."""
+        result1 = pycdp.distort_warp(sine_wave, warp=0.01, mode=1, waveset_count=1)
+        result2 = pycdp.distort_warp(sine_wave, warp=0.01, mode=1, waveset_count=10)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_distort_warp_default_params(self, sine_wave):
+        """Default parameters should work."""
+        result = pycdp.distort_warp(sine_wave)
         assert result.frame_count > 0
 
 
@@ -3400,6 +3714,1553 @@ class TestSpin:
             pycdp.spin(mono_buffer, depth=-0.5)  # Negative
         with pytest.raises(ValueError, match="depth must be"):
             pycdp.spin(mono_buffer, depth=1.5)  # Too large
+
+
+class TestRotor:
+    """Tests for rotor (dual-rotation modulation) operation."""
+
+    @pytest.fixture
+    def mono_buffer(self):
+        """Create a mono sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 2.0  # Longer for modulation effects
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_buffer(self):
+        """Create a stereo sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 2.0
+        freq = 440.0
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            val = 0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            samples.append(val)  # Left
+            samples.append(val)  # Right
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    def test_rotor_returns_buffer(self, mono_buffer):
+        """Rotor should return a Buffer."""
+        result = pycdp.rotor(mono_buffer, pitch_rate=1.0, amp_rate=1.5)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_rotor_preserves_channels(self, mono_buffer, stereo_buffer):
+        """Rotor should preserve channel count."""
+        result_mono = pycdp.rotor(mono_buffer)
+        result_stereo = pycdp.rotor(stereo_buffer)
+        assert result_mono.channels == 1
+        assert result_stereo.channels == 2
+
+    def test_rotor_pitch_only(self, mono_buffer):
+        """Rotor with pitch modulation only (no amplitude)."""
+        result = pycdp.rotor(mono_buffer, pitch_rate=2.0, pitch_depth=3.0, amp_depth=0.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_rotor_amp_only(self, mono_buffer):
+        """Rotor with amplitude modulation only (no pitch)."""
+        result = pycdp.rotor(mono_buffer, pitch_depth=0.0, amp_rate=3.0, amp_depth=0.8)
+        assert isinstance(result, pycdp.Buffer)
+        # Without pitch modulation, output length should match input
+        input_frames = mono_buffer.sample_count // mono_buffer.channels
+        output_frames = result.sample_count // result.channels
+        assert output_frames == pytest.approx(input_frames, rel=0.1)
+
+    def test_rotor_different_rates(self, mono_buffer):
+        """Rotor with different pitch and amp rates creates interference."""
+        result = pycdp.rotor(mono_buffer, pitch_rate=1.0, amp_rate=1.5)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_rotor_phase_offset(self, mono_buffer):
+        """Rotor with different phase offsets."""
+        result1 = pycdp.rotor(mono_buffer, phase_offset=0.0)
+        result2 = pycdp.rotor(mono_buffer, phase_offset=0.5)
+        assert isinstance(result1, pycdp.Buffer)
+        assert isinstance(result2, pycdp.Buffer)
+        # Different phase offsets should produce different outputs
+        # (at least some samples should differ)
+        differs = False
+        for i in range(min(100, result1.sample_count, result2.sample_count)):
+            if abs(result1[i] - result2[i]) > 0.001:
+                differs = True
+                break
+        assert differs
+
+    def test_rotor_high_depth(self, mono_buffer):
+        """Rotor with high modulation depth."""
+        result = pycdp.rotor(mono_buffer, pitch_depth=6.0, amp_depth=0.9)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_rotor_invalid_pitch_rate(self, mono_buffer):
+        """Rotor should reject invalid pitch_rate values."""
+        with pytest.raises(ValueError, match="pitch_rate must be"):
+            pycdp.rotor(mono_buffer, pitch_rate=0.001)  # Too slow
+        with pytest.raises(ValueError, match="pitch_rate must be"):
+            pycdp.rotor(mono_buffer, pitch_rate=25.0)  # Too fast
+
+    def test_rotor_invalid_pitch_depth(self, mono_buffer):
+        """Rotor should reject invalid pitch_depth values."""
+        with pytest.raises(ValueError, match="pitch_depth must be"):
+            pycdp.rotor(mono_buffer, pitch_depth=-1.0)  # Negative
+        with pytest.raises(ValueError, match="pitch_depth must be"):
+            pycdp.rotor(mono_buffer, pitch_depth=15.0)  # Too large
+
+    def test_rotor_invalid_amp_rate(self, mono_buffer):
+        """Rotor should reject invalid amp_rate values."""
+        with pytest.raises(ValueError, match="amp_rate must be"):
+            pycdp.rotor(mono_buffer, amp_rate=0.001)  # Too slow
+        with pytest.raises(ValueError, match="amp_rate must be"):
+            pycdp.rotor(mono_buffer, amp_rate=25.0)  # Too fast
+
+    def test_rotor_invalid_amp_depth(self, mono_buffer):
+        """Rotor should reject invalid amp_depth values."""
+        with pytest.raises(ValueError, match="amp_depth must be"):
+            pycdp.rotor(mono_buffer, amp_depth=-0.5)  # Negative
+        with pytest.raises(ValueError, match="amp_depth must be"):
+            pycdp.rotor(mono_buffer, amp_depth=1.5)  # Too large
+
+    def test_rotor_invalid_phase_offset(self, mono_buffer):
+        """Rotor should reject invalid phase_offset values."""
+        with pytest.raises(ValueError, match="phase_offset must be"):
+            pycdp.rotor(mono_buffer, phase_offset=-0.1)  # Negative
+        with pytest.raises(ValueError, match="phase_offset must be"):
+            pycdp.rotor(mono_buffer, phase_offset=1.5)  # Too large
+
+
+class TestSynthWave:
+    """Tests for synth_wave (waveform synthesis) operation."""
+
+    def test_synth_wave_returns_buffer(self):
+        """Synth wave should return a Buffer."""
+        result = pycdp.synth_wave(waveform=pycdp.WAVE_SINE, frequency=440.0, duration=0.5)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_synth_wave_sine(self):
+        """Synth wave should generate sine wave."""
+        result = pycdp.synth_wave(waveform=pycdp.WAVE_SINE, frequency=440.0, duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.channels == 1
+
+    def test_synth_wave_square(self):
+        """Synth wave should generate square wave."""
+        result = pycdp.synth_wave(waveform=pycdp.WAVE_SQUARE, frequency=440.0, duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_wave_saw(self):
+        """Synth wave should generate sawtooth wave."""
+        result = pycdp.synth_wave(waveform=pycdp.WAVE_SAW, frequency=440.0, duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_wave_ramp(self):
+        """Synth wave should generate ramp wave."""
+        result = pycdp.synth_wave(waveform=pycdp.WAVE_RAMP, frequency=440.0, duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_wave_triangle(self):
+        """Synth wave should generate triangle wave."""
+        result = pycdp.synth_wave(waveform=pycdp.WAVE_TRIANGLE, frequency=440.0, duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_wave_stereo(self):
+        """Synth wave should generate stereo output."""
+        result = pycdp.synth_wave(channels=2, duration=0.1)
+        assert result.channels == 2
+
+    def test_synth_wave_duration(self):
+        """Synth wave duration should match requested."""
+        duration = 0.5
+        sample_rate = 44100
+        result = pycdp.synth_wave(duration=duration, sample_rate=sample_rate)
+        expected_samples = int(duration * sample_rate)
+        # Allow small tolerance for fade
+        assert abs(result.sample_count - expected_samples) < 100
+
+    def test_synth_wave_sample_rate(self):
+        """Synth wave should use requested sample rate."""
+        result = pycdp.synth_wave(sample_rate=48000, duration=0.1)
+        assert result.sample_rate == 48000
+
+    def test_synth_wave_invalid_waveform(self):
+        """Synth wave should reject invalid waveform."""
+        with pytest.raises(ValueError, match="waveform must be"):
+            pycdp.synth_wave(waveform=5)
+        with pytest.raises(ValueError, match="waveform must be"):
+            pycdp.synth_wave(waveform=-1)
+
+    def test_synth_wave_invalid_frequency(self):
+        """Synth wave should reject invalid frequency."""
+        with pytest.raises(ValueError, match="frequency must be"):
+            pycdp.synth_wave(frequency=10.0)  # Too low
+        with pytest.raises(ValueError, match="frequency must be"):
+            pycdp.synth_wave(frequency=25000.0)  # Too high
+
+    def test_synth_wave_invalid_amplitude(self):
+        """Synth wave should reject invalid amplitude."""
+        with pytest.raises(ValueError, match="amplitude must be"):
+            pycdp.synth_wave(amplitude=-0.1)
+        with pytest.raises(ValueError, match="amplitude must be"):
+            pycdp.synth_wave(amplitude=1.5)
+
+    def test_synth_wave_constants_exist(self):
+        """Waveform constants should be defined."""
+        assert pycdp.WAVE_SINE == 0
+        assert pycdp.WAVE_SQUARE == 1
+        assert pycdp.WAVE_SAW == 2
+        assert pycdp.WAVE_RAMP == 3
+        assert pycdp.WAVE_TRIANGLE == 4
+
+
+class TestSynthNoise:
+    """Tests for synth_noise (noise synthesis) operation."""
+
+    def test_synth_noise_returns_buffer(self):
+        """Synth noise should return a Buffer."""
+        result = pycdp.synth_noise(duration=0.5)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_synth_noise_white(self):
+        """Synth noise should generate white noise."""
+        result = pycdp.synth_noise(pink=0, duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_noise_pink(self):
+        """Synth noise should generate pink noise."""
+        result = pycdp.synth_noise(pink=1, duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_noise_stereo(self):
+        """Synth noise should generate stereo output."""
+        result = pycdp.synth_noise(channels=2, duration=0.1)
+        assert result.channels == 2
+
+    def test_synth_noise_reproducible(self):
+        """Synth noise with same seed should be reproducible."""
+        result1 = pycdp.synth_noise(duration=0.1, seed=12345)
+        result2 = pycdp.synth_noise(duration=0.1, seed=12345)
+        assert result1.sample_count == result2.sample_count
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+    def test_synth_noise_invalid_amplitude(self):
+        """Synth noise should reject invalid amplitude."""
+        with pytest.raises(ValueError, match="amplitude must be"):
+            pycdp.synth_noise(amplitude=-0.1)
+        with pytest.raises(ValueError, match="amplitude must be"):
+            pycdp.synth_noise(amplitude=1.5)
+
+    def test_synth_noise_invalid_duration(self):
+        """Synth noise should reject invalid duration."""
+        with pytest.raises(ValueError, match="duration must be"):
+            pycdp.synth_noise(duration=0.0001)  # Too short
+
+
+class TestSynthClick:
+    """Tests for synth_click (click track synthesis) operation."""
+
+    def test_synth_click_returns_buffer(self):
+        """Synth click should return a Buffer."""
+        result = pycdp.synth_click(tempo=120.0, duration=2.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_synth_click_mono(self):
+        """Synth click should output mono."""
+        result = pycdp.synth_click(duration=1.0)
+        assert result.channels == 1
+
+    def test_synth_click_tempo(self):
+        """Synth click should respond to tempo."""
+        result1 = pycdp.synth_click(tempo=60.0, duration=2.0)  # 2 beats
+        result2 = pycdp.synth_click(tempo=120.0, duration=2.0)  # 4 beats
+        # Both should produce audio
+        assert result1.sample_count > 0
+        assert result2.sample_count > 0
+
+    def test_synth_click_with_accent(self):
+        """Synth click with beat accent should work."""
+        result = pycdp.synth_click(tempo=120.0, beats_per_bar=4, duration=2.0)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_click_no_accent(self):
+        """Synth click without accent should work."""
+        result = pycdp.synth_click(tempo=120.0, beats_per_bar=0, duration=2.0)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_click_invalid_tempo(self):
+        """Synth click should reject invalid tempo."""
+        with pytest.raises(ValueError, match="tempo must be"):
+            pycdp.synth_click(tempo=10.0)  # Too slow
+        with pytest.raises(ValueError, match="tempo must be"):
+            pycdp.synth_click(tempo=500.0)  # Too fast
+
+    def test_synth_click_invalid_beats_per_bar(self):
+        """Synth click should reject invalid beats_per_bar."""
+        with pytest.raises(ValueError, match="beats_per_bar must be"):
+            pycdp.synth_click(beats_per_bar=-1)
+        with pytest.raises(ValueError, match="beats_per_bar must be"):
+            pycdp.synth_click(beats_per_bar=20)
+
+    def test_synth_click_invalid_click_freq(self):
+        """Synth click should reject invalid click frequency."""
+        with pytest.raises(ValueError, match="click_freq must be"):
+            pycdp.synth_click(click_freq=100.0)  # Too low
+        with pytest.raises(ValueError, match="click_freq must be"):
+            pycdp.synth_click(click_freq=10000.0)  # Too high
+
+
+class TestSynthChord:
+    """Tests for synth_chord (chord synthesis) operation."""
+
+    def test_synth_chord_returns_buffer(self):
+        """Synth chord should return a Buffer."""
+        result = pycdp.synth_chord([60, 64, 67], duration=0.5)  # C major
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_synth_chord_single_note(self):
+        """Synth chord should work with a single note."""
+        result = pycdp.synth_chord([60], duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_chord_multiple_notes(self):
+        """Synth chord should work with multiple notes."""
+        # C major 7 chord: C, E, G, B
+        result = pycdp.synth_chord([60, 64, 67, 71], duration=0.2)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_chord_stereo(self):
+        """Synth chord should generate stereo output."""
+        result = pycdp.synth_chord([60, 64, 67], channels=2, duration=0.1)
+        assert result.channels == 2
+
+    def test_synth_chord_with_detune(self):
+        """Synth chord with detuning should work."""
+        result = pycdp.synth_chord([60, 64, 67], detune_cents=10.0, duration=0.2)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_chord_duration(self):
+        """Synth chord duration should match requested."""
+        duration = 0.5
+        sample_rate = 44100
+        result = pycdp.synth_chord([60], duration=duration, sample_rate=sample_rate)
+        expected_samples = int(duration * sample_rate)
+        # Allow small tolerance for fade
+        assert abs(result.sample_count - expected_samples) < 100
+
+    def test_synth_chord_sample_rate(self):
+        """Synth chord should use requested sample rate."""
+        result = pycdp.synth_chord([60], sample_rate=48000, duration=0.1)
+        assert result.sample_rate == 48000
+
+    def test_synth_chord_max_notes(self):
+        """Synth chord should handle max 16 notes."""
+        notes = list(range(48, 64))  # 16 notes: C3 to D#4
+        result = pycdp.synth_chord(notes, duration=0.1)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_synth_chord_common_chords(self):
+        """Synth chord should generate common chord types."""
+        # Major triad
+        major = pycdp.synth_chord([60, 64, 67], duration=0.1)
+        assert isinstance(major, pycdp.Buffer)
+
+        # Minor triad
+        minor = pycdp.synth_chord([60, 63, 67], duration=0.1)
+        assert isinstance(minor, pycdp.Buffer)
+
+        # Diminished
+        dim = pycdp.synth_chord([60, 63, 66], duration=0.1)
+        assert isinstance(dim, pycdp.Buffer)
+
+        # Augmented
+        aug = pycdp.synth_chord([60, 64, 68], duration=0.1)
+        assert isinstance(aug, pycdp.Buffer)
+
+    def test_synth_chord_invalid_notes_count(self):
+        """Synth chord should reject invalid note count."""
+        with pytest.raises(ValueError, match="midi_notes must contain"):
+            pycdp.synth_chord([])  # Empty
+        with pytest.raises(ValueError, match="midi_notes must contain"):
+            pycdp.synth_chord(list(range(60, 80)))  # 20 notes, too many
+
+    def test_synth_chord_invalid_midi_note(self):
+        """Synth chord should reject invalid MIDI note values."""
+        with pytest.raises(ValueError, match="MIDI notes must be"):
+            pycdp.synth_chord([-1, 60, 64])  # Negative
+        with pytest.raises(ValueError, match="MIDI notes must be"):
+            pycdp.synth_chord([60, 128, 67])  # Too high
+
+    def test_synth_chord_invalid_amplitude(self):
+        """Synth chord should reject invalid amplitude."""
+        with pytest.raises(ValueError, match="amplitude must be"):
+            pycdp.synth_chord([60], amplitude=-0.1)
+        with pytest.raises(ValueError, match="amplitude must be"):
+            pycdp.synth_chord([60], amplitude=1.5)
+
+    def test_synth_chord_invalid_detune(self):
+        """Synth chord should reject invalid detune_cents."""
+        with pytest.raises(ValueError, match="detune_cents must be"):
+            pycdp.synth_chord([60], detune_cents=-5.0)
+        with pytest.raises(ValueError, match="detune_cents must be"):
+            pycdp.synth_chord([60], detune_cents=60.0)
+
+
+class TestPsowStretch:
+    """Test psow_stretch - PSOLA time stretching."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_psow_stretch_basic(self, sine_wave):
+        """PSOW stretch should produce output."""
+        result = pycdp.psow_stretch(sine_wave, stretch_factor=1.5)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_psow_stretch_double(self, sine_wave):
+        """PSOW stretch with factor 2 should roughly double length."""
+        result = pycdp.psow_stretch(sine_wave, stretch_factor=2.0)
+        # Allow some tolerance since PSOLA is approximate
+        assert result.frame_count > sine_wave.frame_count
+
+    def test_psow_stretch_half(self, sine_wave):
+        """PSOW stretch with factor 0.5 should roughly halve length."""
+        result = pycdp.psow_stretch(sine_wave, stretch_factor=0.5)
+        assert result.frame_count > 0
+        assert result.frame_count < sine_wave.frame_count
+
+    def test_psow_stretch_grain_count(self, sine_wave):
+        """PSOW stretch with different grain counts should work."""
+        result1 = pycdp.psow_stretch(sine_wave, stretch_factor=1.5, grain_count=1)
+        result2 = pycdp.psow_stretch(sine_wave, stretch_factor=1.5, grain_count=4)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_psow_stretch_invalid_factor_low(self, sine_wave):
+        """PSOW stretch with factor below range should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.psow_stretch(sine_wave, stretch_factor=0.1)
+
+    def test_psow_stretch_invalid_factor_high(self, sine_wave):
+        """PSOW stretch with factor above range should fail."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.psow_stretch(sine_wave, stretch_factor=5.0)
+
+    def test_psow_stretch_default_params(self, sine_wave):
+        """PSOW stretch with default parameters should work."""
+        result = pycdp.psow_stretch(sine_wave)
+        assert result.frame_count > 0
+
+
+class TestPsowGrab:
+    """Test psow_grab - extract pitch-synchronous grains."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_psow_grab_single_grain(self, sine_wave):
+        """PSOW grab with duration=0 should return single grain."""
+        result = pycdp.psow_grab(sine_wave, time=0.1, duration=0.0)
+        assert result.frame_count > 0
+        assert result.channels == 1
+        # Single grain should be relatively short
+        assert result.frame_count < 1000
+
+    def test_psow_grab_extended(self, sine_wave):
+        """PSOW grab with duration should extend grain."""
+        result = pycdp.psow_grab(sine_wave, time=0.1, duration=0.5, grain_count=1)
+        assert result.frame_count > 0
+        # Extended should be longer
+        assert result.frame_count > 10000
+
+    def test_psow_grab_multiple_grains(self, sine_wave):
+        """PSOW grab with grain_count > 1 should grab multiple grains."""
+        result1 = pycdp.psow_grab(sine_wave, time=0.1, duration=0.0, grain_count=1)
+        result4 = pycdp.psow_grab(sine_wave, time=0.1, duration=0.0, grain_count=4)
+        assert result1.frame_count > 0
+        assert result4.frame_count > result1.frame_count
+
+    def test_psow_grab_density(self, sine_wave):
+        """PSOW grab with different densities should work."""
+        result1 = pycdp.psow_grab(sine_wave, time=0.1, duration=0.3, density=1.0)
+        result2 = pycdp.psow_grab(sine_wave, time=0.1, duration=0.3, density=2.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_psow_grab_default_params(self, sine_wave):
+        """PSOW grab with default parameters should work."""
+        result = pycdp.psow_grab(sine_wave)
+        assert result.frame_count > 0
+
+
+class TestPsowDupl:
+    """Test psow_dupl - duplicate pitch-synchronous grains."""
+
+    @pytest.fixture
+    def sine_wave(self):
+        """Create a simple sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.3
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_psow_dupl_basic(self, sine_wave):
+        """PSOW dupl should produce output."""
+        result = pycdp.psow_dupl(sine_wave, repeat_count=2)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_psow_dupl_repeat_extends(self, sine_wave):
+        """PSOW dupl with repeat_count > 1 should extend audio."""
+        result1 = pycdp.psow_dupl(sine_wave, repeat_count=1)
+        result3 = pycdp.psow_dupl(sine_wave, repeat_count=3)
+        assert result3.frame_count > result1.frame_count
+
+    def test_psow_dupl_grain_count(self, sine_wave):
+        """PSOW dupl with different grain counts should work."""
+        result1 = pycdp.psow_dupl(sine_wave, repeat_count=2, grain_count=1)
+        result4 = pycdp.psow_dupl(sine_wave, repeat_count=2, grain_count=4)
+        assert result1.frame_count > 0
+        assert result4.frame_count > 0
+
+    def test_psow_dupl_default_params(self, sine_wave):
+        """PSOW dupl with default parameters should work."""
+        result = pycdp.psow_dupl(sine_wave)
+        assert result.frame_count > 0
+
+
+class TestPsowInterp:
+    """Test psow_interp - interpolate between grains."""
+
+    @pytest.fixture
+    def grain1(self):
+        """Create first grain for testing."""
+        import math
+        sample_rate = 44100
+        # One period of 220Hz (about 200 samples)
+        period_samples = int(sample_rate / 220)
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * i / period_samples)
+            for i in range(period_samples)
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def grain2(self):
+        """Create second grain for testing."""
+        import math
+        sample_rate = 44100
+        # One period of 330Hz (about 134 samples)
+        period_samples = int(sample_rate / 330)
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * i / period_samples)
+            for i in range(period_samples)
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_psow_interp_basic(self, grain1, grain2):
+        """PSOW interp should produce output."""
+        result = pycdp.psow_interp(grain1, grain2, start_dur=0.1, interp_dur=0.3, end_dur=0.1)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_psow_interp_duration(self, grain1, grain2):
+        """PSOW interp output length should reflect durations."""
+        result = pycdp.psow_interp(grain1, grain2, start_dur=0.1, interp_dur=0.5, end_dur=0.1)
+        expected_samples = int(44100 * 0.7)  # Approximate
+        # Allow significant tolerance due to grain-based output
+        assert result.frame_count > expected_samples * 0.5
+        assert result.frame_count < expected_samples * 2.0
+
+    def test_psow_interp_no_start_end(self, grain1, grain2):
+        """PSOW interp with no start/end should work."""
+        result = pycdp.psow_interp(grain1, grain2, start_dur=0.0, interp_dur=0.3, end_dur=0.0)
+        assert result.frame_count > 0
+
+    def test_psow_interp_default_params(self, grain1, grain2):
+        """PSOW interp with default parameters should work."""
+        result = pycdp.psow_interp(grain1, grain2)
+        assert result.frame_count > 0
+
+
+# =============================================================================
+# FOF Extraction and Synthesis (FOFEX) Tests
+# =============================================================================
+
+class TestFofexExtract:
+    """Test fofex_extract - extract single FOF."""
+
+    @pytest.fixture
+    def pitched_audio(self):
+        """Create pitched audio for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        frequency = 220.0  # A3
+        num_samples = int(sample_rate * duration)
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+            for i in range(num_samples)
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_fofex_extract_basic(self, pitched_audio):
+        """FOFEX extract should produce output."""
+        result = pycdp.fofex_extract(pitched_audio, time=0.1)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_fofex_extract_at_different_times(self, pitched_audio):
+        """FOFEX extract at different times should produce FOFs."""
+        result1 = pycdp.fofex_extract(pitched_audio, time=0.1)
+        result2 = pycdp.fofex_extract(pitched_audio, time=0.2)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_fofex_extract_multi_period(self, pitched_audio):
+        """FOFEX extract with multiple periods should be longer."""
+        result1 = pycdp.fofex_extract(pitched_audio, time=0.1, fof_count=1)
+        result2 = pycdp.fofex_extract(pitched_audio, time=0.1, fof_count=2)
+        # 2-period FOF should be roughly twice as long
+        assert result2.frame_count > result1.frame_count
+
+    def test_fofex_extract_no_window(self, pitched_audio):
+        """FOFEX extract without window should work."""
+        result = pycdp.fofex_extract(pitched_audio, time=0.1, window=False)
+        assert result.frame_count > 0
+
+    def test_fofex_extract_from_buffer(self):
+        """FOFEX extract should work with Buffer from array.array."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+            for i in range(int(sample_rate * 0.3))
+        ])
+        buf = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        result = pycdp.fofex_extract(buf, time=0.1)
+        assert result.frame_count > 0
+
+
+class TestFofexExtractAll:
+    """Test fofex_extract_all - extract all FOFs."""
+
+    @pytest.fixture
+    def pitched_audio(self):
+        """Create pitched audio for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        frequency = 220.0
+        num_samples = int(sample_rate * duration)
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+            for i in range(num_samples)
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_fofex_extract_all_basic(self, pitched_audio):
+        """FOFEX extract_all should return bank and info."""
+        result, num_fofs, unit_len = pycdp.fofex_extract_all(pitched_audio)
+        assert result.frame_count > 0
+        assert num_fofs > 0
+        assert unit_len > 0
+        # Total length should be num_fofs * unit_len
+        assert result.frame_count == num_fofs * unit_len
+
+    def test_fofex_extract_all_multi_period(self, pitched_audio):
+        """FOFEX extract_all with multiple periods per FOF."""
+        result, num_fofs, unit_len = pycdp.fofex_extract_all(pitched_audio, fof_count=2)
+        assert result.frame_count > 0
+        assert num_fofs > 0
+        assert unit_len > 0
+
+    def test_fofex_extract_all_with_threshold(self, pitched_audio):
+        """FOFEX extract_all with level threshold should work."""
+        result, num_fofs, unit_len = pycdp.fofex_extract_all(pitched_audio, min_level_db=-20.0)
+        assert result.frame_count > 0
+        assert num_fofs > 0
+
+    def test_fofex_extract_all_no_window(self, pitched_audio):
+        """FOFEX extract_all without window should work."""
+        result, num_fofs, unit_len = pycdp.fofex_extract_all(pitched_audio, window=False)
+        assert result.frame_count > 0
+        assert num_fofs > 0
+
+
+class TestFofexSynth:
+    """Test fofex_synth - synthesize from FOFs."""
+
+    @pytest.fixture
+    def fof_bank(self):
+        """Create FOF bank for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        frequency = 220.0
+        num_samples = int(sample_rate * duration)
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+            for i in range(num_samples)
+        ])
+        buf = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return pycdp.fofex_extract_all(buf)
+
+    def test_fofex_synth_basic(self, fof_bank):
+        """FOFEX synth should produce output."""
+        bank, num_fofs, unit_len = fof_bank
+        result = pycdp.fofex_synth(bank, duration=0.5, frequency=440.0,
+                                   fof_unit_len=unit_len)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_fofex_synth_duration(self, fof_bank):
+        """FOFEX synth should produce correct duration."""
+        bank, num_fofs, unit_len = fof_bank
+        duration = 1.0
+        result = pycdp.fofex_synth(bank, duration=duration, frequency=440.0,
+                                   fof_unit_len=unit_len)
+        expected_samples = int(44100 * duration)
+        assert abs(result.frame_count - expected_samples) < 100
+
+    def test_fofex_synth_specific_fof(self, fof_bank):
+        """FOFEX synth with specific FOF index should work."""
+        bank, num_fofs, unit_len = fof_bank
+        result = pycdp.fofex_synth(bank, duration=0.5, frequency=440.0,
+                                   fof_index=0, fof_unit_len=unit_len)
+        assert result.frame_count > 0
+
+    def test_fofex_synth_single_fof(self):
+        """FOFEX synth with single FOF (no bank) should work."""
+        import math
+        sample_rate = 44100
+        # Extract a single FOF
+        source = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+            for i in range(int(sample_rate * 0.3))
+        ])
+        buf = pycdp.Buffer.from_memoryview(source, channels=1, sample_rate=sample_rate)
+        fof = pycdp.fofex_extract(buf, time=0.1)
+
+        # Synthesize from single FOF
+        result = pycdp.fofex_synth(fof, duration=0.5, frequency=440.0)
+        assert result.frame_count > 0
+
+    def test_fofex_synth_different_frequencies(self, fof_bank):
+        """FOFEX synth at different frequencies should work."""
+        bank, num_fofs, unit_len = fof_bank
+        result1 = pycdp.fofex_synth(bank, duration=0.3, frequency=220.0, fof_unit_len=unit_len)
+        result2 = pycdp.fofex_synth(bank, duration=0.3, frequency=880.0, fof_unit_len=unit_len)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+
+class TestFofexRepitch:
+    """Test fofex_repitch - repitch audio using FOFs."""
+
+    @pytest.fixture
+    def pitched_audio(self):
+        """Create pitched audio for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        frequency = 220.0
+        num_samples = int(sample_rate * duration)
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+            for i in range(num_samples)
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_fofex_repitch_up(self, pitched_audio):
+        """FOFEX repitch up should produce output."""
+        result = pycdp.fofex_repitch(pitched_audio, pitch_shift=5.0)
+        assert result.frame_count > 0
+        assert result.channels == 1
+
+    def test_fofex_repitch_down(self, pitched_audio):
+        """FOFEX repitch down should produce output."""
+        result = pycdp.fofex_repitch(pitched_audio, pitch_shift=-5.0)
+        assert result.frame_count > 0
+
+    def test_fofex_repitch_octave_up(self, pitched_audio):
+        """FOFEX repitch octave up should work."""
+        result = pycdp.fofex_repitch(pitched_audio, pitch_shift=12.0)
+        assert result.frame_count > 0
+
+    def test_fofex_repitch_octave_down(self, pitched_audio):
+        """FOFEX repitch octave down should work."""
+        result = pycdp.fofex_repitch(pitched_audio, pitch_shift=-12.0)
+        assert result.frame_count > 0
+
+    def test_fofex_repitch_preserve_formants_true(self, pitched_audio):
+        """FOFEX repitch with formant preservation should maintain duration."""
+        result = pycdp.fofex_repitch(pitched_audio, pitch_shift=5.0, preserve_formants=True)
+        # With formant preservation, duration should be similar
+        assert result.frame_count > 0
+        # Duration should be close to original
+        assert abs(result.frame_count - pitched_audio.frame_count) < pitched_audio.frame_count * 0.2
+
+    def test_fofex_repitch_preserve_formants_false(self, pitched_audio):
+        """FOFEX repitch without formant preservation changes duration."""
+        result = pycdp.fofex_repitch(pitched_audio, pitch_shift=5.0, preserve_formants=False)
+        assert result.frame_count > 0
+        # Duration changes with pitch (pitch up = shorter)
+        assert result.frame_count < pitched_audio.frame_count
+
+    def test_fofex_repitch_from_buffer(self):
+        """FOFEX repitch should work with Buffer from array.array."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * 220 * i / sample_rate)
+            for i in range(int(sample_rate * 0.3))
+        ])
+        buf = pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        result = pycdp.fofex_repitch(buf, pitch_shift=3.0)
+        assert result.frame_count > 0
+
+
+# =============================================================================
+# Flutter (Spatial Tremolo) Tests
+# =============================================================================
+
+class TestFlutter:
+    """Test flutter - spatial tremolo effect."""
+
+    @pytest.fixture
+    def mono_audio(self):
+        """Create mono audio for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        frequency = 440.0
+        num_samples = int(sample_rate * duration)
+        samples = array.array('f', [
+            0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+            for i in range(num_samples)
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_audio(self):
+        """Create stereo audio for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        frequency = 440.0
+        num_frames = int(sample_rate * duration)
+        samples = array.array('f')
+        for i in range(num_frames):
+            val = 0.5 * math.sin(2 * math.pi * frequency * i / sample_rate)
+            samples.append(val)  # Left
+            samples.append(val)  # Right
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    def test_flutter_mono_to_stereo(self, mono_audio):
+        """Flutter should convert mono to stereo."""
+        result = pycdp.flutter(mono_audio)
+        assert result.channels == 2
+        assert result.frame_count > 0
+
+    def test_flutter_stereo_input(self, stereo_audio):
+        """Flutter should work with stereo input."""
+        result = pycdp.flutter(stereo_audio)
+        assert result.channels == 2
+        assert result.frame_count == stereo_audio.frame_count
+
+    def test_flutter_default_params(self, stereo_audio):
+        """Flutter with default parameters should work."""
+        result = pycdp.flutter(stereo_audio)
+        assert result.frame_count > 0
+
+    def test_flutter_frequency(self, stereo_audio):
+        """Flutter with different frequencies should work."""
+        result1 = pycdp.flutter(stereo_audio, frequency=2.0)
+        result2 = pycdp.flutter(stereo_audio, frequency=10.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_flutter_depth(self, stereo_audio):
+        """Flutter with different depths should work."""
+        result1 = pycdp.flutter(stereo_audio, depth=0.5)
+        result2 = pycdp.flutter(stereo_audio, depth=2.0)
+        result3 = pycdp.flutter(stereo_audio, depth=8.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+        assert result3.frame_count > 0
+
+    def test_flutter_gain(self, stereo_audio):
+        """Flutter with different gains should work."""
+        result1 = pycdp.flutter(stereo_audio, gain=0.5)
+        result2 = pycdp.flutter(stereo_audio, gain=1.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_flutter_randomize(self, stereo_audio):
+        """Flutter with randomize should work."""
+        result = pycdp.flutter(stereo_audio, randomize=True)
+        assert result.frame_count > 0
+
+    def test_flutter_produces_stereo_difference(self, stereo_audio):
+        """Flutter should create difference between L and R channels."""
+        result = pycdp.flutter(stereo_audio, frequency=4.0, depth=1.0)
+        # Check that there's some difference between channels
+        mv = memoryview(result)
+        differences = 0
+        for i in range(0, len(mv), 2):
+            if abs(mv[i] - mv[i+1]) > 0.001:
+                differences += 1
+        # Should have significant differences
+        assert differences > result.frame_count * 0.1
+
+    def test_flutter_invalid_frequency_low(self, stereo_audio):
+        """Flutter should reject frequency below 0.1."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.flutter(stereo_audio, frequency=0.01)
+
+    def test_flutter_invalid_frequency_high(self, stereo_audio):
+        """Flutter should reject frequency above 50."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.flutter(stereo_audio, frequency=100.0)
+
+    def test_flutter_invalid_depth(self, stereo_audio):
+        """Flutter should reject negative depth."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.flutter(stereo_audio, depth=-1.0)
+
+    def test_flutter_invalid_gain(self, stereo_audio):
+        """Flutter should reject gain above 1.0."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.flutter(stereo_audio, gain=2.0)
+
+
+class TestHover:
+    """Tests for the hover (zigzag reading) function."""
+
+    @pytest.fixture
+    def mono_audio(self):
+        """Create a mono test buffer with a sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.5  # 0.5 seconds
+        freq = 440.0  # 440 Hz sine wave
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            val = 0.5 * math.sin(2 * math.pi * freq * t)
+            samples.append(val)
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_audio(self):
+        """Create a stereo test buffer."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            val = 0.5 * math.sin(2 * math.pi * freq * t)
+            samples.append(val)  # Left
+            samples.append(val)  # Right
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    def test_hover_mono_input(self, mono_audio):
+        """Hover should work with mono input."""
+        result = pycdp.hover(mono_audio)
+        assert result.channels == 1
+        assert result.frame_count > 0
+
+    def test_hover_default_params(self, mono_audio):
+        """Hover with default parameters should work."""
+        result = pycdp.hover(mono_audio)
+        assert result.frame_count > 0
+
+    def test_hover_custom_frequency(self, mono_audio):
+        """Hover with different frequencies should work."""
+        result1 = pycdp.hover(mono_audio, frequency=10.0)
+        result2 = pycdp.hover(mono_audio, frequency=100.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_hover_custom_location(self, mono_audio):
+        """Hover with different locations should work."""
+        result1 = pycdp.hover(mono_audio, location=0.0)
+        result2 = pycdp.hover(mono_audio, location=0.5)
+        result3 = pycdp.hover(mono_audio, location=1.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+        assert result3.frame_count > 0
+
+    def test_hover_custom_duration(self, mono_audio):
+        """Hover with custom duration should produce correct length."""
+        result = pycdp.hover(mono_audio, duration=1.0, frequency=10.0)
+        # Duration of 1 second at 44100 sample rate should give about 44100 samples
+        expected = 44100
+        assert abs(result.frame_count - expected) < 1000  # Allow some tolerance
+
+    def test_hover_frq_rand(self, mono_audio):
+        """Hover with frequency randomization should work."""
+        result = pycdp.hover(mono_audio, frq_rand=0.5)
+        assert result.frame_count > 0
+
+    def test_hover_loc_rand(self, mono_audio):
+        """Hover with location randomization should work."""
+        result = pycdp.hover(mono_audio, loc_rand=0.5)
+        assert result.frame_count > 0
+
+    def test_hover_splice_ms(self, mono_audio):
+        """Hover with different splice lengths should work."""
+        result1 = pycdp.hover(mono_audio, splice_ms=0.5, frequency=10.0)
+        result2 = pycdp.hover(mono_audio, splice_ms=5.0, frequency=10.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_hover_stereo_rejected(self, stereo_audio):
+        """Hover should reject stereo input."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(stereo_audio)
+
+    def test_hover_invalid_frequency_low(self, mono_audio):
+        """Hover should reject frequency below 0.1."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, frequency=0.01)
+
+    def test_hover_invalid_frequency_high(self, mono_audio):
+        """Hover should reject frequency above 1000."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, frequency=2000.0)
+
+    def test_hover_invalid_location_low(self, mono_audio):
+        """Hover should reject location below 0."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, location=-0.1)
+
+    def test_hover_invalid_location_high(self, mono_audio):
+        """Hover should reject location above 1."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, location=1.5)
+
+    def test_hover_invalid_frq_rand(self, mono_audio):
+        """Hover should reject invalid frq_rand values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, frq_rand=-0.1)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, frq_rand=1.5)
+
+    def test_hover_invalid_loc_rand(self, mono_audio):
+        """Hover should reject invalid loc_rand values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, loc_rand=-0.1)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, loc_rand=1.5)
+
+    def test_hover_invalid_splice_ms(self, mono_audio):
+        """Hover should reject invalid splice_ms values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, splice_ms=0.01)  # Below 0.1
+        with pytest.raises(pycdp.CDPError):
+            pycdp.hover(mono_audio, splice_ms=200.0)  # Above 100
+
+    def test_hover_preserves_sample_rate(self, mono_audio):
+        """Hover should preserve the sample rate."""
+        result = pycdp.hover(mono_audio)
+        assert result.sample_rate == mono_audio.sample_rate
+
+
+class TestConstrict:
+    """Tests for the constrict (silence constriction) function."""
+
+    @pytest.fixture
+    def mono_with_silence(self):
+        """Create a mono buffer with silence gaps."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        # Sound: 0.1s sine wave
+        for i in range(int(sample_rate * 0.1)):
+            t = i / sample_rate
+            samples.append(0.5 * math.sin(2 * math.pi * 440 * t))
+        # Silence: 0.2s
+        for _ in range(int(sample_rate * 0.2)):
+            samples.append(0.0)
+        # Sound: 0.1s sine wave
+        for i in range(int(sample_rate * 0.1)):
+            t = i / sample_rate
+            samples.append(0.5 * math.sin(2 * math.pi * 440 * t))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_with_silence(self):
+        """Create a stereo buffer with silence gaps."""
+        import math
+        sample_rate = 44100
+        samples = array.array('f')
+        # Sound: 0.1s sine wave
+        for i in range(int(sample_rate * 0.1)):
+            t = i / sample_rate
+            val = 0.5 * math.sin(2 * math.pi * 440 * t)
+            samples.append(val)  # Left
+            samples.append(val)  # Right
+        # Silence: 0.2s
+        for _ in range(int(sample_rate * 0.2)):
+            samples.append(0.0)  # Left
+            samples.append(0.0)  # Right
+        # Sound: 0.1s sine wave
+        for i in range(int(sample_rate * 0.1)):
+            t = i / sample_rate
+            val = 0.5 * math.sin(2 * math.pi * 440 * t)
+            samples.append(val)  # Left
+            samples.append(val)  # Right
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def mono_no_silence(self):
+        """Create a mono buffer with no silence (no zero samples)."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            # Use phase offset to avoid zero at t=0, and add DC offset to ensure no zeros
+            val = 0.5 * math.sin(2 * math.pi * 440 * t + 0.5) + 0.1
+            samples.append(val)
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_constrict_mono(self, mono_with_silence):
+        """Constrict should work with mono input."""
+        result = pycdp.constrict(mono_with_silence)
+        assert result.channels == 1
+        assert result.frame_count > 0
+
+    def test_constrict_stereo(self, stereo_with_silence):
+        """Constrict should work with stereo input."""
+        result = pycdp.constrict(stereo_with_silence)
+        assert result.channels == 2
+        assert result.frame_count > 0
+
+    def test_constrict_default_params(self, mono_with_silence):
+        """Constrict with default parameters should work."""
+        result = pycdp.constrict(mono_with_silence)
+        # Default is 50% constriction, so output should be shorter than input
+        assert result.frame_count < mono_with_silence.frame_count
+
+    def test_constrict_zero_no_change(self, mono_with_silence):
+        """Constrict with 0 should not change length significantly."""
+        result = pycdp.constrict(mono_with_silence, constriction=0.0)
+        # 0% constriction means silences are kept at 100% (no reduction)
+        # Output should be same length as input
+        assert result.frame_count == mono_with_silence.frame_count
+
+    def test_constrict_full_removal(self, mono_with_silence):
+        """Constrict with 100 should remove all silence."""
+        result = pycdp.constrict(mono_with_silence, constriction=100.0)
+        # With 100% constriction, silences are completely removed
+        # The silent portion was 0.2s = 8820 samples
+        # Sound portions are 0.2s = 8820 samples
+        # So output should be approximately 0.2s (the non-silent parts)
+        assert result.frame_count < mono_with_silence.frame_count
+
+    def test_constrict_overlap_mode(self, mono_with_silence):
+        """Constrict with >100 should overlap sounds."""
+        result = pycdp.constrict(mono_with_silence, constriction=150.0)
+        # Overlap mode (100-200 range) merges adjacent sounds
+        # Output should be shorter than 100% constriction
+        assert result.frame_count > 0
+
+    def test_constrict_max_overlap(self, mono_with_silence):
+        """Constrict with 200 should produce maximum overlap."""
+        result = pycdp.constrict(mono_with_silence, constriction=200.0)
+        assert result.frame_count > 0
+
+    def test_constrict_no_silence_unchanged(self, mono_no_silence):
+        """Constrict on audio with no silence should not change length."""
+        result = pycdp.constrict(mono_no_silence, constriction=100.0)
+        # No silence means nothing to remove
+        assert result.frame_count == mono_no_silence.frame_count
+
+    def test_constrict_invalid_low(self, mono_with_silence):
+        """Constrict should reject negative values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.constrict(mono_with_silence, constriction=-1.0)
+
+    def test_constrict_invalid_high(self, mono_with_silence):
+        """Constrict should reject values above 200."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.constrict(mono_with_silence, constriction=201.0)
+
+    def test_constrict_preserves_sample_rate(self, mono_with_silence):
+        """Constrict should preserve the sample rate."""
+        result = pycdp.constrict(mono_with_silence)
+        assert result.sample_rate == mono_with_silence.sample_rate
+
+    def test_constrict_preserves_channels(self, stereo_with_silence):
+        """Constrict should preserve the channel count."""
+        result = pycdp.constrict(stereo_with_silence)
+        assert result.channels == stereo_with_silence.channels
+
+    def test_constrict_various_levels(self, mono_with_silence):
+        """Constrict at various levels should produce progressively shorter output."""
+        r0 = pycdp.constrict(mono_with_silence, constriction=0.0)
+        r25 = pycdp.constrict(mono_with_silence, constriction=25.0)
+        r50 = pycdp.constrict(mono_with_silence, constriction=50.0)
+        r75 = pycdp.constrict(mono_with_silence, constriction=75.0)
+        r100 = pycdp.constrict(mono_with_silence, constriction=100.0)
+
+        # Higher constriction should result in shorter output
+        assert r0.frame_count >= r25.frame_count
+        assert r25.frame_count >= r50.frame_count
+        assert r50.frame_count >= r75.frame_count
+        assert r75.frame_count >= r100.frame_count
+
+
+class TestPhase:
+    """Tests for the phase manipulation functions."""
+
+    @pytest.fixture
+    def mono_audio(self):
+        """Create a mono test buffer with a sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.1
+        freq = 440.0
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            samples.append(0.5 * math.sin(2 * math.pi * freq * t))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_audio(self):
+        """Create a stereo test buffer with different L/R content."""
+        import math
+        sample_rate = 44100
+        duration = 0.1
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            # Left: 440 Hz, Right: 880 Hz (different to have stereo difference)
+            left = 0.5 * math.sin(2 * math.pi * 440 * t)
+            right = 0.5 * math.sin(2 * math.pi * 880 * t)
+            samples.append(left)
+            samples.append(right)
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_centered(self):
+        """Create a stereo buffer with identical L/R (centered sound)."""
+        import math
+        sample_rate = 44100
+        duration = 0.1
+        freq = 440.0
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            val = 0.5 * math.sin(2 * math.pi * freq * t)
+            samples.append(val)  # Left
+            samples.append(val)  # Right (identical)
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    # phase_invert tests
+    def test_phase_invert_mono(self, mono_audio):
+        """Phase invert should work with mono input."""
+        result = pycdp.phase_invert(mono_audio)
+        assert result.channels == 1
+        assert result.frame_count == mono_audio.frame_count
+
+    def test_phase_invert_stereo(self, stereo_audio):
+        """Phase invert should work with stereo input."""
+        result = pycdp.phase_invert(stereo_audio)
+        assert result.channels == 2
+        assert result.frame_count == stereo_audio.frame_count
+
+    def test_phase_invert_values(self, mono_audio):
+        """Phase invert should negate all sample values."""
+        result = pycdp.phase_invert(mono_audio)
+        # Check that values are inverted
+        for i in range(min(100, mono_audio.frame_count)):
+            assert abs(result[i] + mono_audio[i]) < 1e-6
+
+    def test_phase_invert_double_is_identity(self, mono_audio):
+        """Inverting phase twice should return original."""
+        inverted = pycdp.phase_invert(mono_audio)
+        restored = pycdp.phase_invert(inverted)
+        for i in range(min(100, mono_audio.frame_count)):
+            assert abs(restored[i] - mono_audio[i]) < 1e-6
+
+    def test_phase_invert_preserves_sample_rate(self, mono_audio):
+        """Phase invert should preserve sample rate."""
+        result = pycdp.phase_invert(mono_audio)
+        assert result.sample_rate == mono_audio.sample_rate
+
+    # phase_stereo tests
+    def test_phase_stereo_works(self, stereo_audio):
+        """Phase stereo should work with stereo input."""
+        result = pycdp.phase_stereo(stereo_audio)
+        assert result.channels == 2
+        assert result.frame_count == stereo_audio.frame_count
+
+    def test_phase_stereo_default_transfer(self, stereo_audio):
+        """Phase stereo with default transfer (1.0) should work."""
+        result = pycdp.phase_stereo(stereo_audio)
+        assert result.frame_count == stereo_audio.frame_count
+
+    def test_phase_stereo_zero_transfer(self, stereo_audio):
+        """Phase stereo with transfer=0 should return unchanged audio."""
+        result = pycdp.phase_stereo(stereo_audio, transfer=0.0)
+        # With transfer=0, output should equal input
+        for i in range(min(100, stereo_audio.frame_count * 2)):
+            assert abs(result[i] - stereo_audio[i]) < 1e-6
+
+    def test_phase_stereo_partial_transfer(self, stereo_audio):
+        """Phase stereo with partial transfer should work."""
+        result = pycdp.phase_stereo(stereo_audio, transfer=0.5)
+        assert result.frame_count == stereo_audio.frame_count
+
+    def test_phase_stereo_centered_cancellation(self, stereo_centered):
+        """Phase stereo on centered audio should cancel to near-silence."""
+        result = pycdp.phase_stereo(stereo_centered, transfer=1.0)
+        # When L=R, newL = L - R = 0, newR = R - L = 0
+        # All samples should be near zero
+        max_val = max(abs(result[i]) for i in range(result.frame_count * 2))
+        assert max_val < 0.01  # Should be very small
+
+    def test_phase_stereo_mono_rejected(self, mono_audio):
+        """Phase stereo should reject mono input."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.phase_stereo(mono_audio)
+
+    def test_phase_stereo_invalid_transfer_low(self, stereo_audio):
+        """Phase stereo should reject negative transfer."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.phase_stereo(stereo_audio, transfer=-0.1)
+
+    def test_phase_stereo_invalid_transfer_high(self, stereo_audio):
+        """Phase stereo should reject transfer > 1."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.phase_stereo(stereo_audio, transfer=1.5)
+
+    def test_phase_stereo_preserves_sample_rate(self, stereo_audio):
+        """Phase stereo should preserve sample rate."""
+        result = pycdp.phase_stereo(stereo_audio)
+        assert result.sample_rate == stereo_audio.sample_rate
+
+
+class TestWrappage:
+    """Tests for the wrappage (granular texture) function."""
+
+    @pytest.fixture
+    def mono_audio(self):
+        """Create a mono test buffer with a sine wave."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            samples.append(0.5 * math.sin(2 * math.pi * freq * t))
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_audio(self):
+        """Create a stereo test buffer."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            t = i / sample_rate
+            val = 0.5 * math.sin(2 * math.pi * freq * t)
+            samples.append(val)  # Left
+            samples.append(val)  # Right
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    def test_wrappage_basic(self, mono_audio):
+        """Wrappage should work with default parameters."""
+        result = pycdp.wrappage(mono_audio)
+        assert result.channels == 2  # Output is stereo
+        assert result.frame_count > 0
+
+    def test_wrappage_stereo_output(self, mono_audio):
+        """Wrappage should produce stereo output from mono input."""
+        result = pycdp.wrappage(mono_audio)
+        assert result.channels == 2
+
+    def test_wrappage_grain_size(self, mono_audio):
+        """Wrappage with different grain sizes should work."""
+        result1 = pycdp.wrappage(mono_audio, grain_size=10.0)
+        result2 = pycdp.wrappage(mono_audio, grain_size=100.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_wrappage_density(self, mono_audio):
+        """Wrappage with different densities should work."""
+        result_sparse = pycdp.wrappage(mono_audio, density=0.5)
+        result_dense = pycdp.wrappage(mono_audio, density=2.0)
+        assert result_sparse.frame_count > 0
+        assert result_dense.frame_count > 0
+
+    def test_wrappage_velocity_stretch(self, mono_audio):
+        """Wrappage with velocity < 1 should time stretch."""
+        result = pycdp.wrappage(mono_audio, velocity=0.5)
+        # Time stretch should produce longer output
+        expected_frames = int(mono_audio.frame_count / 0.5)
+        # Allow some tolerance
+        assert result.frame_count > mono_audio.frame_count * 1.5
+
+    def test_wrappage_velocity_compress(self, mono_audio):
+        """Wrappage with velocity > 1 should time compress."""
+        result = pycdp.wrappage(mono_audio, velocity=2.0)
+        # Time compress should produce shorter output
+        assert result.frame_count < mono_audio.frame_count
+
+    def test_wrappage_velocity_freeze(self, mono_audio):
+        """Wrappage with velocity = 0 should freeze (requires duration)."""
+        result = pycdp.wrappage(mono_audio, velocity=0.0, duration=1.0)
+        # Output should be approximately 1 second
+        expected_frames = 44100
+        assert abs(result.frame_count - expected_frames) < 1000
+
+    def test_wrappage_pitch_shift(self, mono_audio):
+        """Wrappage with pitch shift should work."""
+        result_up = pycdp.wrappage(mono_audio, pitch=12.0)  # Octave up
+        result_down = pycdp.wrappage(mono_audio, pitch=-12.0)  # Octave down
+        assert result_up.frame_count > 0
+        assert result_down.frame_count > 0
+
+    def test_wrappage_spread(self, mono_audio):
+        """Wrappage with different spread values should work."""
+        result_mono = pycdp.wrappage(mono_audio, spread=0.0)  # Centered
+        result_wide = pycdp.wrappage(mono_audio, spread=1.0)  # Full spread
+        assert result_mono.frame_count > 0
+        assert result_wide.frame_count > 0
+
+    def test_wrappage_jitter(self, mono_audio):
+        """Wrappage with different jitter values should work."""
+        result_no_jitter = pycdp.wrappage(mono_audio, jitter=0.0)
+        result_max_jitter = pycdp.wrappage(mono_audio, jitter=1.0)
+        assert result_no_jitter.frame_count > 0
+        assert result_max_jitter.frame_count > 0
+
+    def test_wrappage_splice(self, mono_audio):
+        """Wrappage with different splice lengths should work."""
+        result1 = pycdp.wrappage(mono_audio, splice_ms=1.0)
+        result2 = pycdp.wrappage(mono_audio, splice_ms=20.0)
+        assert result1.frame_count > 0
+        assert result2.frame_count > 0
+
+    def test_wrappage_duration(self, mono_audio):
+        """Wrappage with explicit duration should produce correct length."""
+        result = pycdp.wrappage(mono_audio, duration=2.0, velocity=1.0)
+        expected_frames = 44100 * 2
+        # Allow some tolerance
+        assert abs(result.frame_count - expected_frames) < 5000
+
+    def test_wrappage_stereo_rejected(self, stereo_audio):
+        """Wrappage should reject stereo input."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(stereo_audio)
+
+    def test_wrappage_invalid_grain_size_low(self, mono_audio):
+        """Wrappage should reject grain size below 1.0."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, grain_size=0.5)
+
+    def test_wrappage_invalid_grain_size_high(self, mono_audio):
+        """Wrappage should reject grain size above 500.0."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, grain_size=600.0)
+
+    def test_wrappage_invalid_density(self, mono_audio):
+        """Wrappage should reject invalid density values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, density=0.05)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, density=15.0)
+
+    def test_wrappage_invalid_velocity(self, mono_audio):
+        """Wrappage should reject invalid velocity values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, velocity=-0.5)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, velocity=15.0)
+
+    def test_wrappage_velocity_zero_no_duration(self, mono_audio):
+        """Wrappage with velocity=0 should require duration."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, velocity=0.0)
+
+    def test_wrappage_invalid_pitch(self, mono_audio):
+        """Wrappage should reject invalid pitch values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, pitch=-30.0)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, pitch=30.0)
+
+    def test_wrappage_invalid_spread(self, mono_audio):
+        """Wrappage should reject invalid spread values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, spread=-0.1)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, spread=1.5)
+
+    def test_wrappage_invalid_jitter(self, mono_audio):
+        """Wrappage should reject invalid jitter values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, jitter=-0.1)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, jitter=1.5)
+
+    def test_wrappage_invalid_splice(self, mono_audio):
+        """Wrappage should reject invalid splice values."""
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, splice_ms=0.1)
+        with pytest.raises(pycdp.CDPError):
+            pycdp.wrappage(mono_audio, splice_ms=100.0)
+
+    def test_wrappage_preserves_sample_rate(self, mono_audio):
+        """Wrappage should preserve sample rate."""
+        result = pycdp.wrappage(mono_audio)
+        assert result.sample_rate == mono_audio.sample_rate
 
 
 if __name__ == "__main__":

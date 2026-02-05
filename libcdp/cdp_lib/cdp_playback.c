@@ -1607,3 +1607,138 @@ cdp_lib_buffer* cdp_lib_spin(cdp_lib_ctx* ctx,
 
     return output;
 }
+
+/*
+ * Rotor - dual-rotation modulation effect.
+ *
+ * Applies two independent rotating modulators (pitch and amplitude)
+ * with different cycle lengths, creating evolving interference patterns.
+ */
+cdp_lib_buffer* cdp_lib_rotor(cdp_lib_ctx* ctx,
+                               const cdp_lib_buffer* input,
+                               double pitch_rate,
+                               double pitch_depth,
+                               double amp_rate,
+                               double amp_depth,
+                               double phase_offset)
+{
+    if (!ctx || !input) {
+        if (ctx) cdp_lib_set_error(ctx, "rotor: invalid parameters");
+        return NULL;
+    }
+
+    /* Validate parameters */
+    if (pitch_rate < 0.01) pitch_rate = 0.01;
+    if (pitch_rate > 20.0) pitch_rate = 20.0;
+    if (pitch_depth < 0.0) pitch_depth = 0.0;
+    if (pitch_depth > 12.0) pitch_depth = 12.0;
+    if (amp_rate < 0.01) amp_rate = 0.01;
+    if (amp_rate > 20.0) amp_rate = 20.0;
+    if (amp_depth < 0.0) amp_depth = 0.0;
+    if (amp_depth > 1.0) amp_depth = 1.0;
+    if (phase_offset < 0.0) phase_offset = 0.0;
+    if (phase_offset > 1.0) phase_offset = 1.0;
+
+    int channels = input->channels;
+    int sample_rate = input->sample_rate;
+    size_t input_frames = get_frames(input);
+
+    if (input_frames < 2) {
+        cdp_lib_set_error(ctx, "rotor: input too short");
+        return NULL;
+    }
+
+    /* Calculate maximum output length accounting for pitch shift */
+    /* Max pitch down = pitch_depth semitones = 2^(pitch_depth/12) slower */
+    double max_slowdown = pow(2.0, pitch_depth / 12.0);
+    size_t out_frames_max = (size_t)(input_frames * max_slowdown * 1.1) + 1024;
+
+    /* If no pitch modulation, output length equals input */
+    if (pitch_depth < 0.001) {
+        out_frames_max = input_frames;
+    }
+
+    /* Allocate output buffer */
+    float* out_data = (float*)calloc(out_frames_max * channels, sizeof(float));
+    if (!out_data) {
+        cdp_lib_set_error(ctx, "rotor: memory allocation failed");
+        return NULL;
+    }
+
+    /* Pre-calculate angular frequencies (radians per sample) */
+    double pitch_omega = 2.0 * M_PI * pitch_rate / sample_rate;
+    double amp_omega = 2.0 * M_PI * amp_rate / sample_rate;
+
+    /* Initial phases */
+    double pitch_phase = 0.0;
+    double amp_phase = phase_offset * 2.0 * M_PI;  /* Convert 0-1 to radians */
+
+    /* Process with variable-rate resampling for pitch modulation */
+    double read_pos = 0.0;
+    size_t out_idx = 0;
+
+    while (read_pos < input_frames - 1 && out_idx < out_frames_max) {
+        /* Calculate pitch modulation (in semitones) */
+        /* sin gives -1 to +1, scale by depth */
+        double pitch_mod = sin(pitch_phase) * pitch_depth;
+
+        /* Calculate playback rate ratio */
+        /* Positive pitch_mod = pitch up = faster playback */
+        double pitch_ratio = pow(2.0, pitch_mod / 12.0);
+
+        /* Calculate amplitude modulation */
+        /* sin gives -1 to +1, map to (1-depth) to 1 for unipolar modulation */
+        double amp_mod = 1.0 - amp_depth * (1.0 - (sin(amp_phase) + 1.0) * 0.5);
+
+        /* Interpolate input sample */
+        size_t i0 = (size_t)read_pos;
+        size_t i1 = i0 + 1;
+        if (i1 >= input_frames) i1 = input_frames - 1;
+        double frac = read_pos - floor(read_pos);
+
+        /* Write output samples with amplitude modulation */
+        for (int ch = 0; ch < channels; ch++) {
+            float v0 = input->data[i0 * channels + ch];
+            float v1 = input->data[i1 * channels + ch];
+            float interp = (float)(v0 + frac * (v1 - v0));
+            out_data[out_idx * channels + ch] = interp * (float)amp_mod;
+        }
+
+        /* Advance phases */
+        pitch_phase += pitch_omega;
+        amp_phase += amp_omega;
+
+        /* Keep phases in reasonable range */
+        if (pitch_phase > 2.0 * M_PI) pitch_phase -= 2.0 * M_PI;
+        if (amp_phase > 2.0 * M_PI) amp_phase -= 2.0 * M_PI;
+
+        /* Advance read position by pitch ratio */
+        read_pos += pitch_ratio;
+        out_idx++;
+    }
+
+    /* Trim to actual length */
+    size_t actual_frames = out_idx;
+
+    /* Normalize if needed */
+    float max_val = 0;
+    for (size_t i = 0; i < actual_frames * channels; i++) {
+        float abs_val = fabsf(out_data[i]);
+        if (abs_val > max_val) max_val = abs_val;
+    }
+    if (max_val > 0.95f) {
+        float scale = 0.95f / max_val;
+        for (size_t i = 0; i < actual_frames * channels; i++) {
+            out_data[i] *= scale;
+        }
+    }
+
+    cdp_lib_buffer* output = cdp_lib_buffer_from_data(out_data, actual_frames * channels, channels, sample_rate);
+    if (!output) {
+        free(out_data);
+        cdp_lib_set_error(ctx, "rotor: failed to create output buffer");
+        return NULL;
+    }
+
+    return output;
+}

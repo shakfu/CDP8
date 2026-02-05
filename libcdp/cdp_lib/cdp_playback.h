@@ -290,6 +290,37 @@ cdp_lib_buffer* cdp_lib_spin(cdp_lib_ctx* ctx,
                               double doppler,
                               double depth);
 
+/*
+ * Rotor - dual-rotation modulation effect.
+ *
+ * Applies two independent rotating modulators (pitch and amplitude) with
+ * different cycle lengths, creating evolving interference patterns.
+ * Inspired by CDP's rotor synthesis concept of rotating "armatures".
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer
+ *   pitch_rate: Pitch modulation rate in Hz (0.01 to 20). Cycles per second.
+ *   pitch_depth: Pitch modulation depth in semitones (0 to 12).
+ *   amp_rate: Amplitude modulation rate in Hz (0.01 to 20). Cycles per second.
+ *   amp_depth: Amplitude modulation depth (0.0 to 1.0). 1.0 = full tremolo.
+ *   phase_offset: Initial phase offset between modulators (0.0 to 1.0).
+ *                 Creates different interference patterns.
+ *
+ * Returns: New buffer with rotor modulation, or NULL on error.
+ *
+ * Note: When pitch_rate and amp_rate have different values, the combined
+ * effect creates evolving patterns that cycle through various combinations
+ * of pitch and amplitude modulation over time.
+ */
+cdp_lib_buffer* cdp_lib_rotor(cdp_lib_ctx* ctx,
+                               const cdp_lib_buffer* input,
+                               double pitch_rate,
+                               double pitch_depth,
+                               double amp_rate,
+                               double amp_depth,
+                               double phase_offset);
+
 #ifdef __cplusplus
 }
 #endif

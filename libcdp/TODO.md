@@ -74,10 +74,22 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `distort_reverse` - Reverse wavecycles (zero-crossing based)
 - [x] `distort_fractal` - Recursive wavecycle overlay
 - [x] `distort_shuffle` - Segment rearrangement
+- [x] `distort_cut` - Waveset segmentation with decaying envelope
+- [x] `distort_mark` - Interpolate between waveset groups at time markers
+- [x] `distort_repeat` - Time-stretch by repeating wavecycles
+- [x] `distort_shift` - Shift/swap half-wavecycle groups
+- [x] `distort_warp` - Progressive warp distortion with modular sample folding
 
-**Reverb & Spatial (CDP: `reverb`, `rmverb`, `panorama`, `spin`):**
+**Reverb & Spatial (CDP: `reverb`, `rmverb`, `panorama`, `spin`, `rotor`):**
 - [x] `reverb` - FDN reverb (8 comb + 4 allpass filters)
 - [x] `spin` - Spatial spinning (rotating stereo position with doppler)
+- [x] `rotor` - Dual-rotation modulation (pitch + amplitude interference patterns)
+
+**Synthesis (CDP: `synth`, `wave`):**
+- [x] `synth_wave` - Waveform synthesis (sine, square, saw, ramp, triangle)
+- [x] `synth_noise` - Noise generation (white, pink)
+- [x] `synth_click` - Click track generation
+- [x] `synth_chord` - Chord synthesis from MIDI pitch list
 
 **Granular (CDP: `brassage`, `grain`, `texture`):**
 - [x] `brassage` - Granular resynthesis with pitch/time params
@@ -183,38 +195,54 @@ From `dev/science/` and `dev/standalone/`:
 - [x] `bounce` - Bouncing ball effect (accelerating/decelerating repeats)
 - [x] `splinter` - Waveset splintering/fragmentation effects
 
-### Priority 7: Spatial Effects (CDP: `spin`, `rotor`)
+### ~~Priority 7: Spatial Effects (CDP: `spin`, `rotor`)~~ DONE
 
 From `dev/science/`:
 
 - [x] `spin` - Spatial spinning (rotating stereo position)
-- [ ] `rotor` - Rotational doppler-like effects
+- [x] `rotor` - Dual-rotation modulation (pitch + amplitude interference patterns)
 
-### Priority 8: Synthesis (CDP: `synth`, `wave`)
+### ~~Priority 8: Synthesis (CDP: `synth`, `wave`)~~ DONE
 
 From `dev/synth/`:
 
-- [ ] `synth_wave` - Waveform synthesis (sine, square, saw, ramp, triangle)
-- [ ] `synth_noise` - Noise generation (white, pink)
-- [ ] `synth_click` - Click track generation
-- [ ] `synth_chord` - Chord synthesis from pitch list
+- [x] `synth_wave` - Waveform synthesis (sine, square, saw, ramp, triangle)
+- [x] `synth_noise` - Noise generation (white, pink)
+- [x] `synth_click` - Click track generation
+- [x] `synth_chord` - Chord synthesis from pitch list
 
 ### Priority 9: Additional Distortion (CDP: `distcut`, `distmark`, `distrep`)
 
 From `dev/standnew/`:
 
-- [ ] `distort_cut` - Cut-based distortion
-- [ ] `distort_mark` - Marker-based distortion
-- [ ] `distort_rep` - Repetition-based distortion
-- [ ] `distort_shift` - Shift-based distortion
-- [ ] `distort_warp` - Warp-based distortion
+- [x] `distort_cut` - Cut-based distortion (waveset segmentation with decaying envelope)
+- [x] `distort_mark` - Marker-based distortion (interpolate between waveset groups at time markers)
+- [x] `distort_repeat` - Repetition-based distortion (time-stretch by repeating wavecycles)
+- [x] `distort_shift` - Shift/swap half-wavecycle groups for phase distortion
+- [x] `distort_warp` - Progressive warp distortion with modular sample folding
 
 ### Priority 10: Pitch-Synchronous Operations (CDP: `psow`, `fofex`)
 
 From `dev/standalone/`:
 
-- [ ] `psow` - Pitch-synchronous overlap-add (PSOLA-like)
-- [ ] `fofex` - FOF (Formant wave function) extraction/synthesis
+- [x] `psow_stretch` - Time-stretch while preserving pitch using PSOLA
+- [x] `psow_grab` - Extract pitch-synchronous grains from a position
+- [x] `psow_dupl` - Duplicate grains for time-stretching
+- [x] `psow_interp` - Interpolate between two grains
+- [x] `fofex_extract` - Extract single FOF at specified time
+- [x] `fofex_extract_all` - Extract all FOFs to uniform-length bank
+- [x] `fofex_synth` - Synthesize audio from FOFs at target pitch
+- [x] `fofex_repitch` - Repitch audio with optional formant preservation
+
+### Priority 11: Additional Pitch-Synchronous (CDP: `flutter`, `hover`, etc.)
+
+From `dev/standalone/`:
+
+- [x] `flutter` - Spatial tremolo (loudness tremulation distributed across channels)
+- [x] `hover` - Zigzag reading at specified frequency for hovering pitch effect
+- [x] `constrict` - Silence constriction (shorten/remove silent sections)
+- [x] `phase` - Phase manipulation (invert + stereo enhancement)
+- [x] `wrappage` - Granular texture with stereo spatial distribution
 
 ---
 

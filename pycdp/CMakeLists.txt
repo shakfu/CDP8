@@ -55,6 +55,14 @@ set(CDP_LIB_SOURCES
     ${LIBCDP_DIR}/cdp_lib/cdp_shim.c
     ${LIBCDP_DIR}/cdp_lib/cdp_experimental.c
     ${LIBCDP_DIR}/cdp_lib/cdp_playback.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_synth.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_psow.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_fofex.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_flutter.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_hover.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_constrict.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_phase.c
+    ${LIBCDP_DIR}/cdp_lib/cdp_wrappage.c
 )
 
 # CDP dev sources needed (FFT)

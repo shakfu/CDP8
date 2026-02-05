@@ -1420,6 +1420,43 @@ cdef extern from "cdp_distort.h":
                                              int chunk_count,
                                              unsigned int seed)
 
+    cdp_lib_buffer* cdp_lib_distort_cut(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* input,
+                                         int cycle_count,
+                                         int cycle_step,
+                                         double exponent,
+                                         double min_level)
+
+    cdp_lib_buffer* cdp_lib_distort_mark(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          const double* markers,
+                                          int marker_count,
+                                          double unit_ms,
+                                          double stretch,
+                                          double random,
+                                          int flip_phase,
+                                          unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_distort_repeat(cdp_lib_ctx* ctx,
+                                            const cdp_lib_buffer* input,
+                                            int multiplier,
+                                            int cycle_count,
+                                            int skip_cycles,
+                                            double splice_ms,
+                                            int mode)
+
+    cdp_lib_buffer* cdp_lib_distort_shift(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           int group_size,
+                                           int shift,
+                                           int mode)
+
+    cdp_lib_buffer* cdp_lib_distort_warp(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          double warp,
+                                          int mode,
+                                          int waveset_count)
+
 cdef extern from "cdp_reverb.h":
     cdp_lib_buffer* cdp_lib_reverb(cdp_lib_ctx* ctx,
                                     const cdp_lib_buffer* input,
@@ -1738,6 +1775,165 @@ cdef extern from "cdp_playback.h":
                                   double doppler,
                                   double depth)
 
+    cdp_lib_buffer* cdp_lib_rotor(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double pitch_rate,
+                                   double pitch_depth,
+                                   double amp_rate,
+                                   double amp_depth,
+                                   double phase_offset)
+
+
+cdef extern from "cdp_synth.h":
+    cdp_lib_buffer* cdp_lib_synth_wave(cdp_lib_ctx* ctx,
+                                        int waveform,
+                                        double frequency,
+                                        double amplitude,
+                                        double duration,
+                                        int sample_rate,
+                                        int channels)
+
+    cdp_lib_buffer* cdp_lib_synth_noise(cdp_lib_ctx* ctx,
+                                         int pink,
+                                         double amplitude,
+                                         double duration,
+                                         int sample_rate,
+                                         int channels,
+                                         unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_synth_click(cdp_lib_ctx* ctx,
+                                         double tempo,
+                                         int beats_per_bar,
+                                         double duration,
+                                         double click_freq,
+                                         double click_dur_ms,
+                                         int sample_rate)
+
+    cdp_lib_buffer* cdp_lib_synth_chord(cdp_lib_ctx* ctx,
+                                         const double* midi_notes,
+                                         int num_notes,
+                                         double amplitude,
+                                         double duration,
+                                         double detune_cents,
+                                         int sample_rate,
+                                         int channels)
+
+
+cdef extern from "cdp_psow.h":
+    cdp_lib_buffer* cdp_lib_psow_stretch(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          double stretch_factor,
+                                          int grain_count)
+
+    cdp_lib_buffer* cdp_lib_psow_grab(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double time,
+                                       double duration,
+                                       int grain_count,
+                                       double density)
+
+    cdp_lib_buffer* cdp_lib_psow_dupl(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       int repeat_count,
+                                       int grain_count)
+
+    cdp_lib_buffer* cdp_lib_psow_interp(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* grain1,
+                                         const cdp_lib_buffer* grain2,
+                                         double start_dur,
+                                         double interp_dur,
+                                         double end_dur)
+
+
+cdef extern from "cdp_fofex.h":
+    cdp_lib_buffer* cdp_lib_fofex_extract(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double time,
+                                           int fof_count,
+                                           int window)
+
+    cdp_lib_buffer* cdp_lib_fofex_extract_all(cdp_lib_ctx* ctx,
+                                               const cdp_lib_buffer* input,
+                                               int fof_count,
+                                               double min_level_db,
+                                               int window,
+                                               int* fof_info)
+
+    cdp_lib_buffer* cdp_lib_fofex_synth(cdp_lib_ctx* ctx,
+                                         const cdp_lib_buffer* fof,
+                                         double duration,
+                                         double frequency,
+                                         double amplitude,
+                                         int fof_index,
+                                         int fof_unit_len)
+
+    cdp_lib_buffer* cdp_lib_fofex_repitch(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double pitch_shift,
+                                           int preserve_formants)
+
+
+cdef extern from "cdp_flutter.h":
+    cdp_lib_buffer* cdp_lib_flutter(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double frequency,
+                                     double depth,
+                                     double gain,
+                                     int randomize)
+
+    cdp_lib_buffer* cdp_lib_flutter_multi(cdp_lib_ctx* ctx,
+                                           const cdp_lib_buffer* input,
+                                           double frequency,
+                                           double depth,
+                                           double gain,
+                                           const int* channel_sets,
+                                           int randomize)
+
+
+cdef extern from "cdp_hover.h":
+    cdp_lib_buffer* cdp_lib_hover(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double frequency,
+                                   double location,
+                                   double frq_rand,
+                                   double loc_rand,
+                                   double splice_ms,
+                                   double duration)
+
+
+cdef extern from "cdp_constrict.h":
+    cdp_lib_buffer* cdp_lib_constrict(cdp_lib_ctx* ctx,
+                                       const cdp_lib_buffer* input,
+                                       double constriction)
+
+
+cdef extern from "cdp_phase.h":
+    cdp_lib_buffer* cdp_lib_phase_invert(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input)
+    cdp_lib_buffer* cdp_lib_phase_stereo(cdp_lib_ctx* ctx,
+                                          const cdp_lib_buffer* input,
+                                          double transfer)
+
+
+cdef extern from "cdp_wrappage.h":
+    cdp_lib_buffer* cdp_lib_wrappage(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double grain_size,
+                                      double density,
+                                      double velocity,
+                                      double pitch,
+                                      double spread,
+                                      double jitter,
+                                      double splice_ms,
+                                      double duration)
+
+
+# Waveform type constants
+WAVE_SINE = 0
+WAVE_SQUARE = 1
+WAVE_SAW = 2
+WAVE_RAMP = 3
+WAVE_TRIANGLE = 4
 
 # Global CDP library context (lazily initialized)
 cdef cdp_lib_ctx* _cdp_lib_ctx = NULL
@@ -2844,6 +3040,229 @@ def distort_shuffle(Buffer buf not None, int chunk_count, unsigned int seed=0):
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort shuffle failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def distort_cut(Buffer buf not None, int cycle_count=4, int cycle_step=4,
+                double exponent=1.0, double min_level=0.0):
+    """Cut sound into waveset segments with decaying envelope.
+
+    Divides audio into segments based on zero-crossing waveset boundaries
+    and applies a decaying envelope to each segment. Creates a "cut-up"
+    distortion effect.
+
+    Args:
+        buf: Input Buffer (will be converted to mono if stereo).
+        cycle_count: Number of wavesets (half-cycles) per segment (1-100). Default 4.
+        cycle_step: Number of wavesets to step between segment starts (1-100). Default 4.
+                    If equal to cycle_count, segments are contiguous.
+                    If less, segments overlap. If greater, there are gaps.
+        exponent: Envelope decay exponent (0.1 to 10.0). Default 1.0.
+                  1.0 = linear decay, >1 = faster initial decay, <1 = slower decay.
+        min_level: Minimum output level to keep (0.0 to 1.0, 0 = keep all). Default 0.0.
+                   Segments below this level are removed.
+
+    Returns:
+        New mono Buffer with cut segments.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_cut(
+        ctx, input_buf, cycle_count, cycle_step, exponent, min_level
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort cut failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def distort_mark(Buffer buf not None, markers not None, double unit_ms=10.0,
+                 double stretch=1.0, double random=0.0, bint flip_phase=False,
+                 unsigned int seed=0):
+    """Interpolate between waveset-groups at marked time positions.
+
+    Finds waveset groups at specified time markers and morphs between them,
+    creating smooth transitions with optional phase flipping and randomization.
+
+    Args:
+        buf: Input Buffer (will be converted to mono if stereo).
+        markers: List/array of time positions in seconds where waveset groups are located.
+                 Must have at least 2 markers in ascending order.
+        unit_ms: Approximate size of waveset group to find at each marker (1.0 to 100.0 ms).
+                 Default 10.0.
+        stretch: Time stretch factor for output (0.5 to 2.0, 1.0 = no stretch). Default 1.0.
+        random: Randomize waveset durations (0.0 to 1.0, 0 = no randomization). Default 0.0.
+        flip_phase: If True, flip phase of alternate interpolated wavesets. Default False.
+        seed: Random seed (0 = time-based). Default 0.
+
+    Returns:
+        New mono Buffer with interpolated wavesets.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    # Convert markers to C array
+    cdef int marker_count = len(markers)
+    cdef double* marker_array = <double*>malloc(marker_count * sizeof(double))
+    if marker_array is NULL:
+        cdp_lib_buffer_free(input_buf)
+        raise MemoryError("Failed to allocate marker array")
+
+    cdef int i
+    for i in range(marker_count):
+        marker_array[i] = markers[i]
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_mark(
+        ctx, input_buf, marker_array, marker_count, unit_ms, stretch, random,
+        1 if flip_phase else 0, seed
+    )
+
+    free(marker_array)
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort mark failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def distort_repeat(Buffer buf not None, int multiplier=2, int cycle_count=1,
+                   int skip_cycles=0, double splice_ms=15.0, int mode=0):
+    """Time-stretch by repeating wavecycles.
+
+    Detects wavecycles and repeats groups of them to create time-stretching
+    or rhythmic stuttering effects.
+
+    Args:
+        buf: Input Buffer (will be converted to mono if stereo).
+        multiplier: Number of times to repeat each wavecycle group (1-100). Default 2.
+        cycle_count: Number of wavecycles in each repeated group (1-100). Default 1.
+        skip_cycles: Number of cycles to skip at start of file (0 or more). Default 0.
+        splice_ms: Splice length in milliseconds for smooth transitions (1.0 to 50.0).
+                   Default 15.0.
+        mode: 0 = time-stretch (output longer), 1 = maintain time (skip ahead after repeats).
+              Default 0.
+
+    Returns:
+        New mono Buffer with repeated wavecycles.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_repeat(
+        ctx, input_buf, multiplier, cycle_count, skip_cycles, splice_ms, mode
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort repeat failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def distort_shift(Buffer buf not None, int group_size=1, int shift=1, int mode=0):
+    """Shift or swap half-wavecycle groups for phase distortion.
+
+    Detects half-wavecycles (zero crossings) and either shifts alternate
+    groups forward in time, or swaps adjacent groups.
+
+    Args:
+        buf: Input Buffer (will be converted to mono if stereo).
+        group_size: Number of half-wavecycles per group (1-50). Default 1.
+                    1 = single half-wavesets, 2 = waveset + half, etc.
+        shift: For mode 0: number of groups to shift forward (1-50, with wrap-around).
+               Ignored in mode 1. Default 1.
+        mode: 0 = shift alternate groups forward, 1 = swap adjacent groups. Default 0.
+
+    Returns:
+        New mono Buffer with shifted/swapped wavecycles.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_shift(
+        ctx, input_buf, group_size, shift, mode
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort shift failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def distort_warp(Buffer buf not None, double warp=0.001, int mode=0, int waveset_count=1):
+    """Apply progressive warp distortion with modular sample folding.
+
+    Creates unique distortion by progressively warping sample values through
+    a modular folding pattern. The warp increment is applied per-sample (mode 0)
+    or per-waveset group (mode 1).
+
+    Args:
+        buf: Input Buffer. Mode 1 requires mono; stereo will be converted.
+        warp: Progressive sample multiplier (0.0001 to 0.1). Default 0.001.
+              Controls the rate of warping progression.
+        mode: 0 = warp increment per sample (works with stereo),
+              1 = warp increment per waveset group (mono only). Default 0.
+        waveset_count: For mode 1: after how many wavesets does warp increment (1-256).
+                       Ignored in mode 0. Default 1.
+
+    Returns:
+        New Buffer with warp distortion applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_distort_warp(
+        ctx, input_buf, warp, mode, waveset_count
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Distort warp failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)
@@ -5095,6 +5514,911 @@ def spin(buf, double rate=1.0, double doppler=0.0, double depth=1.0):
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spin processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def rotor(buf, double pitch_rate=1.0, double pitch_depth=2.0,
+          double amp_rate=1.5, double amp_depth=0.5, double phase_offset=0.0):
+    """
+    Apply dual-rotation modulation effect.
+
+    Applies two independent rotating modulators (pitch and amplitude) with
+    different cycle lengths, creating evolving interference patterns.
+    Inspired by CDP's rotor synthesis concept of rotating "armatures".
+
+    Args:
+        buf: Input audio buffer
+        pitch_rate: Pitch modulation rate in Hz (0.01 to 20). Cycles per second.
+        pitch_depth: Pitch modulation depth in semitones (0 to 12).
+        amp_rate: Amplitude modulation rate in Hz (0.01 to 20). Cycles per second.
+        amp_depth: Amplitude modulation depth (0.0 to 1.0). 1.0 = full tremolo.
+        phase_offset: Initial phase offset between modulators (0.0 to 1.0).
+                      Creates different interference patterns.
+
+    Returns:
+        Buffer: New buffer with rotor modulation.
+
+    Note: When pitch_rate and amp_rate have different values, the combined
+    effect creates evolving patterns that cycle through various combinations
+    of pitch and amplitude modulation over time.
+    """
+    if pitch_rate < 0.01 or pitch_rate > 20.0:
+        raise ValueError("pitch_rate must be between 0.01 and 20 Hz")
+    if pitch_depth < 0.0 or pitch_depth > 12.0:
+        raise ValueError("pitch_depth must be between 0 and 12 semitones")
+    if amp_rate < 0.01 or amp_rate > 20.0:
+        raise ValueError("amp_rate must be between 0.01 and 20 Hz")
+    if amp_depth < 0.0 or amp_depth > 1.0:
+        raise ValueError("amp_depth must be between 0.0 and 1.0")
+    if phase_offset < 0.0 or phase_offset > 1.0:
+        raise ValueError("phase_offset must be between 0.0 and 1.0")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_rotor(
+        ctx, input_buf, pitch_rate, pitch_depth, amp_rate, amp_depth, phase_offset)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Rotor processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def synth_wave(int waveform=WAVE_SINE, double frequency=440.0, double amplitude=0.8,
+               double duration=1.0, int sample_rate=44100, int channels=1):
+    """
+    Generate basic waveforms.
+
+    Synthesizes standard waveforms (sine, square, saw, ramp, triangle)
+    at specified frequency and duration.
+
+    Args:
+        waveform: Waveform type (WAVE_SINE, WAVE_SQUARE, WAVE_SAW, WAVE_RAMP, WAVE_TRIANGLE)
+        frequency: Frequency in Hz (20 to 20000)
+        amplitude: Peak amplitude (0.0 to 1.0)
+        duration: Duration in seconds (0.001 to 3600)
+        sample_rate: Sample rate in Hz (default 44100)
+        channels: Number of output channels (1 or 2)
+
+    Returns:
+        Buffer: New buffer with synthesized waveform.
+    """
+    if waveform < 0 or waveform > 4:
+        raise ValueError("waveform must be 0-4 (WAVE_SINE, WAVE_SQUARE, WAVE_SAW, WAVE_RAMP, WAVE_TRIANGLE)")
+    if frequency < 20.0 or frequency > 20000.0:
+        raise ValueError("frequency must be between 20 and 20000 Hz")
+    if amplitude < 0.0 or amplitude > 1.0:
+        raise ValueError("amplitude must be between 0.0 and 1.0")
+    if duration < 0.001 or duration > 3600.0:
+        raise ValueError("duration must be between 0.001 and 3600 seconds")
+    if sample_rate < 8000 or sample_rate > 192000:
+        raise ValueError("sample_rate must be between 8000 and 192000")
+    if channels < 1 or channels > 2:
+        raise ValueError("channels must be 1 or 2")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_synth_wave(
+        ctx, waveform, frequency, amplitude, duration, sample_rate, channels)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Synth wave failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def synth_noise(int pink=0, double amplitude=0.8, double duration=1.0,
+                int sample_rate=44100, int channels=1, unsigned int seed=0):
+    """
+    Generate noise.
+
+    Synthesizes white or pink noise at specified duration.
+
+    Args:
+        pink: If non-zero, generate pink noise; otherwise white noise
+        amplitude: Peak amplitude (0.0 to 1.0)
+        duration: Duration in seconds (0.001 to 3600)
+        sample_rate: Sample rate in Hz (default 44100)
+        channels: Number of output channels (1 or 2)
+        seed: Random seed (0 = use time)
+
+    Returns:
+        Buffer: New buffer with synthesized noise.
+    """
+    if amplitude < 0.0 or amplitude > 1.0:
+        raise ValueError("amplitude must be between 0.0 and 1.0")
+    if duration < 0.001 or duration > 3600.0:
+        raise ValueError("duration must be between 0.001 and 3600 seconds")
+    if sample_rate < 8000 or sample_rate > 192000:
+        raise ValueError("sample_rate must be between 8000 and 192000")
+    if channels < 1 or channels > 2:
+        raise ValueError("channels must be 1 or 2")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_synth_noise(
+        ctx, pink, amplitude, duration, sample_rate, channels, seed)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Synth noise failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def synth_click(double tempo=120.0, int beats_per_bar=4, double duration=10.0,
+                double click_freq=1000.0, double click_dur_ms=10.0, int sample_rate=44100):
+    """
+    Generate click track.
+
+    Synthesizes a click track at specified tempo and duration.
+
+    Args:
+        tempo: Tempo in BPM (20 to 400)
+        beats_per_bar: Beats per bar for accent pattern (1 to 16, 0 = no accent)
+        duration: Duration in seconds (0.1 to 3600)
+        click_freq: Click frequency in Hz (200 to 8000, default 1000)
+        click_dur_ms: Click duration in milliseconds (1 to 100, default 10)
+        sample_rate: Sample rate in Hz (default 44100)
+
+    Returns:
+        Buffer: New mono buffer with click track.
+    """
+    if tempo < 20.0 or tempo > 400.0:
+        raise ValueError("tempo must be between 20 and 400 BPM")
+    if beats_per_bar < 0 or beats_per_bar > 16:
+        raise ValueError("beats_per_bar must be between 0 and 16")
+    if duration < 0.1 or duration > 3600.0:
+        raise ValueError("duration must be between 0.1 and 3600 seconds")
+    if click_freq < 200.0 or click_freq > 8000.0:
+        raise ValueError("click_freq must be between 200 and 8000 Hz")
+    if click_dur_ms < 1.0 or click_dur_ms > 100.0:
+        raise ValueError("click_dur_ms must be between 1 and 100 milliseconds")
+    if sample_rate < 8000 or sample_rate > 192000:
+        raise ValueError("sample_rate must be between 8000 and 192000")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_synth_click(
+        ctx, tempo, beats_per_bar, duration, click_freq, click_dur_ms, sample_rate)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Synth click failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def synth_chord(midi_notes, double amplitude=0.8, double duration=1.0,
+                double detune_cents=0.0, int sample_rate=44100, int channels=1):
+    """
+    Generate chord from MIDI notes.
+
+    Synthesizes a chord by mixing multiple sine waves at specified MIDI pitches.
+    Includes optional detuning for a richer, more natural sound.
+
+    Args:
+        midi_notes: List/tuple of MIDI note numbers (0-127, where 60 = middle C)
+                    Common notes: C4=60, D4=62, E4=64, F4=65, G4=67, A4=69, B4=71
+        amplitude: Peak amplitude (0.0 to 1.0)
+        duration: Duration in seconds (0.001 to 3600)
+        detune_cents: Detuning amount in cents (0-50, default 0)
+                      Adds slight pitch variations between notes for richer sound
+        sample_rate: Sample rate in Hz (default 44100)
+        channels: Number of output channels (1 or 2)
+
+    Returns:
+        Buffer: New buffer with synthesized chord.
+
+    Example:
+        # C major chord (C4, E4, G4)
+        chord = synth_chord([60, 64, 67], duration=2.0)
+
+        # A minor chord with detuning for richer sound
+        chord = synth_chord([69, 72, 76], detune_cents=5.0)
+    """
+    # Convert input to list if needed
+    if not hasattr(midi_notes, '__len__'):
+        midi_notes = [midi_notes]
+
+    cdef int num_notes = len(midi_notes)
+    if num_notes < 1 or num_notes > 16:
+        raise ValueError("midi_notes must contain 1 to 16 notes")
+    if amplitude < 0.0 or amplitude > 1.0:
+        raise ValueError("amplitude must be between 0.0 and 1.0")
+    if duration < 0.001 or duration > 3600.0:
+        raise ValueError("duration must be between 0.001 and 3600 seconds")
+    if detune_cents < 0.0 or detune_cents > 50.0:
+        raise ValueError("detune_cents must be between 0 and 50")
+    if sample_rate < 8000 or sample_rate > 192000:
+        raise ValueError("sample_rate must be between 8000 and 192000")
+    if channels < 1 or channels > 2:
+        raise ValueError("channels must be 1 or 2")
+
+    # Validate MIDI note range
+    for note in midi_notes:
+        if note < 0 or note > 127:
+            raise ValueError("MIDI notes must be between 0 and 127")
+
+    # Convert to C array
+    cdef double[16] notes_array
+    cdef int i
+    for i in range(num_notes):
+        notes_array[i] = float(midi_notes[i])
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_synth_chord(
+        ctx, notes_array, num_notes, amplitude, duration, detune_cents, sample_rate, channels)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Synth chord failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Pitch-Synchronous Operations (PSOW)
+# =============================================================================
+
+def psow_stretch(Buffer buf not None, double stretch_factor=1.0, int grain_count=1):
+    """Time-stretch audio while preserving pitch using PSOLA.
+
+    Uses pitch-synchronous overlap-add to stretch or compress time without
+    affecting pitch. Grains are extracted at pitch-period boundaries and
+    repositioned with overlap-add.
+
+    Args:
+        buf: Input Buffer (mono or stereo, will be converted to mono).
+        stretch_factor: Time stretch ratio (0.25 to 4.0). Default 1.0.
+                        0.5 = half duration, 2.0 = double duration.
+        grain_count: Number of consecutive grains to keep together (1-8).
+                     Higher values preserve more local coherence. Default 1.
+
+    Returns:
+        New mono Buffer with time-stretched audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_psow_stretch(
+        ctx, input_buf, stretch_factor, grain_count
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "PSOW stretch failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def psow_grab(Buffer buf not None, double time=0.0, double duration=0.0,
+              int grain_count=1, double density=1.0):
+    """Extract pitch-synchronous grains from a position in the audio.
+
+    Grabs one or more pitch periods (grains/FOFs) from the specified time
+    position and optionally extends them to create a sustained sound.
+
+    Args:
+        buf: Input Buffer (mono or stereo, will be converted to mono).
+        time: Time in seconds at which to grab grains. Default 0.0.
+        duration: Output duration in seconds. Default 0 (grab single grain).
+        grain_count: Number of consecutive grains to grab (1-16). Default 1.
+        density: Overlap density for output (0.25 to 4.0). Default 1.0.
+                 1.0 = grains follow without overlap
+                 2.0 = grains overlap by 2x (can transpose up octave)
+                 0.5 = grains separated by gaps
+
+    Returns:
+        New mono Buffer with grabbed/extended grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_psow_grab(
+        ctx, input_buf, time, duration, grain_count, density
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "PSOW grab failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def psow_dupl(Buffer buf not None, int repeat_count=2, int grain_count=1):
+    """Duplicate pitch-synchronous grains for time-stretching.
+
+    Time-stretches by repeating each group of grains a specified number of times.
+    Creates a more rhythmic/stuttered stretch than psow_stretch.
+
+    Args:
+        buf: Input Buffer (mono or stereo, will be converted to mono).
+        repeat_count: Number of times to repeat each grain group (1-8). Default 2.
+        grain_count: Number of grains per group (1-8). Default 1.
+
+    Returns:
+        New mono Buffer with duplicated grains.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_psow_dupl(
+        ctx, input_buf, repeat_count, grain_count
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "PSOW dupl failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def psow_interp(Buffer grain1 not None, Buffer grain2 not None,
+                double start_dur=0.1, double interp_dur=0.5, double end_dur=0.1):
+    """Interpolate between two pitch-synchronous grains.
+
+    Creates a morphing sound by interpolating between two single-grain sounds.
+    Input sounds should ideally be single grains extracted using psow_grab
+    with duration=0.
+
+    Args:
+        grain1: First grain Buffer (single pitch period).
+        grain2: Second grain Buffer (single pitch period).
+        start_dur: Duration to sustain initial grain (seconds). Default 0.1.
+        interp_dur: Duration of interpolation (seconds). Default 0.5.
+        end_dur: Duration to sustain final grain (seconds). Default 0.1.
+
+    Returns:
+        New mono Buffer with interpolated result.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* grain1_buf = _buffer_to_cdp_lib(grain1)
+    cdef cdp_lib_buffer* grain2_buf = _buffer_to_cdp_lib(grain2)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_psow_interp(
+        ctx, grain1_buf, grain2_buf, start_dur, interp_dur, end_dur
+    )
+
+    cdp_lib_buffer_free(grain1_buf)
+    cdp_lib_buffer_free(grain2_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "PSOW interp failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# FOF Extraction and Synthesis (FOFEX)
+# =============================================================================
+
+def fofex_extract(Buffer buf not None, double time, int fof_count=1, bint window=True):
+    """
+    Extract a single FOF (pitch-synchronous grain) at a specified time.
+
+    FOFs (Formant Wave Functions) are pitch-synchronous grains that can be
+    used for formant-preserving pitch manipulation.
+
+    Args:
+        buf: Input Buffer (mono or stereo, will be converted to mono).
+        time: Time in seconds at which to extract the FOF.
+        fof_count: Number of pitch periods to include (1-8). Default 1.
+        window: If True, apply raised cosine window to FOF edges. Default True.
+
+    Returns:
+        New mono Buffer containing the extracted FOF.
+
+    Raises:
+        CDPError: If extraction fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_fofex_extract(
+        ctx, input_buf, time, fof_count, 1 if window else 0
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "FOFEX extract failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def fofex_extract_all(Buffer buf not None, int fof_count=1, double min_level_db=0.0,
+                      bint window=True):
+    """
+    Extract all FOFs from audio file.
+
+    Analyzes the entire file and extracts all pitch-synchronous FOFs,
+    returning them as a bank (concatenated buffer with uniform-length FOFs).
+
+    Args:
+        buf: Input Buffer (mono or stereo, will be converted to mono).
+        fof_count: Number of pitch periods per FOF (1-4). Default 1.
+        min_level_db: Minimum level in dB below peak to accept FOFs.
+                      0 = keep all, -40 = reject quiet FOFs. Default 0.
+        window: If True, apply raised cosine window to FOF edges. Default True.
+
+    Returns:
+        Tuple of (Buffer, num_fofs, unit_length):
+            Buffer: Contains all FOFs concatenated (each zero-padded to uniform length).
+            num_fofs: Number of FOFs extracted.
+            unit_length: Samples per FOF unit.
+
+    Raises:
+        CDPError: If extraction fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+    cdef int fof_info[2]
+    fof_info[0] = 0
+    fof_info[1] = 0
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_fofex_extract_all(
+        ctx, input_buf, fof_count, min_level_db, 1 if window else 0, fof_info
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "FOFEX extract_all failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return (result, fof_info[0], fof_info[1])
+
+
+def fofex_synth(Buffer fof_bank not None, double duration, double frequency,
+                double amplitude=0.8, int fof_index=-1, int fof_unit_len=0):
+    """
+    Synthesize audio using extracted FOFs.
+
+    Creates new audio by repeating FOFs at a specified pitch frequency.
+
+    Args:
+        fof_bank: FOF Buffer (single FOF or bank from fofex_extract_all).
+        duration: Output duration in seconds.
+        frequency: Target pitch frequency in Hz (20-5000).
+        amplitude: Output amplitude (0.0-1.0). Default 0.8.
+        fof_index: Which FOF to use if fof_bank is a bank.
+                   -1 = average all FOFs, 0+ = specific FOF index. Default -1.
+        fof_unit_len: Samples per FOF if fof_bank is a bank (from fofex_extract_all).
+                      0 = fof_bank is a single FOF. Default 0.
+
+    Returns:
+        New mono Buffer with synthesized audio.
+
+    Raises:
+        CDPError: If synthesis fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* fof_buf = _buffer_to_cdp_lib(fof_bank)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_fofex_synth(
+        ctx, fof_buf, duration, frequency, amplitude, fof_index, fof_unit_len
+    )
+
+    cdp_lib_buffer_free(fof_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "FOFEX synth failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def fofex_repitch(Buffer buf not None, double pitch_shift, bint preserve_formants=True):
+    """
+    Resynthesize audio with modified pitch using FOFs.
+
+    Pitch-shifts audio while optionally preserving formant characteristics.
+
+    Args:
+        buf: Input Buffer (mono or stereo, will be converted to mono).
+        pitch_shift: Pitch shift in semitones (-24 to +24).
+        preserve_formants: If True, formants are preserved (PSOLA-style).
+                          If False, formants shift with pitch (resampling).
+                          Default True.
+
+    Returns:
+        New mono Buffer with pitch-shifted audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_fofex_repitch(
+        ctx, input_buf, pitch_shift, 1 if preserve_formants else 0
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "FOFEX repitch failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Flutter - Spatial Tremolo Effect
+# =============================================================================
+
+def flutter(Buffer buf not None, double frequency=4.0, double depth=1.0,
+            double gain=1.0, bint randomize=False):
+    """
+    Apply flutter (spatial tremolo) effect.
+
+    Creates a tremolo that alternates between left and right channels,
+    producing a spatial movement effect where the sound appears to
+    move between speakers.
+
+    Args:
+        buf: Input Buffer (mono or stereo). Mono is converted to stereo.
+        frequency: Tremolo frequency in Hz (0.1 to 50.0). Default 4.0.
+        depth: Tremolo depth (0.0 to 16.0). Default 1.0.
+               1.0 = full depth (troughs reach silence).
+               >1.0 = narrower peaks, sharper transitions.
+        gain: Overall output gain (0.0 to 1.0). Default 1.0.
+        randomize: If True, randomize L/R order after each cycle. Default False.
+
+    Returns:
+        New stereo Buffer with flutter effect applied.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_flutter(
+        ctx, input_buf, frequency, depth, gain, 1 if randomize else 0
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Flutter failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Hover - Zigzag Reading / Pitch Hovering Effect
+# =============================================================================
+
+def hover(Buffer buf not None, double frequency=440.0, double location=0.5,
+          double frq_rand=0.1, double loc_rand=0.1, double splice_ms=1.0,
+          double duration=0.0):
+    """
+    Apply hover effect - zigzag reading at specified frequency.
+
+    Reads through the audio file with a zigzag motion at the specified
+    frequency, creating a hovering or vibrato-like pitch effect.
+
+    At each oscillation cycle:
+    - Reads forward (zig) for some samples
+    - Then reads backward (zag) for the remainder
+    - Applies crossfade splicing at the boundaries
+
+    The zigzag width is determined by frequency:
+    - At 44100 Hz sample rate and 1 Hz frequency: reads 22050 samples
+      forward then 22050 back
+    - At 10 Hz: reads 2205 forward and 2205 back
+
+    Args:
+        buf: Input Buffer (must be mono).
+        frequency: Rate of zigzag oscillation in Hz (0.1 to 1000.0). Default 440.0.
+                   Lower values create wider zigzag reads (slower pitch wobble).
+                   Higher values create narrower reads (faster pitch wobble).
+        location: Position in source file, normalized (0.0 to 1.0). Default 0.5.
+                  0.0 = start, 0.5 = middle, 1.0 = end.
+        frq_rand: Random variation of frequency (0.0 to 1.0). Default 0.1.
+        loc_rand: Random variation of location (0.0 to 1.0). Default 0.1.
+        splice_ms: Splice length at zig/zag boundaries in milliseconds (0.1 to 100.0).
+                   Default 1.0.
+        duration: Output duration in seconds. Default 0.0 (same as input).
+
+    Returns:
+        New mono Buffer with hover effect applied.
+
+    Raises:
+        CDPError: If processing fails (e.g., non-mono input).
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_hover(
+        ctx, input_buf, frequency, location, frq_rand, loc_rand, splice_ms, duration
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Hover failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Constrict - Silence Constriction Effect
+# =============================================================================
+
+def constrict(Buffer buf not None, double constriction=50.0):
+    """
+    Apply constrict effect - shorten or remove silent sections.
+
+    Scans through audio looking for zero-value samples and reduces
+    or removes these silent sections based on the constriction parameter.
+
+    This is useful for tightening up audio with pauses or for creative
+    effects where sounds are pushed together.
+
+    Args:
+        buf: Input Buffer.
+        constriction: Percentage of silence removal (0.0 to 200.0). Default 50.0.
+                      0-100: Shorten zero-sections by that percentage.
+                             e.g., 50 = silences are 50% shorter
+                             0 = no change, 100 = silences removed entirely
+                      100-200: Overlap sounds on either side of silence.
+                               Sounds merge/blend together.
+                               e.g., 150 = 50% overlap of adjacent sounds
+
+    Returns:
+        New Buffer with constricted silences.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_constrict(ctx, input_buf, constriction)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Constrict failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Phase - Phase Manipulation Effects
+# =============================================================================
+
+def phase_invert(Buffer buf not None):
+    """
+    Invert the phase of an audio signal.
+
+    Multiplies all samples by -1, effectively flipping the waveform
+    upside down. This is sometimes called "polarity inversion".
+
+    Phase inversion is useful for:
+    - Correcting out-of-phase recordings
+    - Creative sound design
+    - Combining with the original to cancel common elements
+
+    Args:
+        buf: Input Buffer (mono or stereo).
+
+    Returns:
+        New Buffer with inverted phase.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_phase_invert(ctx, input_buf)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Phase invert failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def phase_stereo(Buffer buf not None, double transfer=1.0):
+    """
+    Enhance stereo separation using phase subtraction.
+
+    Enhances the stereo image by subtracting a portion of each channel
+    from the other, emphasizing differences between left and right.
+
+    For each sample pair:
+      newLeft = L - (transfer * R)
+      newRight = R - (transfer * L)
+
+    This removes elements that are identical in both channels (centered
+    sounds) while preserving elements that differ between channels
+    (panned sounds). The output is automatically normalized to preserve
+    the original maximum level.
+
+    Args:
+        buf: Input Buffer (must be stereo).
+        transfer: Amount of signal used in phase-cancellation (0.0 to 1.0).
+                  Default 1.0.
+                  0 = no change (passthrough)
+                  1 = maximum stereo enhancement (full cancellation)
+
+    Returns:
+        New stereo Buffer with enhanced separation.
+
+    Raises:
+        CDPError: If processing fails (e.g., non-stereo input).
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_phase_stereo(ctx, input_buf, transfer)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Phase stereo failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# =============================================================================
+# Wrappage - Granular Texture with Spatial Distribution
+# =============================================================================
+
+def wrappage(Buffer buf not None, double grain_size=50.0, double density=1.0,
+             double velocity=1.0, double pitch=0.0, double spread=1.0,
+             double jitter=0.1, double splice_ms=5.0, double duration=0.0):
+    """
+    Apply wrappage effect - granular texture with stereo spatial distribution.
+
+    Extracts grains from the input and redistributes them spatially across
+    a stereo field, creating textural transformations with optional time
+    stretching and pitch shifting.
+
+    This is useful for:
+    - Creating dense, cloud-like textures from sounds
+    - Time stretching while maintaining pitch
+    - Pitch shifting while maintaining duration
+    - Spatial widening of mono sources
+    - Freeze effects (velocity=0)
+
+    Args:
+        buf: Input Buffer (must be mono).
+        grain_size: Size of each grain in milliseconds (1.0 to 500.0). Default 50.0.
+        density: Grain overlap factor (0.1 to 10.0). Default 1.0.
+                 <1 = gaps between grains (sparse texture)
+                 1 = grains touch but don't overlap
+                 >1 = overlapping grains (dense texture)
+        velocity: Speed of advance through input (0.0 to 10.0). Default 1.0.
+                  <1 = time stretch (slower)
+                  1 = normal speed
+                  >1 = time compress (faster)
+                  0 = freeze (requires duration parameter)
+        pitch: Pitch shift in semitones (-24.0 to 24.0). Default 0.0.
+        spread: Stereo spread (0.0 to 1.0). Default 1.0.
+                0 = mono center
+                1 = full stereo spread (grains randomly distributed L/R)
+        jitter: Random variation of grain position (0.0 to 1.0). Default 0.1.
+                Adds natural variation to prevent mechanical artifacts.
+        splice_ms: Splice length at grain boundaries in ms (0.5 to 50.0). Default 5.0.
+                   Longer splices = smoother but less defined grains.
+        duration: Output duration in seconds. Default 0.0 (automatic).
+                  Must be specified if velocity is 0.
+
+    Returns:
+        New stereo Buffer with wrappage effect applied.
+
+    Raises:
+        CDPError: If processing fails (e.g., non-mono input, invalid parameters).
+    """
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_wrappage(
+        ctx, input_buf, grain_size, density, velocity, pitch,
+        spread, jitter, splice_ms, duration
+    )
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Wrappage failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)

@@ -94,6 +94,11 @@ from pycdp._core import (
     distort_reverse,
     distort_fractal,
     distort_shuffle,
+    distort_cut,
+    distort_mark,
+    distort_repeat,
+    distort_shift,
+    distort_warp,
     # Reverb
     reverb,
     # Granular operations
@@ -158,6 +163,39 @@ from pycdp._core import (
     SCRAMBLE_LEVEL_DOWN,
     splinter,
     spin,
+    rotor,
+    # Synthesis
+    synth_wave,
+    synth_noise,
+    synth_click,
+    synth_chord,
+    # Waveform constants
+    WAVE_SINE,
+    WAVE_SQUARE,
+    WAVE_SAW,
+    WAVE_RAMP,
+    WAVE_TRIANGLE,
+    # Pitch-synchronous operations (PSOW)
+    psow_stretch,
+    psow_grab,
+    psow_dupl,
+    psow_interp,
+    # FOF extraction and synthesis (FOFEX)
+    fofex_extract,
+    fofex_extract_all,
+    fofex_synth,
+    fofex_repitch,
+    # Spatial effects
+    flutter,
+    # Zigzag/Hover effect
+    hover,
+    # Silence constriction
+    constrict,
+    # Phase manipulation
+    phase_invert,
+    phase_stereo,
+    # Granular texture
+    wrappage,
 )
 
 __all__ = [
@@ -244,6 +282,11 @@ __all__ = [
     "distort_reverse",
     "distort_fractal",
     "distort_shuffle",
+    "distort_cut",
+    "distort_mark",
+    "distort_repeat",
+    "distort_shift",
+    "distort_warp",
     # Reverb
     "reverb",
     # Granular operations
@@ -310,6 +353,39 @@ __all__ = [
     "splinter",
     # Spatial effects
     "spin",
+    "rotor",
+    # Synthesis
+    "synth_wave",
+    "synth_noise",
+    "synth_click",
+    "synth_chord",
+    # Waveform constants
+    "WAVE_SINE",
+    "WAVE_SQUARE",
+    "WAVE_SAW",
+    "WAVE_RAMP",
+    "WAVE_TRIANGLE",
+    # Pitch-synchronous operations (PSOW)
+    "psow_stretch",
+    "psow_grab",
+    "psow_dupl",
+    "psow_interp",
+    # FOF extraction and synthesis (FOFEX)
+    "fofex_extract",
+    "fofex_extract_all",
+    "fofex_synth",
+    "fofex_repitch",
+    # Spatial effects
+    "flutter",
+    # Zigzag/Hover effect
+    "hover",
+    # Silence constriction
+    "constrict",
+    # Phase manipulation
+    "phase_invert",
+    "phase_stereo",
+    # Granular texture
+    "wrappage",
 ]
 
 __version__ = version()
