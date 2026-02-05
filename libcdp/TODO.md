@@ -22,6 +22,9 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `morph` - Spectral interpolation between two sounds
 - [x] `morph_glide` - Simple spectral glide between two sounds
 - [x] `cross_synth` - Cross-synthesis (amp from one, freq from other)
+- [x] `morph_glide_native` - Native CDP specglide wrapper (original algorithm)
+- [x] `morph_bridge_native` - Native CDP specbridge wrapper (original algorithm)
+- [x] `morph_native` - Native CDP specmorph wrapper (original algorithm)
 
 **Filtering (CDP: `filter`, `filtrage`, `synfilt`):**
 - [x] `filter_lowpass` - Spectral lowpass filter
@@ -50,6 +53,17 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `fracture` - Fragment and scatter audio with gaps
 - [x] `tesselate` - Tile-based pattern transformations
 
+**Playback/Time Manipulation (CDP: `extend`, `retime`):**
+- [x] `zigzag` - Zigzag playback (alternating forward/backward through audio)
+- [x] `iterate` - Iteration with variations (repeated playback with pitch/gain changes)
+- [x] `stutter` - Stutter effect (segment repetition with silence inserts)
+- [x] `bounce` - Bouncing ball effect (accelerating/decelerating repeats)
+- [x] `drunk` - "Drunk walk" random navigation through audio
+- [x] `loop` - Looping with crossfades and variations
+- [x] `retime` - Time-domain time stretching/compression (TDOLA)
+- [x] `scramble` - Waveset scrambling/reordering (shuffle, reverse, by size/level)
+- [x] `splinter` - Waveset splintering/fragmentation effects
+
 **Envelope (CDP: `envel`, `tremolo`, `envcut`):**
 - [x] `dovetail` - Fade in/out envelopes (linear/exponential)
 - [x] `tremolo` - LFO amplitude modulation
@@ -71,6 +85,16 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `grain_extend` - Extend duration using grain repetition
 - [x] `texture_simple` - Simple texture layering with pitch/amp/spatial variation
 - [x] `texture_multi` - Multi-layer grouped texture generation
+
+**Extended Granular (CDP: `grain` modes):**
+- [x] `grain_reorder` - Reorder detected grains (shuffle, reverse, rotate)
+- [x] `grain_rerhythm` - Change timing/rhythm of grains
+- [x] `grain_reverse` - Reverse individual grains in place
+- [x] `grain_timewarp` - Time-stretch/compress grain spacing
+- [x] `grain_repitch` - Pitch-shift grains with interpolation
+- [x] `grain_position` - Reposition grains in stereo field
+- [x] `grain_omit` - Probabilistically omit grains
+- [x] `grain_duplicate` - Duplicate grains with variations
 
 **Core (from original libcdp):**
 - [x] `gain`, `gain_db` - Amplitude adjustment
@@ -139,6 +163,95 @@ Focus on actual CDP algorithms. Reference the CDP executable list at the bottom.
 - [x] `fracture` - Fragment and scatter audio with gaps
 - [x] `tesselate` - Tile-based pattern transformations
 
+### ~~Priority 5: Time/Playback Manipulation (CDP: `extend`, `retime`)~~ DONE
+
+From `dev/extend/` and `dev/standalone/`:
+
+- [x] `zigzag` - Zigzag playback (alternating forward/backward through audio)
+- [x] `iterate` - Iteration with variations (repeated playback with pitch/gain changes)
+- [x] `drunk` - "Drunk walk" random navigation through audio
+- [x] `retime` - Time-domain time stretching/compression (TDOLA with crossfades)
+- [x] `loop` - Looping with crossfades and variations
+
+### ~~Priority 6: Segment Manipulation (CDP: `scramble`, `stutter`)~~ DONE
+
+From `dev/science/` and `dev/standalone/`:
+
+- [x] `stutter` - Stutter effect (segment repetition with silence inserts)
+- [x] `scramble` - Waveset scrambling/reordering (shuffle, reverse, by size/level)
+- [x] `bounce` - Bouncing ball effect (accelerating/decelerating repeats)
+- [x] `splinter` - Waveset splintering/fragmentation effects
+
+### Priority 7: Spatial Effects (CDP: `spin`, `rotor`)
+
+From `dev/science/`:
+
+- [ ] `spin` - Spatial spinning (rotating stereo position)
+- [ ] `rotor` - Rotational doppler-like effects
+
+### Priority 8: Synthesis (CDP: `synth`, `wave`)
+
+From `dev/synth/`:
+
+- [ ] `synth_wave` - Waveform synthesis (sine, square, saw, ramp, triangle)
+- [ ] `synth_noise` - Noise generation (white, pink)
+- [ ] `synth_click` - Click track generation
+- [ ] `synth_chord` - Chord synthesis from pitch list
+
+### Priority 9: Additional Distortion (CDP: `distcut`, `distmark`, `distrep`)
+
+From `dev/standnew/`:
+
+- [ ] `distort_cut` - Cut-based distortion
+- [ ] `distort_mark` - Marker-based distortion
+- [ ] `distort_rep` - Repetition-based distortion
+- [ ] `distort_shift` - Shift-based distortion
+- [ ] `distort_warp` - Warp-based distortion
+
+### Priority 10: Pitch-Synchronous Operations (CDP: `psow`, `fofex`)
+
+From `dev/standalone/`:
+
+- [ ] `psow` - Pitch-synchronous overlap-add (PSOLA-like)
+- [ ] `fofex` - FOF (Formant wave function) extraction/synthesis
+
+---
+
+## Deferred: Composition System
+
+The CDP texture algorithms in `dev/texture/` are fundamentally different from audio processing - they are an **algorithmic composition system** that generates MIDI-like note event sequences rather than processing audio directly.
+
+### What It Does
+
+- Generates note events (pitch, duration, timing, amplitude, instrument)
+- Uses harmonic sets/fields to constrain pitches to scales/chords
+- Supports motifs, decorations, ornaments, and grouped events
+- Outputs note lists, not audio buffers
+
+### Modes Available
+
+- Simple texture (random notes within constraints)
+- Clumped textures: `IS_GROUPS`, `IS_DECOR`, `IS_MOTIFS`, `IS_ORNATE`
+- Harmonic field textures: `do_simple_hftexture`, `do_clumped_hftexture`
+
+### Implementation Approach
+
+Would require a separate subsystem:
+
+1. New data structures for note events, motifs, harmonic sets
+2. Composition engine separate from audio processing
+3. Renderer to convert note events to audio (sample playback or synthesis)
+
+### Files
+
+- `dev/texture/texture1.c` - Core texture generation
+- `dev/texture/texture2.c` - `do_texture()` main function
+- `dev/texture/texture3.c` - Harmonic field textures
+- `dev/texture/texture4.c` - Support functions
+- `dev/texture/texture5.c` - Additional modes
+
+**Status:** Deferred - requires significant architectural work for a composition subsystem.
+
 ---
 
 ## Implementation Notes
@@ -176,7 +289,7 @@ When porting a CDP algorithm:
 
 ---
 
-## CDP Executable Reference (220 total)
+## CDP Executable Reference (220+ total)
 
 ### Spectral Processing
 `blur`, `focus`, `hilite`, `spec`, `specanal`, `specav`, `specenv`, `specfnu`,
@@ -187,11 +300,14 @@ When porting a CDP algorithm:
 `modify`, `stretch`, `stretcha`, `pvoc`, `repitch`, `pitch`, `pmodify`,
 `retime`, `ts`, `strans`
 
+### Time/Playback (dev/extend/)
+`zigzag`, `iterate`, `drunk`, `loop`, `scramble`
+
 ### Filtering
 `filter`, `filtrage`, `synfilt`, `notchinvert`
 
 ### Distortion
-`distort`, `distortt`, `distcut`, `distmark`, `distmore`, `distrep`, `distshift`
+`distort`, `distortt`, `distcut`, `distmark`, `distmore`, `distrep`, `distshift`, `distwarp`
 
 ### Envelope
 `envel`, `envcut`, `envnu`, `envspeak`, `tremolo`, `tremenv`
@@ -200,7 +316,7 @@ When porting a CDP algorithm:
 `grain`, `grainex`, `texture`, `newtex`, `texmchan`, `brassage`
 
 ### Spatial
-`reverb`, `rmverb`, `mchanrev`, `panorama`, `abfpan`, `abfpan2`, `mchanpan`
+`reverb`, `rmverb`, `mchanrev`, `panorama`, `abfpan`, `abfpan2`, `mchanpan`, `spin`, `rotor`
 
 ### Synthesis
 `synth`, `newsynth`, `multisynth`, `multiosc`, `phasor`, `impulse`, `waveform`
@@ -215,6 +331,10 @@ When porting a CDP algorithm:
 ### Utilities
 `housekeep`, `sfedit`, `sfprops`, `channelx`, `tostereo`, `mton`
 
-### Experimental/Advanced
+### Experimental/Advanced (dev/science/)
 `strange`, `fractal`, `frfractal`, `quirk`, `crystal`, `brownian`,
-`chirikov`, `cantor`, `cascade`, `fracture`, `tesselate`
+`chirikov`, `cantor`, `cascade`, `fracture`, `tesselate`, `stutter`,
+`scramble`, `bounce`, `splinter`, `crumble`, `strands`, `tweet`
+
+### Pitch-Synchronous (dev/standalone/)
+`psow`, `fofex`, `flutter`, `hover`, `constrict`, `phase`, `wrappage`

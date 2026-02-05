@@ -140,6 +140,23 @@ from pycdp._core import (
     cascade,
     fracture,
     tesselate,
+    # Playback/Time manipulation
+    zigzag,
+    iterate,
+    stutter,
+    bounce,
+    drunk,
+    loop,
+    retime,
+    scramble,
+    # Scramble mode constants
+    SCRAMBLE_SHUFFLE,
+    SCRAMBLE_REVERSE,
+    SCRAMBLE_SIZE_UP,
+    SCRAMBLE_SIZE_DOWN,
+    SCRAMBLE_LEVEL_UP,
+    SCRAMBLE_LEVEL_DOWN,
+    splinter,
 )
 
 __all__ = [
@@ -272,6 +289,24 @@ __all__ = [
     "cascade",
     "fracture",
     "tesselate",
+    # Playback/Time manipulation
+    "zigzag",
+    "iterate",
+    "stutter",
+    "bounce",
+    "drunk",
+    "loop",
+    "retime",
+    "scramble",
+    # Scramble mode constants
+    "SCRAMBLE_SHUFFLE",
+    "SCRAMBLE_REVERSE",
+    "SCRAMBLE_SIZE_UP",
+    "SCRAMBLE_SIZE_DOWN",
+    "SCRAMBLE_LEVEL_UP",
+    "SCRAMBLE_LEVEL_DOWN",
+    # Waveset fragmentation
+    "splinter",
 ]
 
 __version__ = version()

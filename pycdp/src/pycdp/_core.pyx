@@ -1653,6 +1653,85 @@ cdef extern from "cdp_experimental.h":
                                        double transform,
                                        unsigned int seed)
 
+cdef extern from "cdp_playback.h":
+    # Playback/Time manipulation operations
+    cdp_lib_buffer* cdp_lib_zigzag(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    const double* times,
+                                    int num_times,
+                                    double splice_ms)
+
+    cdp_lib_buffer* cdp_lib_iterate(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     int repeats,
+                                     double delay,
+                                     double delay_rand,
+                                     double pitch_shift,
+                                     double gain_decay,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_stutter(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double segment_ms,
+                                     double duration,
+                                     double silence_prob,
+                                     double silence_min_ms,
+                                     double silence_max_ms,
+                                     double transpose_range,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_bounce(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    int bounces,
+                                    double initial_delay,
+                                    double shrink,
+                                    double end_level,
+                                    double level_curve,
+                                    int cut_bounces)
+
+    cdp_lib_buffer* cdp_lib_drunk(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double duration,
+                                   double step_ms,
+                                   double step_rand,
+                                   double locus,
+                                   double ambitus,
+                                   double overlap,
+                                   double splice_ms,
+                                   unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_loop(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double start,
+                                  double length_ms,
+                                  double step_ms,
+                                  double search_ms,
+                                  int repeats,
+                                  double splice_ms,
+                                  unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_retime(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    double ratio,
+                                    double grain_ms,
+                                    double overlap)
+
+    cdp_lib_buffer* cdp_lib_scramble(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      int mode,
+                                      int group_size,
+                                      unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_splinter(cdp_lib_ctx* ctx,
+                                      const cdp_lib_buffer* input,
+                                      double start,
+                                      double duration_ms,
+                                      int repeats,
+                                      double min_shrink,
+                                      double shrink_curve,
+                                      double accel,
+                                      unsigned int seed)
+
 
 # Global CDP library context (lazily initialized)
 cdef cdp_lib_ctx* _cdp_lib_ctx = NULL
@@ -4470,3 +4549,505 @@ def get_partials(Buffer buf not None, double min_amp_db=-60.0, int max_partials=
 
     cdp_partial_data_free(result)
     return output
+
+
+# =============================================================================
+# Playback/Time manipulation operations
+# =============================================================================
+
+def zigzag(Buffer buf not None, times not None, double splice_ms=15.0):
+    """Zigzag playback - alternates between forward and backward playback.
+
+    Plays audio forward then backward through specified time segments,
+    creating a zigzag pattern through the sound.
+
+    Args:
+        buf: Input Buffer.
+        times: List/array of time points in seconds (defines segment boundaries).
+               Must have at least 2 elements.
+        splice_ms: Crossfade splice length in milliseconds. Default 15.0.
+
+    Returns:
+        New Buffer with zigzag playback.
+
+    Raises:
+        CDPError: If processing fails.
+        ValueError: If times has fewer than 2 elements.
+
+    Example:
+        times = [0, 1, 2, 3] plays 0->1 forward, 2->1 backward, 2->3 forward
+    """
+    import array
+
+    # Convert times to a C array
+    cdef double[::1] times_view
+    if hasattr(times, '__iter__'):
+        times_list = list(times)
+    else:
+        times_list = [times]
+
+    if len(times_list) < 2:
+        raise ValueError("times must have at least 2 elements")
+
+    times_arr = array.array('d', times_list)
+    times_view = times_arr
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_zigzag(
+        ctx, input_buf, &times_view[0], len(times_list), splice_ms)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Zigzag processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def iterate(Buffer buf not None, int repeats=4, double delay=0.5,
+            double delay_rand=0.0, double pitch_shift=0.0,
+            double gain_decay=1.0, unsigned int seed=0):
+    """Iterate - repeat audio with variations.
+
+    Creates multiple iterations/copies of the sound with optional pitch shift
+    and amplitude decay. Each iteration can be delayed and modified.
+
+    Args:
+        buf: Input Buffer.
+        repeats: Number of repetitions (1-100). Default 4.
+        delay: Delay between iterations in seconds. Default 0.5.
+        delay_rand: Random variation in delay (0.0 to 1.0). Default 0.0.
+        pitch_shift: Max pitch shift per iteration in semitones (+/- range). Default 0.0.
+        gain_decay: Amplitude decay per iteration (0.5 = halve each time, 1.0 = no decay). Default 1.0.
+        seed: Random seed (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with iterated audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if repeats < 1 or repeats > 100:
+        raise ValueError("repeats must be between 1 and 100")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_iterate(
+        ctx, input_buf, repeats, delay, delay_rand, pitch_shift, gain_decay, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Iterate processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def stutter(Buffer buf not None, double segment_ms=100.0, double duration=5.0,
+            double silence_prob=0.2, double silence_min_ms=10.0,
+            double silence_max_ms=100.0, double transpose_range=0.0,
+            unsigned int seed=0):
+    """Stutter - segment-based stuttering effect.
+
+    Cuts audio into segments and randomly repeats/reorders them with
+    optional silence insertions and transposition.
+
+    Args:
+        buf: Input Buffer.
+        segment_ms: Average segment size in milliseconds. Default 100.0.
+        duration: Output duration in seconds. Default 5.0.
+        silence_prob: Probability of silence insert between segments (0.0 to 1.0). Default 0.2.
+        silence_min_ms: Minimum silence duration in milliseconds. Default 10.0.
+        silence_max_ms: Maximum silence duration in milliseconds. Default 100.0.
+        transpose_range: Max transposition in semitones (+/- range, 0 = none). Default 0.0.
+        seed: Random seed (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with stutter effect.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if segment_ms <= 0:
+        raise ValueError("segment_ms must be positive")
+    if duration <= 0:
+        raise ValueError("duration must be positive")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_stutter(
+        ctx, input_buf, segment_ms, duration, silence_prob,
+        silence_min_ms, silence_max_ms, transpose_range, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Stutter processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def bounce(Buffer buf not None, int bounces=8, double initial_delay=0.5,
+           double shrink=0.7, double end_level=0.1, double level_curve=1.0,
+           bint cut_bounces=False):
+    """Bounce - bouncing ball effect.
+
+    Creates accelerating repetitions of audio, like a bouncing ball
+    with decreasing time between bounces and decreasing amplitude.
+
+    Args:
+        buf: Input Buffer.
+        bounces: Number of bounces (1-100). Default 8.
+        initial_delay: Initial delay between bounces in seconds. Default 0.5.
+        shrink: How much to shrink delay each bounce (0.5 = halve, 0.9 = 10% shorter). Default 0.7.
+        end_level: Final amplitude level (0.0 to 1.0). Default 0.1.
+        level_curve: Level decay curve (1.0 = linear, <1 = fast decay, >1 = slow decay). Default 1.0.
+        cut_bounces: If True, cut each bounce to fit; if False, allow overlap. Default False.
+
+    Returns:
+        New Buffer with bounce effect.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if bounces < 1 or bounces > 100:
+        raise ValueError("bounces must be between 1 and 100")
+    if initial_delay <= 0:
+        raise ValueError("initial_delay must be positive")
+    if shrink <= 0 or shrink >= 1:
+        raise ValueError("shrink must be between 0 and 1 (exclusive)")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_bounce(
+        ctx, input_buf, bounces, initial_delay, shrink, end_level, level_curve, cut_bounces)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Bounce processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def drunk(Buffer buf not None, double duration=5.0, double step_ms=100.0,
+          double step_rand=0.3, double locus=0.0, double ambitus=0.0,
+          double overlap=0.1, double splice_ms=15.0, unsigned int seed=0):
+    """Drunk - drunken walk random navigation through audio.
+
+    Randomly navigates through the audio, taking random steps forward
+    or backward within a configurable range (ambitus) around a center
+    point (locus). Creates unpredictable, wandering playback.
+
+    Args:
+        buf: Input Buffer.
+        duration: Output duration in seconds. Default 5.0.
+        step_ms: Average step size in milliseconds. Default 100.0.
+        step_rand: Random variation in step (0.0 to 1.0). Default 0.3.
+        locus: Center position in seconds (navigation centers around this). Default 0.0.
+               If 0, uses middle of the input.
+        ambitus: Maximum range of movement in seconds. Default 0.0.
+                 If 0, uses half the input duration.
+        overlap: Overlap between segments (0.0 to 0.9). Default 0.1.
+        splice_ms: Crossfade splice length in milliseconds. Default 15.0.
+        seed: Random seed (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with drunk walk playback.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if duration <= 0:
+        raise ValueError("duration must be positive")
+    if step_ms <= 0:
+        raise ValueError("step_ms must be positive")
+
+    # Default locus to middle of input if not specified
+    cdef double actual_locus = locus
+    cdef double actual_ambitus = ambitus
+    input_dur = buf.sample_count / buf.channels / buf.sample_rate
+    if actual_locus <= 0:
+        actual_locus = input_dur / 2
+    if actual_ambitus <= 0:
+        actual_ambitus = input_dur / 2
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_drunk(
+        ctx, input_buf, duration, step_ms, step_rand, actual_locus, actual_ambitus,
+        overlap, splice_ms, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Drunk processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def loop(Buffer buf not None, double start=0.0, double length_ms=500.0,
+         double step_ms=0.0, double search_ms=0.0, int repeats=4,
+         double splice_ms=15.0, unsigned int seed=0):
+    """Loop - loop a section of audio with variations.
+
+    Repeats a section of audio multiple times, optionally stepping
+    through the file and adding random variation to loop start points.
+
+    Args:
+        buf: Input Buffer.
+        start: Loop start position in seconds. Default 0.0.
+        length_ms: Loop length in milliseconds. Default 500.0.
+        step_ms: Step between loop iterations in milliseconds (0 = no stepping). Default 0.0.
+        search_ms: Random search field for loop start in milliseconds (0 = no variation). Default 0.0.
+        repeats: Number of loop repetitions (1-1000). Default 4.
+        splice_ms: Crossfade splice length in milliseconds. Default 15.0.
+        seed: Random seed (0 = use time). Default 0.
+
+    Returns:
+        New Buffer with looped audio.
+
+    Raises:
+        CDPError: If processing fails.
+    """
+    if length_ms <= 0:
+        raise ValueError("length_ms must be positive")
+    if repeats < 1 or repeats > 1000:
+        raise ValueError("repeats must be between 1 and 1000")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_loop(
+        ctx, input_buf, start, length_ms, step_ms, search_ms, repeats, splice_ms, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Loop processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def retime(buf not None, double ratio=1.0, double grain_ms=50.0, double overlap=0.5):
+    """
+    Time-domain time stretching/compression using overlap-add (TDOLA).
+
+    Changes the duration of audio without changing pitch using grain-based
+    processing with crossfade blending for smooth results.
+
+    Args:
+        buf: Input audio buffer (Buffer or numpy array).
+        ratio: Time ratio (default 1.0).
+            - ratio < 1.0: Slower playback, longer output (0.5 = half speed, 2x duration)
+            - ratio > 1.0: Faster playback, shorter output (2.0 = double speed, half duration)
+        grain_ms: Grain size in milliseconds (default 50.0). Range: 5-500.
+            Smaller grains preserve more detail but may sound choppy.
+            Larger grains are smoother but may smear transients.
+        overlap: Overlap factor between grains (default 0.5). Range: 0.1-0.9.
+            Higher overlap = smoother but more processing.
+
+    Returns:
+        Buffer: New buffer with retimed audio.
+
+    Raises:
+        CDPError: If processing fails.
+        ValueError: If parameters are out of valid range.
+
+    Note:
+        For high-quality time stretching with better transient preservation,
+        consider using the spectral time_stretch function instead.
+
+    Example:
+        >>> # Slow down to half speed (2x duration)
+        >>> result = pycdp.retime(audio, ratio=0.5)
+        >>> # Speed up to double speed (half duration)
+        >>> result = pycdp.retime(audio, ratio=2.0)
+    """
+    if ratio <= 0 or ratio > 10:
+        raise ValueError("ratio must be > 0 and <= 10")
+    if grain_ms < 5 or grain_ms > 500:
+        raise ValueError("grain_ms must be between 5 and 500")
+    if overlap < 0.1 or overlap > 0.9:
+        raise ValueError("overlap must be between 0.1 and 0.9")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_retime(
+        ctx, input_buf, ratio, grain_ms, overlap)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Retime processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+# Scramble mode constants
+SCRAMBLE_SHUFFLE = 0
+SCRAMBLE_REVERSE = 1
+SCRAMBLE_SIZE_UP = 2
+SCRAMBLE_SIZE_DOWN = 3
+SCRAMBLE_LEVEL_UP = 4
+SCRAMBLE_LEVEL_DOWN = 5
+
+
+def scramble(buf not None, int mode=0, int group_size=2, unsigned int seed=0):
+    """
+    Reorder wavesets (zero-crossing segments) in audio.
+
+    Detects wavesets based on zero crossings and reorders them according to
+    the specified mode. Creates glitchy, granular, or sorted textures.
+
+    Args:
+        buf: Input audio buffer (Buffer or numpy array). Mono recommended;
+            stereo uses left channel for waveset detection.
+        mode: Reordering mode (default 0 = shuffle):
+            - 0 (SCRAMBLE_SHUFFLE): Random order
+            - 1 (SCRAMBLE_REVERSE): Reverse order
+            - 2 (SCRAMBLE_SIZE_UP): Smallest to largest (rising pitch effect)
+            - 3 (SCRAMBLE_SIZE_DOWN): Largest to smallest (falling pitch effect)
+            - 4 (SCRAMBLE_LEVEL_UP): Quietest to loudest
+            - 5 (SCRAMBLE_LEVEL_DOWN): Loudest to quietest
+        group_size: Number of half-cycles per waveset group (default 2). Range: 1-64.
+            Larger values create longer segments.
+        seed: Random seed for shuffle mode (default 0 = use time).
+
+    Returns:
+        Buffer: New buffer with scrambled wavesets.
+
+    Raises:
+        CDPError: If processing fails.
+        ValueError: If parameters are out of valid range.
+
+    Example:
+        >>> # Shuffle wavesets randomly
+        >>> result = pycdp.scramble(audio, mode=pycdp.SCRAMBLE_SHUFFLE)
+        >>> # Sort by size for rising pitch effect
+        >>> result = pycdp.scramble(audio, mode=pycdp.SCRAMBLE_SIZE_UP)
+    """
+    if mode < 0 or mode > 5:
+        raise ValueError("mode must be 0-5")
+    if group_size < 1 or group_size > 64:
+        raise ValueError("group_size must be between 1 and 64")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_scramble(
+        ctx, input_buf, mode, group_size, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Scramble processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def splinter(buf not None, double start=0.0, double duration_ms=50.0, int repeats=20,
+             double min_shrink=0.1, double shrink_curve=1.0, double accel=1.5,
+             unsigned int seed=0):
+    """
+    Create fragmenting/splintering effect by shrinking and repeating a segment.
+
+    Takes a segment of audio and creates a "splintering" effect by progressively
+    shrinking and repeating it. Creates percussive, granular fragmentation effects.
+
+    Args:
+        buf: Input audio buffer (Buffer or numpy array).
+        start: Start position of segment to splinter in seconds (default 0.0).
+        duration_ms: Duration of segment in milliseconds (default 50.0). Range: 5-5000.
+        repeats: Number of repetitions (default 20). Range: 2-500.
+        min_shrink: Minimum shrinkage factor at end (default 0.1). Range: 0.01-1.0.
+            0.1 = final segment is 10% of original length.
+        shrink_curve: Shrinkage curve (default 1.0). Range: 0.1-10.0.
+            1.0 = linear shrinkage
+            >1 = faster shrink at start, slower at end
+            <1 = slower shrink at start, faster at end
+        accel: Acceleration of repetition rate (default 1.5). Range: 0.5-4.0.
+            >1 = repetitions get faster (accelerando)
+            <1 = repetitions get slower (decelerando)
+            1.0 = constant rate
+        seed: Random seed (default 0 = use time, >0 for reproducible results).
+
+    Returns:
+        Buffer: New buffer with splintered audio.
+
+    Raises:
+        CDPError: If processing fails.
+        ValueError: If parameters are out of valid range.
+
+    Example:
+        >>> # Create splintering effect from start of audio
+        >>> result = pycdp.splinter(audio, start=0.5, duration_ms=100, repeats=30)
+        >>> # Aggressive splintering with fast shrinkage
+        >>> result = pycdp.splinter(audio, duration_ms=50, repeats=50, min_shrink=0.05)
+    """
+    if duration_ms < 5 or duration_ms > 5000:
+        raise ValueError("duration_ms must be between 5 and 5000")
+    if repeats < 2 or repeats > 500:
+        raise ValueError("repeats must be between 2 and 500")
+    if min_shrink < 0.01 or min_shrink > 1.0:
+        raise ValueError("min_shrink must be between 0.01 and 1.0")
+    if shrink_curve < 0.1 or shrink_curve > 10.0:
+        raise ValueError("shrink_curve must be between 0.1 and 10.0")
+    if accel < 0.5 or accel > 4.0:
+        raise ValueError("accel must be between 0.5 and 4.0")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_splinter(
+        ctx, input_buf, start, duration_ms, repeats, min_shrink, shrink_curve, accel, seed)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Splinter processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result

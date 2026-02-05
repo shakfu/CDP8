@@ -2708,5 +2708,596 @@ class TestTesselate:
             assert result1[i] == pytest.approx(result2[i], rel=1e-6)
 
 
+class TestZigzag:
+    """Tests for zigzag playback operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_zigzag_returns_buffer(self, sine_buffer):
+        """Zigzag should return a Buffer."""
+        result = pycdp.zigzag(sine_buffer, times=[0, 0.25, 0.5, 0.75])
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_zigzag_with_splice(self, sine_buffer):
+        """Zigzag should work with custom splice length."""
+        result = pycdp.zigzag(sine_buffer, times=[0, 0.3, 0.6, 0.9], splice_ms=20.0)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_zigzag_requires_min_times(self, sine_buffer):
+        """Zigzag should require at least 2 time points."""
+        with pytest.raises(ValueError, match="at least 2"):
+            pycdp.zigzag(sine_buffer, times=[0.5])
+
+    def test_zigzag_output_length(self, sine_buffer):
+        """Zigzag output should have reasonable length."""
+        result = pycdp.zigzag(sine_buffer, times=[0, 0.25, 0.5, 0.75])
+        # 3 segments: 0->0.25 (forward), 0.5->0.25 (backward), 0.5->0.75 (forward)
+        # Total duration should be approximately 0.75s (3 segments of 0.25s each)
+        assert result.sample_count > 0
+
+
+class TestIterate:
+    """Tests for iterate operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.2
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_iterate_returns_buffer(self, sine_buffer):
+        """Iterate should return a Buffer."""
+        result = pycdp.iterate(sine_buffer, repeats=3, delay=0.3, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_iterate_extends_length(self, sine_buffer):
+        """Iterate should extend the audio duration."""
+        result = pycdp.iterate(sine_buffer, repeats=4, delay=0.3, seed=12345)
+        # 4 repeats with 0.3s delay + original length should be longer
+        expected_min = sine_buffer.sample_count + 3 * int(0.3 * sine_buffer.sample_rate)
+        assert result.sample_count >= expected_min * 0.9  # Allow some tolerance
+
+    def test_iterate_with_variations(self, sine_buffer):
+        """Iterate should work with pitch and gain variations."""
+        result = pycdp.iterate(sine_buffer, repeats=3, delay=0.2,
+                               delay_rand=0.1, pitch_shift=2.0, gain_decay=0.8, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_iterate_reproducible(self, sine_buffer):
+        """Iterate with same seed should produce identical results."""
+        result1 = pycdp.iterate(sine_buffer, repeats=3, delay=0.2, seed=12345)
+        result2 = pycdp.iterate(sine_buffer, repeats=3, delay=0.2, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+    def test_iterate_invalid_repeats(self, sine_buffer):
+        """Iterate should reject invalid repeat counts."""
+        with pytest.raises(ValueError, match="between 1 and 100"):
+            pycdp.iterate(sine_buffer, repeats=0)
+        with pytest.raises(ValueError, match="between 1 and 100"):
+            pycdp.iterate(sine_buffer, repeats=101)
+
+
+class TestStutter:
+    """Tests for stutter operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_stutter_returns_buffer(self, sine_buffer):
+        """Stutter should return a Buffer."""
+        result = pycdp.stutter(sine_buffer, segment_ms=50.0, duration=1.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_stutter_duration(self, sine_buffer):
+        """Stutter should produce output of specified duration."""
+        target_duration = 2.0
+        result = pycdp.stutter(sine_buffer, segment_ms=50.0, duration=target_duration, seed=12345)
+        expected_samples = int(target_duration * sine_buffer.sample_rate)
+        # Allow some tolerance for segment boundaries
+        assert abs(result.sample_count - expected_samples) < expected_samples * 0.1
+
+    def test_stutter_with_silences(self, sine_buffer):
+        """Stutter should work with silence insertions."""
+        result = pycdp.stutter(sine_buffer, segment_ms=50.0, duration=1.0,
+                               silence_prob=0.5, silence_min_ms=20.0, silence_max_ms=50.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_stutter_with_transpose(self, sine_buffer):
+        """Stutter should work with transposition."""
+        result = pycdp.stutter(sine_buffer, segment_ms=50.0, duration=1.0,
+                               transpose_range=3.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_stutter_reproducible(self, sine_buffer):
+        """Stutter with same seed should produce identical results."""
+        result1 = pycdp.stutter(sine_buffer, segment_ms=50.0, duration=1.0, seed=12345)
+        result2 = pycdp.stutter(sine_buffer, segment_ms=50.0, duration=1.0, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+    def test_stutter_invalid_params(self, sine_buffer):
+        """Stutter should reject invalid parameters."""
+        with pytest.raises(ValueError, match="segment_ms must be positive"):
+            pycdp.stutter(sine_buffer, segment_ms=0, duration=1.0)
+        with pytest.raises(ValueError, match="duration must be positive"):
+            pycdp.stutter(sine_buffer, segment_ms=50.0, duration=0)
+
+
+class TestBounce:
+    """Tests for bounce operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.1
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_bounce_returns_buffer(self, sine_buffer):
+        """Bounce should return a Buffer."""
+        result = pycdp.bounce(sine_buffer, bounces=5, initial_delay=0.2, shrink=0.7)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_bounce_extends_length(self, sine_buffer):
+        """Bounce should extend the audio with repetitions."""
+        result = pycdp.bounce(sine_buffer, bounces=8, initial_delay=0.2, shrink=0.7)
+        assert result.sample_count > sine_buffer.sample_count
+
+    def test_bounce_with_cut(self, sine_buffer):
+        """Bounce should work with cut_bounces option."""
+        result = pycdp.bounce(sine_buffer, bounces=5, initial_delay=0.2, shrink=0.7, cut_bounces=True)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_bounce_with_level_curve(self, sine_buffer):
+        """Bounce should work with different level curves."""
+        result = pycdp.bounce(sine_buffer, bounces=5, initial_delay=0.2, shrink=0.7,
+                              end_level=0.05, level_curve=2.0)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_bounce_invalid_params(self, sine_buffer):
+        """Bounce should reject invalid parameters."""
+        with pytest.raises(ValueError, match="between 1 and 100"):
+            pycdp.bounce(sine_buffer, bounces=0)
+        with pytest.raises(ValueError, match="between 1 and 100"):
+            pycdp.bounce(sine_buffer, bounces=101)
+        with pytest.raises(ValueError, match="initial_delay must be positive"):
+            pycdp.bounce(sine_buffer, bounces=5, initial_delay=0)
+        with pytest.raises(ValueError, match="shrink must be between 0 and 1"):
+            pycdp.bounce(sine_buffer, bounces=5, initial_delay=0.2, shrink=0)
+        with pytest.raises(ValueError, match="shrink must be between 0 and 1"):
+            pycdp.bounce(sine_buffer, bounces=5, initial_delay=0.2, shrink=1.0)
+
+
+class TestDrunk:
+    """Tests for drunk (drunken walk) operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_drunk_returns_buffer(self, sine_buffer):
+        """Drunk should return a Buffer."""
+        result = pycdp.drunk(sine_buffer, duration=2.0, step_ms=100.0, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_drunk_duration(self, sine_buffer):
+        """Drunk should produce output of specified duration."""
+        target_duration = 3.0
+        result = pycdp.drunk(sine_buffer, duration=target_duration, step_ms=100.0, seed=12345)
+        expected_samples = int(target_duration * sine_buffer.sample_rate)
+        # Allow some tolerance
+        assert abs(result.sample_count - expected_samples) < expected_samples * 0.1
+
+    def test_drunk_with_locus_ambitus(self, sine_buffer):
+        """Drunk should work with custom locus and ambitus."""
+        result = pycdp.drunk(sine_buffer, duration=2.0, step_ms=100.0,
+                             locus=0.5, ambitus=0.3, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_drunk_with_overlap(self, sine_buffer):
+        """Drunk should work with overlap."""
+        result = pycdp.drunk(sine_buffer, duration=2.0, step_ms=100.0,
+                             overlap=0.3, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_drunk_reproducible(self, sine_buffer):
+        """Drunk with same seed should produce identical results."""
+        result1 = pycdp.drunk(sine_buffer, duration=2.0, step_ms=100.0, seed=12345)
+        result2 = pycdp.drunk(sine_buffer, duration=2.0, step_ms=100.0, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+    def test_drunk_invalid_params(self, sine_buffer):
+        """Drunk should reject invalid parameters."""
+        with pytest.raises(ValueError, match="duration must be positive"):
+            pycdp.drunk(sine_buffer, duration=0)
+        with pytest.raises(ValueError, match="step_ms must be positive"):
+            pycdp.drunk(sine_buffer, duration=2.0, step_ms=0)
+
+
+class TestLoop:
+    """Tests for loop operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_loop_returns_buffer(self, sine_buffer):
+        """Loop should return a Buffer."""
+        result = pycdp.loop(sine_buffer, start=0.0, length_ms=200.0, repeats=5, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_loop_extends_length(self, sine_buffer):
+        """Loop should extend the audio with repetitions."""
+        result = pycdp.loop(sine_buffer, start=0.0, length_ms=200.0, repeats=10, seed=12345)
+        # With 10 repeats of 200ms, should be longer than original
+        assert result.sample_count > sine_buffer.sample_count
+
+    def test_loop_with_step(self, sine_buffer):
+        """Loop should work with step between iterations."""
+        result = pycdp.loop(sine_buffer, start=0.0, length_ms=100.0,
+                            step_ms=50.0, repeats=5, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_loop_with_search(self, sine_buffer):
+        """Loop should work with random search field."""
+        result = pycdp.loop(sine_buffer, start=0.0, length_ms=100.0,
+                            search_ms=20.0, repeats=5, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_loop_reproducible(self, sine_buffer):
+        """Loop with same seed should produce identical results."""
+        result1 = pycdp.loop(sine_buffer, start=0.0, length_ms=200.0,
+                             search_ms=20.0, repeats=5, seed=12345)
+        result2 = pycdp.loop(sine_buffer, start=0.0, length_ms=200.0,
+                             search_ms=20.0, repeats=5, seed=12345)
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+    def test_loop_invalid_params(self, sine_buffer):
+        """Loop should reject invalid parameters."""
+        with pytest.raises(ValueError, match="length_ms must be positive"):
+            pycdp.loop(sine_buffer, start=0.0, length_ms=0, repeats=5)
+        with pytest.raises(ValueError, match="between 1 and 1000"):
+            pycdp.loop(sine_buffer, start=0.0, length_ms=200.0, repeats=0)
+        with pytest.raises(ValueError, match="between 1 and 1000"):
+            pycdp.loop(sine_buffer, start=0.0, length_ms=200.0, repeats=1001)
+
+
+class TestRetime:
+    """Tests for retime (TDOLA time stretching) operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_retime_returns_buffer(self, sine_buffer):
+        """Retime should return a Buffer."""
+        result = pycdp.retime(sine_buffer, ratio=1.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_retime_stretch(self, sine_buffer):
+        """Retime with ratio < 1 should stretch (lengthen) audio."""
+        result = pycdp.retime(sine_buffer, ratio=0.5)  # Half speed = 2x duration
+        assert isinstance(result, pycdp.Buffer)
+        # Should be approximately 2x longer (some variation due to grain processing)
+        expected_length = sine_buffer.sample_count * 2
+        assert result.sample_count > expected_length * 0.8
+        assert result.sample_count < expected_length * 1.2
+
+    def test_retime_compress(self, sine_buffer):
+        """Retime with ratio > 1 should compress (shorten) audio."""
+        result = pycdp.retime(sine_buffer, ratio=2.0)  # Double speed = half duration
+        assert isinstance(result, pycdp.Buffer)
+        # Should be approximately half length
+        expected_length = sine_buffer.sample_count // 2
+        assert result.sample_count > expected_length * 0.8
+        assert result.sample_count < expected_length * 1.2
+
+    def test_retime_unity(self, sine_buffer):
+        """Retime with ratio=1 should preserve approximate duration."""
+        result = pycdp.retime(sine_buffer, ratio=1.0)
+        assert isinstance(result, pycdp.Buffer)
+        # Should be approximately the same length
+        assert result.sample_count > sine_buffer.sample_count * 0.9
+        assert result.sample_count < sine_buffer.sample_count * 1.1
+
+    def test_retime_grain_size(self, sine_buffer):
+        """Retime should work with different grain sizes."""
+        result1 = pycdp.retime(sine_buffer, ratio=0.75, grain_ms=20.0)
+        result2 = pycdp.retime(sine_buffer, ratio=0.75, grain_ms=100.0)
+        assert isinstance(result1, pycdp.Buffer)
+        assert isinstance(result2, pycdp.Buffer)
+        # Both should produce valid output
+        assert result1.sample_count > 0
+        assert result2.sample_count > 0
+
+    def test_retime_overlap(self, sine_buffer):
+        """Retime should work with different overlap values."""
+        result1 = pycdp.retime(sine_buffer, ratio=0.75, overlap=0.25)
+        result2 = pycdp.retime(sine_buffer, ratio=0.75, overlap=0.75)
+        assert isinstance(result1, pycdp.Buffer)
+        assert isinstance(result2, pycdp.Buffer)
+
+    def test_retime_invalid_ratio(self, sine_buffer):
+        """Retime should reject invalid ratio values."""
+        with pytest.raises(ValueError, match="ratio must be"):
+            pycdp.retime(sine_buffer, ratio=0)
+        with pytest.raises(ValueError, match="ratio must be"):
+            pycdp.retime(sine_buffer, ratio=-1.0)
+        with pytest.raises(ValueError, match="ratio must be"):
+            pycdp.retime(sine_buffer, ratio=11.0)
+
+    def test_retime_invalid_grain(self, sine_buffer):
+        """Retime should reject invalid grain_ms values."""
+        with pytest.raises(ValueError, match="grain_ms must be"):
+            pycdp.retime(sine_buffer, grain_ms=1.0)  # Too small
+        with pytest.raises(ValueError, match="grain_ms must be"):
+            pycdp.retime(sine_buffer, grain_ms=600.0)  # Too large
+
+    def test_retime_invalid_overlap(self, sine_buffer):
+        """Retime should reject invalid overlap values."""
+        with pytest.raises(ValueError, match="overlap must be"):
+            pycdp.retime(sine_buffer, overlap=0.05)  # Too small
+        with pytest.raises(ValueError, match="overlap must be"):
+            pycdp.retime(sine_buffer, overlap=0.95)  # Too large
+
+
+class TestScramble:
+    """Tests for scramble (waveset reordering) operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 0.5  # Shorter for faster waveset detection
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_scramble_returns_buffer(self, sine_buffer):
+        """Scramble should return a Buffer."""
+        result = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_SHUFFLE, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_scramble_shuffle_mode(self, sine_buffer):
+        """Scramble shuffle mode should randomize order."""
+        result = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_SHUFFLE, seed=12345)
+        assert isinstance(result, pycdp.Buffer)
+        # Output should be similar length (same wavesets, different order)
+        assert result.sample_count > sine_buffer.sample_count * 0.9
+        assert result.sample_count < sine_buffer.sample_count * 1.1
+
+    def test_scramble_reverse_mode(self, sine_buffer):
+        """Scramble reverse mode should reverse waveset order."""
+        result = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_REVERSE)
+        assert isinstance(result, pycdp.Buffer)
+
+    def test_scramble_size_modes(self, sine_buffer):
+        """Scramble size modes should sort by waveset length."""
+        result_up = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_SIZE_UP)
+        result_down = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_SIZE_DOWN)
+        assert isinstance(result_up, pycdp.Buffer)
+        assert isinstance(result_down, pycdp.Buffer)
+
+    def test_scramble_level_modes(self, sine_buffer):
+        """Scramble level modes should sort by waveset amplitude."""
+        result_up = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_LEVEL_UP)
+        result_down = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_LEVEL_DOWN)
+        assert isinstance(result_up, pycdp.Buffer)
+        assert isinstance(result_down, pycdp.Buffer)
+
+    def test_scramble_group_size(self, sine_buffer):
+        """Scramble should work with different group sizes."""
+        result1 = pycdp.scramble(sine_buffer, group_size=1, seed=12345)
+        result2 = pycdp.scramble(sine_buffer, group_size=8, seed=12345)
+        assert isinstance(result1, pycdp.Buffer)
+        assert isinstance(result2, pycdp.Buffer)
+        # Different group sizes should produce different results
+        # (though this isn't guaranteed if all wavesets are same length)
+
+    def test_scramble_reproducible(self, sine_buffer):
+        """Scramble with same seed should produce identical results."""
+        result1 = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_SHUFFLE, seed=12345)
+        result2 = pycdp.scramble(sine_buffer, mode=pycdp.SCRAMBLE_SHUFFLE, seed=12345)
+        assert result1.sample_count == result2.sample_count
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+    def test_scramble_invalid_mode(self, sine_buffer):
+        """Scramble should reject invalid mode values."""
+        with pytest.raises(ValueError, match="mode must be"):
+            pycdp.scramble(sine_buffer, mode=-1)
+        with pytest.raises(ValueError, match="mode must be"):
+            pycdp.scramble(sine_buffer, mode=6)
+
+    def test_scramble_invalid_group_size(self, sine_buffer):
+        """Scramble should reject invalid group_size values."""
+        with pytest.raises(ValueError, match="group_size must be"):
+            pycdp.scramble(sine_buffer, group_size=0)
+        with pytest.raises(ValueError, match="group_size must be"):
+            pycdp.scramble(sine_buffer, group_size=65)
+
+    def test_scramble_constants_exist(self):
+        """Scramble mode constants should be defined."""
+        assert pycdp.SCRAMBLE_SHUFFLE == 0
+        assert pycdp.SCRAMBLE_REVERSE == 1
+        assert pycdp.SCRAMBLE_SIZE_UP == 2
+        assert pycdp.SCRAMBLE_SIZE_DOWN == 3
+        assert pycdp.SCRAMBLE_LEVEL_UP == 4
+        assert pycdp.SCRAMBLE_LEVEL_DOWN == 5
+
+
+class TestSplinter:
+    """Tests for splinter (waveset fragmentation) operation."""
+
+    @pytest.fixture
+    def sine_buffer(self):
+        """Create a sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    def test_splinter_returns_buffer(self, sine_buffer):
+        """Splinter should return a Buffer."""
+        result = pycdp.splinter(sine_buffer, start=0.1, duration_ms=50, repeats=10)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_splinter_creates_output(self, sine_buffer):
+        """Splinter should create audio output."""
+        result = pycdp.splinter(sine_buffer, start=0.0, duration_ms=100, repeats=20)
+        assert isinstance(result, pycdp.Buffer)
+        # Should produce audio content
+        assert result.sample_count > 0
+
+    def test_splinter_with_min_shrink(self, sine_buffer):
+        """Splinter should work with different shrinkage amounts."""
+        result1 = pycdp.splinter(sine_buffer, repeats=20, min_shrink=0.5)
+        result2 = pycdp.splinter(sine_buffer, repeats=20, min_shrink=0.1)
+        assert isinstance(result1, pycdp.Buffer)
+        assert isinstance(result2, pycdp.Buffer)
+        # Both should produce valid output
+        assert result1.sample_count > 0
+        assert result2.sample_count > 0
+
+    def test_splinter_with_shrink_curve(self, sine_buffer):
+        """Splinter should work with different shrink curves."""
+        result1 = pycdp.splinter(sine_buffer, repeats=15, shrink_curve=0.5)
+        result2 = pycdp.splinter(sine_buffer, repeats=15, shrink_curve=2.0)
+        assert isinstance(result1, pycdp.Buffer)
+        assert isinstance(result2, pycdp.Buffer)
+
+    def test_splinter_with_accel(self, sine_buffer):
+        """Splinter should work with different acceleration values."""
+        result1 = pycdp.splinter(sine_buffer, repeats=15, accel=0.75)  # Slowing
+        result2 = pycdp.splinter(sine_buffer, repeats=15, accel=2.0)   # Accelerating
+        assert isinstance(result1, pycdp.Buffer)
+        assert isinstance(result2, pycdp.Buffer)
+
+    def test_splinter_reproducible(self, sine_buffer):
+        """Splinter with same parameters should produce consistent results."""
+        result1 = pycdp.splinter(sine_buffer, start=0.1, duration_ms=50, repeats=15, seed=12345)
+        result2 = pycdp.splinter(sine_buffer, start=0.1, duration_ms=50, repeats=15, seed=12345)
+        assert result1.sample_count == result2.sample_count
+        for i in range(min(100, result1.sample_count)):
+            assert result1[i] == pytest.approx(result2[i], rel=1e-6)
+
+    def test_splinter_invalid_duration(self, sine_buffer):
+        """Splinter should reject invalid duration_ms values."""
+        with pytest.raises(ValueError, match="duration_ms must be"):
+            pycdp.splinter(sine_buffer, duration_ms=1)  # Too short
+        with pytest.raises(ValueError, match="duration_ms must be"):
+            pycdp.splinter(sine_buffer, duration_ms=6000)  # Too long
+
+    def test_splinter_invalid_repeats(self, sine_buffer):
+        """Splinter should reject invalid repeats values."""
+        with pytest.raises(ValueError, match="repeats must be"):
+            pycdp.splinter(sine_buffer, repeats=1)  # Too few
+        with pytest.raises(ValueError, match="repeats must be"):
+            pycdp.splinter(sine_buffer, repeats=600)  # Too many
+
+    def test_splinter_invalid_min_shrink(self, sine_buffer):
+        """Splinter should reject invalid min_shrink values."""
+        with pytest.raises(ValueError, match="min_shrink must be"):
+            pycdp.splinter(sine_buffer, min_shrink=0.005)  # Too small
+        with pytest.raises(ValueError, match="min_shrink must be"):
+            pycdp.splinter(sine_buffer, min_shrink=1.5)  # Too large
+
+    def test_splinter_invalid_shrink_curve(self, sine_buffer):
+        """Splinter should reject invalid shrink_curve values."""
+        with pytest.raises(ValueError, match="shrink_curve must be"):
+            pycdp.splinter(sine_buffer, shrink_curve=0.05)  # Too small
+        with pytest.raises(ValueError, match="shrink_curve must be"):
+            pycdp.splinter(sine_buffer, shrink_curve=15.0)  # Too large
+
+    def test_splinter_invalid_accel(self, sine_buffer):
+        """Splinter should reject invalid accel values."""
+        with pytest.raises(ValueError, match="accel must be"):
+            pycdp.splinter(sine_buffer, accel=0.2)  # Too small
+        with pytest.raises(ValueError, match="accel must be"):
+            pycdp.splinter(sine_buffer, accel=5.0)  # Too large
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

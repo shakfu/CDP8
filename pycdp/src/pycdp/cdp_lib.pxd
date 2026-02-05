@@ -547,3 +547,60 @@ cdef extern from "cdp_experimental.h":
                                        double transform,
                                        unsigned int seed)
 
+cdef extern from "cdp_playback.h":
+    # Playback/Time manipulation operations
+    cdp_lib_buffer* cdp_lib_zigzag(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    const double* times,
+                                    int num_times,
+                                    double splice_ms)
+
+    cdp_lib_buffer* cdp_lib_iterate(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     int repeats,
+                                     double delay,
+                                     double delay_rand,
+                                     double pitch_shift,
+                                     double gain_decay,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_stutter(cdp_lib_ctx* ctx,
+                                     const cdp_lib_buffer* input,
+                                     double segment_ms,
+                                     double duration,
+                                     double silence_prob,
+                                     double silence_min_ms,
+                                     double silence_max_ms,
+                                     double transpose_range,
+                                     unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_bounce(cdp_lib_ctx* ctx,
+                                    const cdp_lib_buffer* input,
+                                    int bounces,
+                                    double initial_delay,
+                                    double shrink,
+                                    double end_level,
+                                    double level_curve,
+                                    int cut_bounces)
+
+    cdp_lib_buffer* cdp_lib_drunk(cdp_lib_ctx* ctx,
+                                   const cdp_lib_buffer* input,
+                                   double duration,
+                                   double step_ms,
+                                   double step_rand,
+                                   double locus,
+                                   double ambitus,
+                                   double overlap,
+                                   double splice_ms,
+                                   unsigned int seed)
+
+    cdp_lib_buffer* cdp_lib_loop(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double start,
+                                  double length_ms,
+                                  double step_ms,
+                                  double search_ms,
+                                  int repeats,
+                                  double splice_ms,
+                                  unsigned int seed)
+
