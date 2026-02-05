@@ -157,6 +157,7 @@ from pycdp._core import (
     SCRAMBLE_LEVEL_UP,
     SCRAMBLE_LEVEL_DOWN,
     splinter,
+    spin,
 )
 
 __all__ = [
@@ -307,6 +308,8 @@ __all__ = [
     "SCRAMBLE_LEVEL_DOWN",
     # Waveset fragmentation
     "splinter",
+    # Spatial effects
+    "spin",
 ]
 
 __version__ = version()

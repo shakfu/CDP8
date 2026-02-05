@@ -75,8 +75,9 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `distort_fractal` - Recursive wavecycle overlay
 - [x] `distort_shuffle` - Segment rearrangement
 
-**Reverb & Spatial (CDP: `reverb`, `rmverb`, `panorama`):**
+**Reverb & Spatial (CDP: `reverb`, `rmverb`, `panorama`, `spin`):**
 - [x] `reverb` - FDN reverb (8 comb + 4 allpass filters)
+- [x] `spin` - Spatial spinning (rotating stereo position with doppler)
 
 **Granular (CDP: `brassage`, `grain`, `texture`):**
 - [x] `brassage` - Granular resynthesis with pitch/time params
@@ -186,7 +187,7 @@ From `dev/science/` and `dev/standalone/`:
 
 From `dev/science/`:
 
-- [ ] `spin` - Spatial spinning (rotating stereo position)
+- [x] `spin` - Spatial spinning (rotating stereo position)
 - [ ] `rotor` - Rotational doppler-like effects
 
 ### Priority 8: Synthesis (CDP: `synth`, `wave`)

@@ -1732,6 +1732,12 @@ cdef extern from "cdp_playback.h":
                                       double accel,
                                       unsigned int seed)
 
+    cdp_lib_buffer* cdp_lib_spin(cdp_lib_ctx* ctx,
+                                  const cdp_lib_buffer* input,
+                                  double rate,
+                                  double doppler,
+                                  double depth)
+
 
 # Global CDP library context (lazily initialized)
 cdef cdp_lib_ctx* _cdp_lib_ctx = NULL
@@ -5046,6 +5052,49 @@ def splinter(buf not None, double start=0.0, double duration_ms=50.0, int repeat
     if output_buf is NULL:
         error_msg = cdp_lib_get_error(ctx)
         raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Splinter processing failed")
+
+    cdef Buffer result = _cdp_lib_to_buffer(output_buf)
+    cdp_lib_buffer_free(output_buf)
+
+    return result
+
+
+def spin(buf, double rate=1.0, double doppler=0.0, double depth=1.0):
+    """
+    Rotate audio around the stereo field.
+
+    Creates a spinning/rotating spatial effect by continuously panning audio
+    around the stereo field. Can include doppler pitch shift for realism.
+
+    Args:
+        buf: Input audio buffer (mono or stereo)
+        rate: Spin rate in Hz (cycles per second). Range: -20 to +20.
+              Positive = clockwise, negative = counterclockwise.
+        doppler: Doppler pitch shift in semitones (0-12, default 0).
+                 0 = no doppler, higher values = more pitch variation.
+        depth: Depth of panning (0.0 to 1.0, default 1.0).
+               1.0 = full rotation, 0.5 = partial rotation.
+
+    Returns:
+        Buffer: New stereo buffer with spinning audio.
+    """
+    if rate < -20.0 or rate > 20.0:
+        raise ValueError("rate must be between -20 and 20 Hz")
+    if doppler < 0.0 or doppler > 12.0:
+        raise ValueError("doppler must be between 0 and 12 semitones")
+    if depth < 0.0 or depth > 1.0:
+        raise ValueError("depth must be between 0.0 and 1.0")
+
+    cdef cdp_lib_ctx* ctx = _get_cdp_lib_ctx()
+    cdef cdp_lib_buffer* input_buf = _buffer_to_cdp_lib(buf)
+
+    cdef cdp_lib_buffer* output_buf = cdp_lib_spin(ctx, input_buf, rate, doppler, depth)
+
+    cdp_lib_buffer_free(input_buf)
+
+    if output_buf is NULL:
+        error_msg = cdp_lib_get_error(ctx)
+        raise CDPError(-1, error_msg.decode('utf-8') if error_msg else "Spin processing failed")
 
     cdef Buffer result = _cdp_lib_to_buffer(output_buf)
     cdp_lib_buffer_free(output_buf)

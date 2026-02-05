@@ -1458,3 +1458,152 @@ cdp_lib_buffer* cdp_lib_splinter(cdp_lib_ctx* ctx,
 
     return output;
 }
+
+/*
+ * Spin - rotate audio around the stereo field.
+ *
+ * Creates a spinning/rotating spatial effect using equal-power panning
+ * with optional doppler pitch shift for realism.
+ */
+cdp_lib_buffer* cdp_lib_spin(cdp_lib_ctx* ctx,
+                              const cdp_lib_buffer* input,
+                              double rate,
+                              double doppler,
+                              double depth)
+{
+    if (!ctx || !input) {
+        if (ctx) cdp_lib_set_error(ctx, "spin: invalid parameters");
+        return NULL;
+    }
+
+    /* Validate parameters */
+    if (rate < -20.0) rate = -20.0;
+    if (rate > 20.0) rate = 20.0;
+    if (doppler < 0.0) doppler = 0.0;
+    if (doppler > 12.0) doppler = 12.0;
+    if (depth < 0.0) depth = 0.0;
+    if (depth > 1.0) depth = 1.0;
+
+    int channels = input->channels;
+    int sample_rate = input->sample_rate;
+    size_t input_frames = get_frames(input);
+
+    if (input_frames < 2) {
+        cdp_lib_set_error(ctx, "spin: input too short");
+        return NULL;
+    }
+
+    /* Output is always stereo */
+    int out_channels = 2;
+
+    /* For doppler, we need to potentially stretch/compress, estimate max length */
+    /* Doppler max shift is +/- doppler semitones, which is a pitch ratio of 2^(doppler/12) */
+    /* At max slowdown, we need more samples; max speedup, fewer */
+    double max_pitch_ratio = pow(2.0, doppler / 12.0);
+    size_t out_frames_estimate = (size_t)(input_frames * max_pitch_ratio * 1.1) + 1024;
+
+    /* If no doppler, output length equals input length */
+    if (doppler < 0.001) {
+        out_frames_estimate = input_frames;
+    }
+
+    /* Allocate output buffer */
+    float* out_data = (float*)calloc(out_frames_estimate * out_channels, sizeof(float));
+    if (!out_data) {
+        cdp_lib_set_error(ctx, "spin: memory allocation failed");
+        return NULL;
+    }
+
+    /* Pre-calculate angular frequency (radians per sample) */
+    double omega = 2.0 * M_PI * rate / sample_rate;
+
+    /* Process each sample */
+    double phase = 0.0;           /* Current phase in radians */
+    double read_pos = 0.0;        /* Position in input (for doppler) */
+    size_t out_idx = 0;
+
+    while (read_pos < input_frames - 1 && out_idx < out_frames_estimate) {
+        /* Get current position in rotation (-1 to +1, where 0 is center) */
+        double pos = sin(phase) * depth;  /* -depth to +depth */
+
+        /* Equal-power panning coefficients */
+        /* Map pos from [-1, 1] to [0, PI/2] for pan angle */
+        double pan_angle = (pos + 1.0) * 0.25 * M_PI;  /* 0 to PI/2 */
+        double left_gain = cos(pan_angle);
+        double right_gain = sin(pan_angle);
+
+        /* Get input sample (with interpolation for doppler) */
+        size_t i0 = (size_t)read_pos;
+        size_t i1 = i0 + 1;
+        if (i1 >= input_frames) i1 = input_frames - 1;
+        double frac = read_pos - floor(read_pos);
+
+        float in_left, in_right;
+        if (channels == 1) {
+            /* Mono input */
+            float mono = (float)(input->data[i0] * (1.0 - frac) + input->data[i1] * frac);
+            in_left = mono;
+            in_right = mono;
+        } else {
+            /* Stereo input - interpolate each channel */
+            in_left = (float)(input->data[i0 * 2] * (1.0 - frac) +
+                             input->data[i1 * 2] * frac);
+            in_right = (float)(input->data[i0 * 2 + 1] * (1.0 - frac) +
+                              input->data[i1 * 2 + 1] * frac);
+        }
+
+        /* Apply panning - mix input channels with rotation */
+        /* When rotating, we blend the stereo image */
+        float mono_mix = (in_left + in_right) * 0.5f;
+        float stereo_left = in_left * (float)(1.0 - depth) + mono_mix * (float)depth;
+        float stereo_right = in_right * (float)(1.0 - depth) + mono_mix * (float)depth;
+
+        /* Apply rotation panning */
+        out_data[out_idx * 2] = stereo_left * (float)left_gain + stereo_right * (float)(1.0 - left_gain);
+        out_data[out_idx * 2 + 1] = stereo_left * (float)(1.0 - right_gain) + stereo_right * (float)right_gain;
+
+        /* Advance phase */
+        phase += omega;
+        if (phase > 2.0 * M_PI) phase -= 2.0 * M_PI;
+        if (phase < -2.0 * M_PI) phase += 2.0 * M_PI;
+
+        /* Calculate read position increment (for doppler) */
+        double read_incr = 1.0;
+        if (doppler > 0.001) {
+            /* Doppler: when moving towards listener (left), pitch up; away (right), pitch down */
+            /* Velocity is derivative of sin, which is cos */
+            double velocity = cos(phase) * rate;  /* Normalized velocity */
+            /* Scale by doppler amount (semitones) */
+            double doppler_ratio = pow(2.0, (velocity * doppler) / (12.0 * 20.0));
+            read_incr = doppler_ratio;
+        }
+
+        read_pos += read_incr;
+        out_idx++;
+    }
+
+    /* Trim to actual length */
+    size_t actual_frames = out_idx;
+
+    /* Normalize if needed */
+    float max_val = 0;
+    for (size_t i = 0; i < actual_frames * out_channels; i++) {
+        float abs_val = fabsf(out_data[i]);
+        if (abs_val > max_val) max_val = abs_val;
+    }
+    if (max_val > 0.95f) {
+        float scale = 0.95f / max_val;
+        for (size_t i = 0; i < actual_frames * out_channels; i++) {
+            out_data[i] *= scale;
+        }
+    }
+
+    cdp_lib_buffer* output = cdp_lib_buffer_from_data(out_data, actual_frames * out_channels, out_channels, sample_rate);
+    if (!output) {
+        free(out_data);
+        cdp_lib_set_error(ctx, "spin: failed to create output buffer");
+        return NULL;
+    }
+
+    return output;
+}

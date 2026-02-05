@@ -3299,5 +3299,108 @@ class TestSplinter:
             pycdp.splinter(sine_buffer, accel=5.0)  # Too large
 
 
+class TestSpin:
+    """Tests for spin (spatial rotation) operation."""
+
+    @pytest.fixture
+    def mono_buffer(self):
+        """Create a mono sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        freq = 440.0
+        samples = array.array('f', [
+            0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            for i in range(int(sample_rate * duration))
+        ])
+        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+
+    @pytest.fixture
+    def stereo_buffer(self):
+        """Create a stereo sine wave buffer for testing."""
+        import math
+        sample_rate = 44100
+        duration = 1.0
+        freq = 440.0
+        samples = array.array('f')
+        for i in range(int(sample_rate * duration)):
+            val = 0.5 * math.sin(2.0 * math.pi * freq * i / sample_rate)
+            samples.append(val)  # Left
+            samples.append(val)  # Right
+        return pycdp.Buffer.from_memoryview(samples, channels=2, sample_rate=sample_rate)
+
+    def test_spin_returns_buffer(self, mono_buffer):
+        """Spin should return a Buffer."""
+        result = pycdp.spin(mono_buffer, rate=1.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_spin_outputs_stereo(self, mono_buffer):
+        """Spin should always output stereo."""
+        result = pycdp.spin(mono_buffer, rate=2.0)
+        assert result.channels == 2
+
+    def test_spin_stereo_input(self, stereo_buffer):
+        """Spin should work with stereo input."""
+        result = pycdp.spin(stereo_buffer, rate=1.5)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.channels == 2
+
+    def test_spin_positive_rate(self, mono_buffer):
+        """Spin with positive rate (clockwise rotation)."""
+        result = pycdp.spin(mono_buffer, rate=2.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_spin_negative_rate(self, mono_buffer):
+        """Spin with negative rate (counterclockwise rotation)."""
+        result = pycdp.spin(mono_buffer, rate=-2.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_spin_with_doppler(self, mono_buffer):
+        """Spin with doppler effect enabled."""
+        result = pycdp.spin(mono_buffer, rate=3.0, doppler=2.0)
+        assert isinstance(result, pycdp.Buffer)
+        assert result.sample_count > 0
+
+    def test_spin_with_depth(self, mono_buffer):
+        """Spin with varying depth values."""
+        result1 = pycdp.spin(mono_buffer, rate=1.0, depth=0.5)  # Partial rotation
+        result2 = pycdp.spin(mono_buffer, rate=1.0, depth=1.0)  # Full rotation
+        assert isinstance(result1, pycdp.Buffer)
+        assert isinstance(result2, pycdp.Buffer)
+
+    def test_spin_zero_rate(self, mono_buffer):
+        """Spin with zero rate should pass through."""
+        result = pycdp.spin(mono_buffer, rate=0.0, depth=1.0)
+        assert isinstance(result, pycdp.Buffer)
+        # Output length should be similar to input
+        input_frames = mono_buffer.sample_count // mono_buffer.channels
+        output_frames = result.sample_count // result.channels
+        assert output_frames == pytest.approx(input_frames, rel=0.1)
+
+    def test_spin_invalid_rate(self, mono_buffer):
+        """Spin should reject invalid rate values."""
+        with pytest.raises(ValueError, match="rate must be"):
+            pycdp.spin(mono_buffer, rate=-25.0)  # Too negative
+        with pytest.raises(ValueError, match="rate must be"):
+            pycdp.spin(mono_buffer, rate=25.0)  # Too positive
+
+    def test_spin_invalid_doppler(self, mono_buffer):
+        """Spin should reject invalid doppler values."""
+        with pytest.raises(ValueError, match="doppler must be"):
+            pycdp.spin(mono_buffer, doppler=-1.0)  # Negative
+        with pytest.raises(ValueError, match="doppler must be"):
+            pycdp.spin(mono_buffer, doppler=15.0)  # Too large
+
+    def test_spin_invalid_depth(self, mono_buffer):
+        """Spin should reject invalid depth values."""
+        with pytest.raises(ValueError, match="depth must be"):
+            pycdp.spin(mono_buffer, depth=-0.5)  # Negative
+        with pytest.raises(ValueError, match="depth must be"):
+            pycdp.spin(mono_buffer, depth=1.5)  # Too large
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

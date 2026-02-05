@@ -266,6 +266,30 @@ cdp_lib_buffer* cdp_lib_splinter(cdp_lib_ctx* ctx,
                                   double accel,
                                   unsigned int seed);
 
+/*
+ * Spin - rotate audio around the stereo field.
+ *
+ * Creates a spinning/rotating spatial effect by continuously panning audio
+ * around the stereo field. Can include doppler pitch shift for realism.
+ *
+ * Args:
+ *   ctx: Library context
+ *   input: Input audio buffer (mono or stereo)
+ *   rate: Spin rate in Hz (cycles per second). Range: -20 to +20.
+ *         Positive = clockwise, negative = counterclockwise.
+ *   doppler: Doppler pitch shift in semitones (0-12, default 0).
+ *            0 = no doppler, higher values = more pitch variation.
+ *   depth: Depth of panning (0.0 to 1.0, default 1.0).
+ *          1.0 = full rotation, 0.5 = partial rotation.
+ *
+ * Returns: New stereo buffer with spinning audio, or NULL on error.
+ */
+cdp_lib_buffer* cdp_lib_spin(cdp_lib_ctx* ctx,
+                              const cdp_lib_buffer* input,
+                              double rate,
+                              double doppler,
+                              double depth);
+
 #ifdef __cplusplus
 }
 #endif
