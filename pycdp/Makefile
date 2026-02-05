@@ -4,7 +4,7 @@
 # This Makefile wraps common build commands for convenience.
 # The actual build is handled by scikit-build-core via pyproject.toml
 
-.PHONY: all sync build rebuild test lint format typecheck qa clean         distclean wheel sdist dist check publish-test publish upgrade         coverage coverage-html docs release help
+.PHONY: all sync build rebuild test lint format typecheck qa clean         distclean wheel sdist dist check publish-test publish upgrade         coverage coverage-html docs release demos demos-clean help
 
 # Default target
 all: build
@@ -23,6 +23,30 @@ rebuild: build
 # Run tests
 test:
 	@uv run pytest tests/ -v
+
+# Run all demos and generate WAV files to build/
+demos:
+	@echo "Running demos..."
+	@mkdir -p build
+	@for f in demos/[0-9]*.py; do \
+		echo "=== Running $$(basename $$f) ==="; \
+		uv run python "$$f"; \
+	done
+	@if [ -f demos/s01.wav ]; then \
+		for f in demos/fx*.py; do \
+			echo "=== Running $$(basename $$f) ==="; \
+			uv run python "$$f" demos/s01.wav -o build; \
+		done; \
+	else \
+		echo "Note: demos/s01.wav not found, skipping fx demos"; \
+	fi
+	@echo ""
+	@echo "Generated $$(ls build/*.wav 2>/dev/null | wc -l | tr -d ' ') WAV files in build/"
+
+# Clean demo output files
+demos-clean:
+	@rm -rf build/*.wav
+	@echo "Cleaned build/*.wav"
 
 # Lint with ruff
 lint:
@@ -92,6 +116,8 @@ clean:
 	@rm -rf *.egg-info/
 	@rm -rf src/*.egg-info/
 	@rm -rf .pytest_cache/
+	@rm -rf demos/build/
+	@rm -rf build/*.wav
 	@find . -name "*.so" -delete
 	@find . -name "*.pyd" -delete
 	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
@@ -108,6 +134,8 @@ help:
 	@echo "  build        - Rebuild extension after code changes"
 	@echo "  rebuild      - Alias for build"
 	@echo "  test         - Run tests"
+	@echo "  demos        - Run all demos and generate WAV files to build/"
+	@echo "  demos-clean  - Clean demo output files"
 	@echo "  lint         - Lint with ruff"
 	@echo "  format       - Format with ruff"
 	@echo "  typecheck    - Type check with mypy"

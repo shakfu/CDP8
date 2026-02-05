@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Demos)
+
+**Synthesis Demos (01-07)** - Generate test sounds and demonstrate API:
+- `01_basic_operations.py` - Buffers, gain, fades, panning, mixing
+- `02_effects_and_processing.py` - Delay, reverb, modulation, distortion, filters
+- `03_spectral_processing.py` - Blur, focus, time stretch, pitch shift, freeze
+- `04_granular_synthesis.py` - Brassage, wrappage, grain manipulation
+- `05_pitch_synchronous.py` - PSOW stretch/grab, FOF repitch, hover
+- `06_creative_techniques.py` - Effect chains and sound design recipes
+- `07_morphing.py` - Spectral morph, glide, cross-synthesis
+
+**FX Processing Demos (fx01-fx07)** - CLI tools for processing real audio:
+- `fx01_time_and_pitch.py` - Time stretch, pitch shift, spectral shift
+- `fx02_spectral_effects.py` - Blur, focus, fold, freeze effects
+- `fx03_granular.py` - Brassage, wrappage, grain operations
+- `fx04_reverb_delay_mod.py` - Reverb, delay, tremolo, chorus, flanger, ring mod
+- `fx05_distortion_dynamics.py` - Waveset distortion, bitcrush, filters, compression
+- `fx06_psow_fof.py` - PSOW stretch/grab, FOF repitch, hover
+- `fx07_creative_chains.py` - Complex effect chains (ambient, industrial, shimmer, etc.)
+
+All FX demos accept `input.wav -o output_dir/` arguments.
+
+**Makefile targets:**
+- `make demos` - Run all demos, output to `build/`
+- `make demos-clean` - Remove generated WAV files
+
 ### Added (CDP Algorithm Ports)
 
 **Analysis:**

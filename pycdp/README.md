@@ -432,6 +432,51 @@ libcdp/                     # C library
     error.c                 # Error handling
 ```
 
+## Demos
+
+The `demos/` directory contains example scripts demonstrating pycdp usage.
+
+### Run All Demos
+
+```bash
+make demos        # Run all demos, output WAV files to build/
+make demos-clean  # Remove generated WAV files
+```
+
+### Synthesis Demos (01-07)
+
+These generate test sounds programmatically and demonstrate the API:
+
+```bash
+python demos/01_basic_operations.py   # Buffers, gain, fades, panning, mixing
+python demos/02_effects_and_processing.py  # Delay, reverb, modulation, filters
+python demos/03_spectral_processing.py     # Blur, time stretch, pitch shift, freeze
+python demos/04_granular_synthesis.py      # Brassage, wrappage, grain ops
+python demos/05_pitch_synchronous.py       # PSOW, FOF, hover
+python demos/06_creative_techniques.py     # Effect chains, recipes
+python demos/07_morphing.py                # Morph, glide, cross-synthesis
+```
+
+### FX Processing Demos (fx01-fx07)
+
+CLI tools for processing real audio files:
+
+```bash
+# Basic usage
+python demos/fx01_time_and_pitch.py input.wav -o output_dir/
+
+# All FX demos:
+python demos/fx01_time_and_pitch.py input.wav      # Time stretch, pitch shift
+python demos/fx02_spectral_effects.py input.wav    # Blur, focus, fold, freeze
+python demos/fx03_granular.py input.wav            # Brassage, wrappage, grains
+python demos/fx04_reverb_delay_mod.py input.wav    # Reverb, delay, modulation
+python demos/fx05_distortion_dynamics.py input.wav # Distortion, filters, dynamics
+python demos/fx06_psow_fof.py input.wav            # PSOW, FOF, hover
+python demos/fx07_creative_chains.py input.wav     # Complex effect chains
+```
+
+Each FX demo generates multiple output files showcasing different parameter settings.
+
 ## Development
 
 ```bash

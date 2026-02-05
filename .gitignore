@@ -18,6 +18,7 @@ NewRelease
 *.xcodeproj
 
 *.wav
+!pycdp/demos/s01.wav
 *.ana
 
 #Generated files if running in-source CMake build
