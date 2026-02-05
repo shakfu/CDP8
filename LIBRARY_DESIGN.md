@@ -21,7 +21,7 @@ This document describes the architecture for converting CDP8's 220 executables i
 ```
 +--------------------------------------------------+
 |              Python/Cython Bindings              |
-|                   (pycdp)                        |
+|                   (cycdp)                        |
 +--------------------------------------------------+
 |                  Public C API                    |
 |        (libcdp.h - stable, versioned)            |
@@ -53,7 +53,7 @@ CDP8/
         channels.c       # Adapter for channel operations
         ...              # One per converted program
     python/
-      pycdp/
+      cycdp/
         __init__.py
         _cdp.pyx         # Cython definitions
         _cdp.pxd         # Cython declarations
@@ -324,7 +324,7 @@ cdef extern from "cdp.h":
 ### High-level Python (gain.py)
 
 ```python
-# pycdp/gain.py
+# cycdp/gain.py
 import numpy as np
 from . import _cdp
 
@@ -508,7 +508,7 @@ install(DIRECTORY include/ DESTINATION include/cdp)
 find_package(Python COMPONENTS Interpreter Development)
 if(Python_FOUND)
     # Cython build handled by setup.py, but we can trigger it
-    add_custom_target(pycdp
+    add_custom_target(cycdp
         COMMAND ${Python_EXECUTABLE} setup.py build_ext --inplace
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python
         DEPENDS cdp
@@ -567,7 +567,7 @@ int main() {
 # tests/test_gain.py
 import numpy as np
 import pytest
-from pycdp import AudioProcessor, gain, normalize
+from cycdp import AudioProcessor, gain, normalize
 
 def test_gain_doubles_amplitude():
     with AudioProcessor() as proc:

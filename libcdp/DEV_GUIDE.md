@@ -1,6 +1,6 @@
 # CDP Algorithm Integration Guide
 
-This guide explains how to convert CDP algorithms into native library functions for use with libcdp and pycdp.
+This guide explains how to convert CDP algorithms into native library functions for use with libcdp and cycdp.
 
 ## Overview
 
@@ -14,13 +14,13 @@ The goal is to implement CDP audio processing algorithms as native C functions t
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        Python API                           │
-│                    pycdp/__init__.py                        │
+│                    cycdp/__init__.py                        │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     Cython Wrappers                         │
-│                   pycdp/_core.pyx                           │
+│                   cycdp/_core.pyx                           │
 │              (Buffer conversion, error handling)            │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -210,7 +210,7 @@ typedef struct {
 
 ### Step 4: Add to CMakeLists.txt (if new file)
 
-If you created a new source file, add it to `pycdp/CMakeLists.txt`:
+If you created a new source file, add it to `cycdp/CMakeLists.txt`:
 
 ```cmake
 set(CDP_LIB_SOURCES
@@ -224,7 +224,7 @@ set(CDP_LIB_SOURCES
 
 ### Step 5: Add Cython Declaration (cdp_lib.pxd)
 
-Add to `pycdp/src/pycdp/cdp_lib.pxd`:
+Add to `cycdp/src/cycdp/cdp_lib.pxd`:
 
 ```cython
 cdef extern from "cdp_lib.h":
@@ -238,7 +238,7 @@ cdef extern from "cdp_lib.h":
 
 ### Step 6: Add Cython Declaration in _core.pyx
 
-Also add the declaration inline in `pycdp/src/pycdp/_core.pyx` under the appropriate `cdef extern from` block:
+Also add the declaration inline in `cycdp/src/cycdp/_core.pyx` under the appropriate `cdef extern from` block:
 
 ```cython
 cdef extern from "cdp_lib.h":
@@ -252,7 +252,7 @@ cdef extern from "cdp_lib.h":
 
 ### Step 7: Add Python Wrapper (_core.pyx)
 
-Add the Python wrapper function in `pycdp/src/pycdp/_core.pyx`:
+Add the Python wrapper function in `cycdp/src/cycdp/_core.pyx`:
 
 ```cython
 def my_effect(Buffer buf not None, double param1, int param2=10):
@@ -299,10 +299,10 @@ def my_effect(Buffer buf not None, double param1, int param2=10):
 
 ### Step 8: Export in __init__.py
 
-Add to `pycdp/src/pycdp/__init__.py`:
+Add to `cycdp/src/cycdp/__init__.py`:
 
 ```python
-from pycdp._core import (
+from cycdp._core import (
     # ... existing imports ...
     my_effect,
 )
@@ -315,7 +315,7 @@ __all__ = [
 
 ### Step 9: Add Tests
 
-Add tests in `pycdp/tests/test_pycdp.py`:
+Add tests in `cycdp/tests/test_pycdp.py`:
 
 ```python
 class TestMyEffect:
@@ -331,21 +331,21 @@ class TestMyEffect:
             0.5 * math.sin(2 * math.pi * 440 * i / sample_rate)
             for i in range(int(sample_rate * duration))
         ])
-        return pycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
+        return cycdp.Buffer.from_memoryview(samples, channels=1, sample_rate=sample_rate)
 
     def test_my_effect_basic(self, sine_wave):
         """Effect should run without error."""
-        result = pycdp.my_effect(sine_wave, param1=1.0)
+        result = cycdp.my_effect(sine_wave, param1=1.0)
         assert result.frame_count > 0
 
     def test_my_effect_invalid_param(self, sine_wave):
         """Effect should reject invalid parameters."""
         with pytest.raises(ValueError):
-            pycdp.my_effect(sine_wave, param1=-1.0)
+            cycdp.my_effect(sine_wave, param1=-1.0)
 
     def test_my_effect_behavior(self, sine_wave):
         """Test specific behavior of the effect."""
-        result = pycdp.my_effect(sine_wave, param1=2.0)
+        result = cycdp.my_effect(sine_wave, param1=2.0)
         # Add assertions about expected behavior
         # e.g., check amplitude, length, frequency content
 ```
@@ -359,8 +359,8 @@ cmake ..
 make -j4
 ./test_cdp_lib
 
-# Build and test pycdp
-cd pycdp
+# Build and test cycdp
+cd cycdp
 make build
 make test
 ```
@@ -526,11 +526,11 @@ if param < 0 or param > 1:
 | `libcdp/cdp_lib/cdp_distort.h/c` | Distortion effects |
 | `libcdp/cdp_lib/cdp_reverb.h/c` | Reverb implementation |
 | `libcdp/cdp_lib/cdp_granular.h/c` | Granular synthesis |
-| `pycdp/src/pycdp/cdp_lib.pxd` | Cython declarations (for .pxd imports) |
-| `pycdp/src/pycdp/_core.pyx` | Cython wrappers + inline declarations |
-| `pycdp/src/pycdp/__init__.py` | Python exports |
-| `pycdp/tests/test_pycdp.py` | Test suite |
-| `pycdp/CMakeLists.txt` | Build configuration |
+| `cycdp/src/cycdp/cdp_lib.pxd` | Cython declarations (for .pxd imports) |
+| `cycdp/src/cycdp/_core.pyx` | Cython wrappers + inline declarations |
+| `cycdp/src/cycdp/__init__.py` | Python exports |
+| `cycdp/tests/test_pycdp.py` | Test suite |
+| `cycdp/CMakeLists.txt` | Build configuration |
 
 ## Testing Checklist
 

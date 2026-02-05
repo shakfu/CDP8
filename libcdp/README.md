@@ -1,13 +1,13 @@
 # libcdp - Native CDP Audio Processing Library
 
-A native C library providing high-performance audio processing algorithms based on the Composers Desktop Project (CDP). This library eliminates subprocess overhead by implementing CDP algorithms directly in C, accessible via Python bindings (pycdp).
+A native C library providing high-performance audio processing algorithms based on the Composers Desktop Project (CDP). This library eliminates subprocess overhead by implementing CDP algorithms directly in C, accessible via Python bindings (cycdp).
 
 ## Features
 
 - Native C implementations of CDP spectral and granular algorithms
 - Zero-copy buffer interface for efficient memory usage
 - Thread-safe design (no global state)
-- Python bindings via Cython (see pycdp)
+- Python bindings via Cython (see cycdp)
 
 ## Building
 
@@ -198,23 +198,23 @@ int main() {
 
 ## Python Bindings
 
-See the `pycdp` package for Python bindings:
+See the `cycdp` package for Python bindings:
 
 ```python
-import pycdp
+import cycdp
 
 # Read audio
-buf = pycdp.read_file("input.wav")
+buf = cycdp.read_file("input.wav")
 
 # Apply time stretch
-stretched = pycdp.time_stretch(buf, factor=2.0)
+stretched = cycdp.time_stretch(buf, factor=2.0)
 
 # Morph between two sounds
-buf2 = pycdp.read_file("target.wav")
-morphed = pycdp.morph(buf, buf2, morph_start=0.2, morph_end=0.8)
+buf2 = cycdp.read_file("target.wav")
+morphed = cycdp.morph(buf, buf2, morph_start=0.2, morph_end=0.8)
 
 # Write output
-pycdp.write_file(morphed, "output.wav")
+cycdp.write_file(morphed, "output.wav")
 ```
 
 ## License
