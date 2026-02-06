@@ -6,12 +6,12 @@ Python bindings for the [CDP8](https://github.com/ComposersDesktop/CDP8) (Compos
 
 The [Composers Desktop Project](https://www.composersdesktop.com) (CDP) is a venerable suite of over 500 sound transformation programs developed since the late 1980s by Trevor Wishart, Richard Orton, and others. It occupies a unique niche in audio processing: where most tools focus on mixing, mastering, or standard effects, CDP specializes in deep spectral manipulation, granular synthesis, pitch-synchronous operations, waveset distortion, and other techniques rooted in the electroacoustic and computer music traditions.
 
-Historically, CDP programs are invoked as standalone command-line executables, which makes integration into modern workflows cumbersome. **cycdp** solves this by reimplementing a curated subset of CDP's algorithms in a C library (`libcdp`) and exposing them to Python via Cython bindings. The result is native-speed audio processing with a Pythonic API, zero-copy buffer interoperability, and no subprocess overhead.
+Historically, CDP programs are invoked as standalone command-line executables that read and write sound files, which makes integration into modern workflows cumbersome. **cycdp** solves this in two ways. First, a C library (`libcdp`) reimplements a curated subset of CDP's algorithms to operate directly on memory buffers. Second, a shim layer intercepts the file I/O calls inside original CDP algorithm code (the `sfsys` open/read/write/seek functions) and redirects them to memory buffers transparently, so those algorithms can run in-process without touching the filesystem. Both paths are exposed to Python via Cython bindings, giving you native-speed audio processing with a Pythonic API, zero-copy buffer interoperability, and no subprocess overhead.
 
 ### Design principles
 
-- **No numpy dependency.** Operates on any object supporting the Python buffer protocol (`array.array`, `memoryview`, numpy arrays, etc.). Numpy is optional, not required.
 - **Zero-copy interop.** Cython memoryviews and the buffer protocol mean data passes between Python and C without copying.
+- - **No numpy dependency.** Operates on any object supporting the Python buffer protocol (`array.array`, `memoryview`, numpy arrays, etc.). Numpy is optional, not required.
 - **Functional API.** Most functions accept a buffer and return a new buffer, leaving the original unchanged. Low-level in-place alternatives are also available.
 - **Self-contained.** The C library is compiled into the extension; no external CDP installation is needed.
 
