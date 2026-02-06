@@ -7,15 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2]
+
+### Added
+- Command-line interface accessible via `cycdp` console script and `python3 -m cycdp`
+  - All 100+ audio processing functions exposed as flat subcommands (e.g. `cycdp time-stretch`, `cycdp reverb`)
+  - Four input modes: single-file processing, dual-file processing (morph, mix), synthesis (no input), and analysis (text/JSON/CSV output)
+  - `cycdp list [category]` for category-grouped command discovery
+  - `cycdp info <file>` for audio file metadata
+  - `cycdp version` for version information
+  - Global options: `-o/--output` (file or directory), `-n/--normalize`, `--no-normalize`, `--format`
+  - Automatic output naming when `-o` is omitted (`<input_stem>_<command>.wav`)
+  - Category-grouped `--help` output via custom formatter
+- Type stubs (`_core.pyi`) for IDE autocompletion and type checking
+- PyPI publication metadata (URLs, classifiers, keywords)
+
 ### Fixed
 - Buffer overflow in `cdp_flutter.c` mono-to-stereo conversion causing segfaults
 - Variable Length Array (VLA) compatibility for MSVC in `io.c`
 - `M_PI` undefined error for MSVC in `utils.c`
 - Linux build failure by enabling position-independent code
-
-### Added
-- Type stubs (`_core.pyi`) for IDE autocompletion and type checking
-- PyPI publication metadata (URLs, classifiers, keywords)
 
 ## [0.1.1]
 

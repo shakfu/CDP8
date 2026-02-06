@@ -71,6 +71,40 @@ uv sync
 
 ## Quick Start
 
+### Command Line
+
+```bash
+# Process audio
+cycdp time-stretch input.wav --factor 2.0 -o stretched.wav
+cycdp reverb input.wav --decay-time 3.0 --mix 0.5
+cycdp pitch-shift input.wav --semitones 5 -o shifted.wav
+
+# Two-input operations
+cycdp morph voice.wav pad.wav --morph-end 0.7 -o morphed.wav
+cycdp mix2 track1.wav track2.wav -o mixed.wav
+
+# Synthesis (no input file)
+cycdp synth-wave --waveform saw --frequency 220 --duration 2.0 -o tone.wav
+cycdp synth-chord --midi-notes 60 64 67 --duration 1.0 -o chord.wav
+
+# Analysis (output to stdout)
+cycdp pitch input.wav
+cycdp pitch input.wav --format json
+cycdp formants input.wav --format csv -o formants.csv
+
+# Utilities
+cycdp info input.wav
+cycdp list                  # all commands grouped by category
+cycdp list spectral         # commands in one category
+cycdp version
+```
+
+Output is auto-normalized to 0.95 peak level by default. Use `--no-normalize` to disable, or `-n 0.8` to set a different target. When `-o` is omitted, output is written alongside the input as `<input_stem>_<command>.wav`.
+
+Also accessible as `python3 -m cycdp`.
+
+### Python API
+
 ```python
 import cycdp
 
@@ -458,33 +492,62 @@ These work with explicit Context and Buffer objects:
 ## Architecture
 
 ```
-cycdp/                          # Project root
-  src/cycdp/                    # Python package
+Python                  cycdp (high-level API)
+                            |
+Cython                  _core.pyx  (zero-copy buffer protocol)
+                            |
+              +-------------+-------------+
+              |                           |
+C         libcdp                      cdp_lib
+      (reimplemented             (shim-wrapped CDP8
+       algorithms)                  algorithms)
+          |                           |
+          +------ cdp_shim / cdp_io_redirect ------+
+                  (intercept sfsys I/O,
+                   redirect to memory buffers)
+                            |
+                        CDP8 sources
+                     (FFT, spectral core)
+```
+
+**libcdp** (`projects/libcdp/src/`) -- Core C library that reimplements CDP operations (buffer management, gain, channel ops, mixing, spatial, file I/O, utilities) to work directly on memory buffers.
+
+**cdp_lib** (`projects/libcdp/cdp_lib/`) -- Wrapper modules that call into original CDP8 algorithm code. Each category (spectral, granular, morph, distortion, etc.) has its own `.c`/`.h` pair. These rely on the shim layer to function without file I/O.
+
+**cdp_shim / cdp_io_redirect** (`projects/libcdp/cdp_lib/cdp_shim.*`, `cdp_io_redirect.*`) -- Intercept CDP's `sfsys` file operations (`sndopenEx`, `fgetfbufEx`, `fputfbufEx`, `sndseekEx`, etc.) and redirect them to memory buffers. This allows original CDP algorithms to run in-process without touching the filesystem, handling single and multi-input scenarios (e.g. morph, cross-synthesis) via slot-based buffer registration.
+
+**CDP8 sources** (`projects/cpd8/dev/`) -- Upstream CDP8 code (FFT routines, spectral processing core, header definitions) compiled in and accessed through the shim layer.
+
+### Directory layout
+
+```
+cycdp/
+  src/cycdp/
     __init__.py                 # Public exports
+    __main__.py                 # Entry point for python3 -m cycdp
+    cli.py                      # CLI: registry, parser, handlers
     _core.pyx                   # Cython bindings
-    cdp_lib.pxd                 # Cython declarations
+    _core.pyi                   # Type stubs
+    cdp_lib.pxd                 # Cython declarations for C layer
   projects/
-    libcdp/                     # C library
+    libcdp/
       include/
-        cdp.h                   # Main public API
+        cdp.h                   # Public C API
         cdp_error.h             # Error codes
         cdp_types.h             # Type definitions
+      src/                      # Reimplemented core (buffer, gain, channel, ...)
       cdp_lib/
-        cdp_lib.h               # Library internal header
-        cdp_*.h                 # Category headers (filters, effects, etc.)
-      src/
-        context.c               # Context management
-        buffer.c                # Buffer management
-        gain.c                  # Gain/amplitude operations
-        io.c                    # File I/O
-        channel.c               # Channel operations
-        mix.c                   # Mixing operations
-        spatial.c               # Spatial/panning
-        utils.c                 # Utilities
-        error.c                 # Error handling
-    cpd8/                       # CDP8 sources (FFT, includes)
-      dev/
+        cdp_lib.h/.c            # Main library entry point
+        cdp_shim.h/.c           # Shim: sfsys replacement functions
+        cdp_io_redirect.h/.c    # I/O redirect: slot-based buffer routing
+        cdp_spectral.h/.c       # Spectral processing wrappers
+        cdp_granular.h/.c       # Granular synthesis wrappers
+        cdp_morph.h/.c          # Morphing wrappers
+        cdp_distort.h/.c        # Distortion wrappers
+        cdp_*.h/.c              # Other category wrappers
+    cpd8/dev/                   # Upstream CDP8 sources (FFT, includes)
   tests/                        # Python tests
+  demos/                        # Example scripts
   CMakeLists.txt                # Builds extension
 ```
 

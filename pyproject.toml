@@ -1,6 +1,6 @@
 [project]
 name = "cycdp"
-version = "0.1.1"
+version = "0.1.2"
 description = "Cython bindings for the CDP audio processing library"
 readme = "README.md"
 license = { text = "LGPL-2.1-or-later" }
@@ -32,6 +32,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Typing :: Typed",
 ]
+
+[project.scripts]
+cycdp = "cycdp.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/shakfu/cycdp"
