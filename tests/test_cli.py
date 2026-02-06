@@ -90,7 +90,16 @@ class TestRegistry:
             )
 
     def test_param_types_are_valid(self):
-        valid_types = {int, float, str, "json", "nargs+", "waveform", "scramble", "bool"}
+        valid_types = {
+            int,
+            float,
+            str,
+            "json",
+            "nargs+",
+            "waveform",
+            "scramble",
+            "bool",
+        }
         for cmd_name, spec in COMMANDS.items():
             for param_name, (ptype, default, help_text) in spec["params"].items():
                 assert ptype in valid_types, (
@@ -99,14 +108,21 @@ class TestRegistry:
 
     def test_command_names_use_hyphens(self):
         for name in COMMANDS:
-            assert "_" not in name, f"Command '{name}' should use hyphens, not underscores"
+            assert "_" not in name, (
+                f"Command '{name}' should use hyphens, not underscores"
+            )
 
     def test_waveform_map_covers_all(self):
         assert set(WAVEFORM_MAP.keys()) == {"sine", "square", "saw", "ramp", "triangle"}
 
     def test_scramble_map_covers_all(self):
         assert set(SCRAMBLE_MAP.keys()) == {
-            "shuffle", "reverse", "size-up", "size-down", "level-up", "level-down"
+            "shuffle",
+            "reverse",
+            "size-up",
+            "size-down",
+            "level-up",
+            "level-down",
         }
 
 
@@ -137,9 +153,15 @@ class TestParser:
 
     def test_parse_synth_command(self):
         parser = build_parser()
-        args = parser.parse_args([
-            "synth-wave", "--waveform", "saw", "--frequency", "220",
-        ])
+        args = parser.parse_args(
+            [
+                "synth-wave",
+                "--waveform",
+                "saw",
+                "--frequency",
+                "220",
+            ]
+        )
         assert args.command == "synth-wave"
         assert args.waveform == "saw"
         assert args.frequency == 220.0
@@ -165,13 +187,19 @@ class TestParser:
 
     def test_global_options(self):
         parser = build_parser()
-        args = parser.parse_args([
-            "reverb", "input.wav",
-            "-o", "out.wav",
-            "-n", "0.8",
-            "--no-normalize",
-            "--format", "pcm16",
-        ])
+        args = parser.parse_args(
+            [
+                "reverb",
+                "input.wav",
+                "-o",
+                "out.wav",
+                "-n",
+                "0.8",
+                "--no-normalize",
+                "--format",
+                "pcm16",
+            ]
+        )
         assert args.output == "out.wav"
         assert args.normalize == 0.8
         assert args.no_normalize is True
@@ -184,9 +212,15 @@ class TestParser:
 
     def test_nargs_plus_param(self):
         parser = build_parser()
-        args = parser.parse_args([
-            "synth-chord", "--midi-notes", "60", "64", "67",
-        ])
+        args = parser.parse_args(
+            [
+                "synth-chord",
+                "--midi-notes",
+                "60",
+                "64",
+                "67",
+            ]
+        )
         assert args.midi_notes == [60, 64, 67]
 
     def test_list_command(self):
@@ -225,9 +259,15 @@ class TestParser:
 
     def test_bool_param_no_flag(self):
         parser = build_parser()
-        args = parser.parse_args([
-            "fofex-extract", "input.wav", "--time", "0.5", "--no-window",
-        ])
+        args = parser.parse_args(
+            [
+                "fofex-extract",
+                "input.wav",
+                "--time",
+                "0.5",
+                "--no-window",
+            ]
+        )
         assert args.window is False
 
 
@@ -240,31 +280,37 @@ class TestOutputPath:
     def test_explicit_file_path(self):
         class Args:
             output = "/tmp/out.wav"
+
         result = resolve_output_path(Args(), "reverb", "/data/voice.wav")
         assert result == "/tmp/out.wav"
 
     def test_directory_output(self, tmp_path):
         d = str(tmp_path)
+
         class Args:
             output = d
+
         result = resolve_output_path(Args(), "reverb", "/data/voice.wav")
         assert result == os.path.join(d, "voice_reverb.wav")
 
     def test_auto_name_from_input(self):
         class Args:
             output = None
+
         result = resolve_output_path(Args(), "time-stretch", "/data/voice.wav")
         assert result == os.path.join("/data", "voice_time-stretch.wav")
 
     def test_auto_name_synth(self):
         class Args:
             output = None
+
         result = resolve_output_path(Args(), "synth-wave")
         assert result == "output_synth-wave.wav"
 
     def test_auto_name_input_in_current_dir(self):
         class Args:
             output = None
+
         result = resolve_output_path(Args(), "reverb", "voice.wav")
         assert result == os.path.join(".", "voice_reverb.wav")
 
@@ -287,9 +333,14 @@ class TestPrepareKwargs:
     def test_json_param(self):
         spec = COMMANDS["zigzag"]
         parser = build_parser()
-        args = parser.parse_args([
-            "zigzag", "in.wav", "--times", "[0.1, 0.5, 0.8]",
-        ])
+        args = parser.parse_args(
+            [
+                "zigzag",
+                "in.wav",
+                "--times",
+                "[0.1, 0.5, 0.8]",
+            ]
+        )
         kwargs = prepare_kwargs(spec, args)
         assert kwargs["times"] == [0.1, 0.5, 0.8]
 
@@ -310,9 +361,15 @@ class TestPrepareKwargs:
     def test_nargs_plus_param(self):
         spec = COMMANDS["synth-chord"]
         parser = build_parser()
-        args = parser.parse_args([
-            "synth-chord", "--midi-notes", "60", "64", "67",
-        ])
+        args = parser.parse_args(
+            [
+                "synth-chord",
+                "--midi-notes",
+                "60",
+                "64",
+                "67",
+            ]
+        )
         kwargs = prepare_kwargs(spec, args)
         assert kwargs["midi_notes"] == [60, 64, 67]
 
@@ -387,8 +444,19 @@ class TestHandlerDual:
 class TestHandlerSynth:
     def test_synth_wave(self, tmp_path):
         out = str(tmp_path / "tone.wav")
-        main(["synth-wave", "--waveform", "sine", "--frequency", "440",
-              "--duration", "0.5", "-o", out])
+        main(
+            [
+                "synth-wave",
+                "--waveform",
+                "sine",
+                "--frequency",
+                "440",
+                "--duration",
+                "0.5",
+                "-o",
+                out,
+            ]
+        )
         assert os.path.exists(out)
         result = cycdp.read_file(out)
         assert result.frame_count > 0
@@ -405,8 +473,19 @@ class TestHandlerSynth:
 
     def test_synth_chord(self, tmp_path):
         out = str(tmp_path / "chord.wav")
-        main(["synth-chord", "--midi-notes", "60", "64", "67",
-              "--duration", "0.5", "-o", out])
+        main(
+            [
+                "synth-chord",
+                "--midi-notes",
+                "60",
+                "64",
+                "67",
+                "--duration",
+                "0.5",
+                "-o",
+                out,
+            ]
+        )
         assert os.path.exists(out)
 
 

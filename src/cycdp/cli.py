@@ -615,7 +615,11 @@ COMMANDS: dict[str, dict[str, Any]] = {
         "help": "Time-stretch/compress grain spacing",
         "params": {
             "stretch": (float, 1.0, "Stretch factor"),
-            "stretch-curve": ("json", None, "Curve as JSON list of [time, value] pairs"),
+            "stretch-curve": (
+                "json",
+                None,
+                "Curve as JSON list of [time, value] pairs",
+            ),
             "gate": (float, 0.1, "Amplitude gate threshold"),
             "grainsize-ms": (float, 50.0, "Grain size in ms"),
         },
@@ -833,7 +837,11 @@ COMMANDS: dict[str, dict[str, Any]] = {
         "input": "single",
         "help": "Reorder wavesets (shuffle, reverse, by size/level)",
         "params": {
-            "mode": ("scramble", "shuffle", "Mode: shuffle, reverse, size-up, size-down, level-up, level-down"),
+            "mode": (
+                "scramble",
+                "shuffle",
+                "Mode: shuffle, reverse, size-up, size-down, level-up, level-down",
+            ),
             "group-size": (int, 2, "Group size"),
             "seed": (int, 0, "Random seed"),
         },
@@ -869,7 +877,11 @@ COMMANDS: dict[str, dict[str, Any]] = {
         "input": "single",
         "help": "Pan mono to stereo with time-varying position",
         "params": {
-            "points": ("json", REQUIRED, "Points as JSON list of [time, position] pairs"),
+            "points": (
+                "json",
+                REQUIRED,
+                "Points as JSON list of [time, position] pairs",
+            ),
         },
     },
     "mirror": {
@@ -1232,7 +1244,11 @@ COMMANDS: dict[str, dict[str, Any]] = {
         "input": "synth",
         "help": "Generate waveform (sine, square, saw, ramp, triangle)",
         "params": {
-            "waveform": ("waveform", "sine", "Waveform: sine, square, saw, ramp, triangle"),
+            "waveform": (
+                "waveform",
+                "sine",
+                "Waveform: sine, square, saw, ramp, triangle",
+            ),
             "frequency": (float, 440.0, "Frequency in Hz"),
             "amplitude": (float, 0.8, "Amplitude (0-1)"),
             "duration": (float, 1.0, "Duration in seconds"),
@@ -1440,6 +1456,7 @@ COMMANDS: dict[str, dict[str, Any]] = {
 # Custom help formatter
 # =============================================================================
 
+
 class CategoryHelpFormatter(argparse.RawDescriptionHelpFormatter):
     """Formatter that groups subcommands by category."""
 
@@ -1451,9 +1468,7 @@ class CategoryHelpFormatter(argparse.RawDescriptionHelpFormatter):
                 spec = COMMANDS.get(choice_name)
                 if spec:
                     cat = spec["category"]
-                    by_cat.setdefault(cat, []).append(
-                        (choice_name, spec["help"])
-                    )
+                    by_cat.setdefault(cat, []).append((choice_name, spec["help"]))
                 else:
                     by_cat.setdefault("utility", []).append(
                         (choice_name, choice_parser.description or "")
@@ -1482,6 +1497,7 @@ class CategoryHelpFormatter(argparse.RawDescriptionHelpFormatter):
 # Parser construction
 # =============================================================================
 
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cycdp",
@@ -1489,7 +1505,9 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=CategoryHelpFormatter,
     )
 
-    subparsers = parser.add_subparsers(dest="command", title="commands", metavar="<command>")
+    subparsers = parser.add_subparsers(
+        dest="command", title="commands", metavar="<command>"
+    )
 
     for cmd_name, spec in COMMANDS.items():
         input_type = spec["input"]
@@ -1579,11 +1597,13 @@ def build_parser() -> argparse.ArgumentParser:
         # Global options for audio-producing commands
         if input_type in ("single", "dual", "synth"):
             sub.add_argument(
-                "-o", "--output",
+                "-o",
+                "--output",
                 help="Output file path, or directory (auto-names file)",
             )
             sub.add_argument(
-                "-n", "--normalize",
+                "-n",
+                "--normalize",
                 type=float,
                 default=0.95,
                 help="Normalize output to this peak level (default: 0.95)",
@@ -1602,7 +1622,8 @@ def build_parser() -> argparse.ArgumentParser:
             )
         elif input_type == "analysis":
             sub.add_argument(
-                "-o", "--output",
+                "-o",
+                "--output",
                 help="Write output to file instead of stdout",
             )
             sub.add_argument(
@@ -1635,6 +1656,7 @@ def build_parser() -> argparse.ArgumentParser:
 # Output path resolution
 # =============================================================================
 
+
 def resolve_output_path(args, cmd_name: str, input_path: str | None = None) -> str:
     output = getattr(args, "output", None)
 
@@ -1660,6 +1682,7 @@ def _input_stem(path: str) -> str:
 # Parameter preparation
 # =============================================================================
 
+
 def prepare_kwargs(spec: dict, args: argparse.Namespace) -> dict:
     """Convert parsed args to kwargs for the target function."""
     kwargs = {}
@@ -1684,6 +1707,7 @@ def prepare_kwargs(spec: dict, args: argparse.Namespace) -> dict:
 # =============================================================================
 # Handlers
 # =============================================================================
+
 
 def handle_single(cmd_name: str, spec: dict, args: argparse.Namespace) -> None:
     input_path = args.input
@@ -1775,6 +1799,7 @@ def handle_analysis(cmd_name: str, spec: dict, args: argparse.Namespace) -> None
 # get_partials -> dict with 'tracks', 'num_tracks', 'total_frames', etc.
 # peak -> tuple (level, position)
 
+
 def format_analysis(cmd_name: str, data, fmt: str) -> str:
     if fmt == "json":
         return json.dumps(data, indent=2)
@@ -1791,7 +1816,9 @@ def _format_text(cmd_name: str, data) -> str:
         pitches = data["pitch"]
         confidences = data["confidence"]
         frame_time = data["frame_time"]
-        lines.append(f"{'Frame':>6}  {'Time (s)':>10}  {'Freq (Hz)':>10}  {'Confidence':>10}")
+        lines.append(
+            f"{'Frame':>6}  {'Time (s)':>10}  {'Freq (Hz)':>10}  {'Confidence':>10}"
+        )
         lines.append("-" * 42)
         for i, (freq, conf) in enumerate(zip(pitches, confidences)):
             t = i * frame_time
@@ -1799,7 +1826,9 @@ def _format_text(cmd_name: str, data) -> str:
     elif cmd_name == "formants":
         num_frames = data["num_frames"]
         frame_time = data["frame_time"]
-        lines.append(f"{'Frame':>6}  {'Time':>8}  {'F1':>8}  {'F2':>8}  {'F3':>8}  {'F4':>8}")
+        lines.append(
+            f"{'Frame':>6}  {'Time':>8}  {'F1':>8}  {'F2':>8}  {'F3':>8}  {'F4':>8}"
+        )
         lines.append("-" * 54)
         for i in range(num_frames):
             t = i * frame_time
@@ -1807,7 +1836,9 @@ def _format_text(cmd_name: str, data) -> str:
             f2 = data["f2"][i] if i < len(data["f2"]) else 0
             f3 = data["f3"][i] if i < len(data["f3"]) else 0
             f4 = data["f4"][i] if i < len(data["f4"]) else 0
-            lines.append(f"{i:6d}  {t:8.4f}  {f1:8.1f}  {f2:8.1f}  {f3:8.1f}  {f4:8.1f}")
+            lines.append(
+                f"{i:6d}  {t:8.4f}  {f1:8.1f}  {f2:8.1f}  {f3:8.1f}  {f4:8.1f}"
+            )
     elif cmd_name == "get-partials":
         tracks = data["tracks"]
         lines.append(f"Partial tracks: {data['num_tracks']}")
@@ -1857,7 +1888,9 @@ def _format_csv(cmd_name: str, data) -> str:
         for i, track in enumerate(data["tracks"]):
             avg_freq = sum(track["freq"]) / len(track["freq"]) if track["freq"] else 0
             avg_amp = sum(track["amp"]) / len(track["amp"]) if track["amp"] else 0
-            lines.append(f"{i},{track['start_frame']},{track['end_frame']},{avg_freq},{avg_amp}")
+            lines.append(
+                f"{i},{track['start_frame']},{track['end_frame']},{avg_freq},{avg_amp}"
+            )
     elif cmd_name == "peak":
         level, pos = data
         lines.append("level,position")
@@ -1870,6 +1903,7 @@ def _format_csv(cmd_name: str, data) -> str:
 # =============================================================================
 # Utility command handlers
 # =============================================================================
+
 
 def handle_version() -> None:
     print(f"cycdp {cycdp.__version__}")
@@ -1928,6 +1962,7 @@ def handle_info(args: argparse.Namespace) -> None:
 # =============================================================================
 # Main entry point
 # =============================================================================
+
 
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
