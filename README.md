@@ -9,6 +9,16 @@ cycdp provides Python access to CDP's extensive audio processing algorithms. It 
 ## Installation
 
 ```bash
+pip install cycdb
+```
+
+If you prefer to build from source:
+
+```bash
+# clone the repository
+git clone https://github.com/shakfu/cycdp.git
+cd cycdp
+
 # Build and install in development mode
 make build
 
