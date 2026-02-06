@@ -1,15 +1,58 @@
 # cycdp
 
-Python bindings for the CDP (Composers Desktop Project) audio processing library.
+Python bindings for the [CDP8](https://github.com/ComposersDesktop/CDP8) (Composers Desktop Project, Release 8) audio processing library.
 
 ## Overview
 
-cycdp provides Python access to CDP's extensive audio processing algorithms. It uses Cython with memoryviews and the buffer protocol for zero-copy interoperability with numpy, `array.array`, and other buffer-compatible objects - **no numpy dependency required**.
+The [Composers Desktop Project](https://www.composersdesktop.com) (CDP) is a venerable suite of over 500 sound transformation programs developed since the late 1980s by Trevor Wishart, Richard Orton, and others. It occupies a unique niche in audio processing: where most tools focus on mixing, mastering, or standard effects, CDP specializes in deep spectral manipulation, granular synthesis, pitch-synchronous operations, waveset distortion, and other techniques rooted in the electroacoustic and computer music traditions.
+
+Historically, CDP programs are invoked as standalone command-line executables, which makes integration into modern workflows cumbersome. **cycdp** solves this by reimplementing a curated subset of CDP's algorithms in a C library (`libcdp`) and exposing them to Python via Cython bindings. The result is native-speed audio processing with a Pythonic API, zero-copy buffer interoperability, and no subprocess overhead.
+
+### Design principles
+
+- **No numpy dependency.** Operates on any object supporting the Python buffer protocol (`array.array`, `memoryview`, numpy arrays, etc.). Numpy is optional, not required.
+- **Zero-copy interop.** Cython memoryviews and the buffer protocol mean data passes between Python and C without copying.
+- **Functional API.** Most functions accept a buffer and return a new buffer, leaving the original unchanged. Low-level in-place alternatives are also available.
+- **Self-contained.** The C library is compiled into the extension; no external CDP installation is needed.
+
+## Features
+
+**Spectral Processing** -- Time stretching (preserving pitch), pitch shifting (preserving duration), spectral blur, shift, stretch, focus, hilite, fold, and noise cleaning.
+
+**Granular Synthesis** -- Classic brassage, freeze, grain clouds, grain time-extension, simple and multi-layer texture synthesis, wrappage, plus extended grain operations (reorder, rerhythm, reverse, timewarp, repitch, stereo positioning, omit, duplicate).
+
+**Pitch-Synchronous Operations (PSOW)** -- Time-stretching that preserves pitch via PSOLA, grain extraction and interpolation, and a hover effect for sustained pitched textures.
+
+**FOF Extraction and Synthesis** -- Extract pitch-synchronous grains (FOFs), build a grain bank, resynthesize at arbitrary pitch and duration, and repitch with optional formant preservation.
+
+**Morphing and Cross-Synthesis** -- Spectral morphing between two sounds, gliding morphs over time, and vocoder-style cross-synthesis.
+
+**Distortion** -- Waveset-based techniques: overload/saturation, reverse, fractal, shuffle, cut with decaying envelopes, marker-based interpolation, wavecycle repetition, half-wavecycle shifting, and progressive warp with sample folding.
+
+**Dynamics and EQ** -- Compressor, limiter, noise gate, parametric EQ, envelope follower, and envelope application.
+
+**Filters** -- Lowpass, highpass, bandpass, and notch (band-reject).
+
+**Effects** -- Reverb (FDN: 8 comb + 4 allpass), delay, chorus, flanger, ring modulation, bitcrush, tremolo, and attack reshaping.
+
+**Spatial Processing** -- Static and envelope-driven panning, stereo mirror and width control, spinning rotation with optional doppler, dual-rotation modulation, spatial tremolo, and phase-based stereo enhancement.
+
+**Playback and Time Manipulation** -- Zigzag, iterate, stutter, bounce, drunk-walk navigation, looping with crossfades, TDOLA time-stretching, waveset scrambling, splinter, and silence constriction.
+
+**Experimental / Chaos** -- Strange attractor (Lorenz), Brownian motion, crystal growth, fractal, Chirikov map, Cantor set, cascade, fracture, and tesselation transformations.
+
+**Analysis** -- Pitch tracking (YIN), formant analysis (LPC), and partial/harmonic extraction.
+
+**Synthesis** -- Waveform generation (sine, square, saw, ramp, triangle), white and pink noise, click/metronome tracks, and chord synthesis from MIDI notes.
+
+**Core Operations** -- Gain (linear and dB), normalization, phase inversion, peak detection, channel conversion (mono/stereo, split, merge, interleave), mixing, reverse, fade in/out, and concatenation.
+
+**File I/O** -- Read and write WAV files (float32, PCM16, PCM24).
 
 ## Installation
 
 ```bash
-pip install cycdb
+pip install cycdp
 ```
 
 If you prefer to build from source:
