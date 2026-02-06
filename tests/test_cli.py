@@ -256,7 +256,7 @@ class TestOutputPath:
         class Args:
             output = None
         result = resolve_output_path(Args(), "time-stretch", "/data/voice.wav")
-        assert result == "/data/voice_time-stretch.wav"
+        assert result == os.path.join("/data", "voice_time-stretch.wav")
 
     def test_auto_name_synth(self):
         class Args:
@@ -268,7 +268,7 @@ class TestOutputPath:
         class Args:
             output = None
         result = resolve_output_path(Args(), "reverb", "voice.wav")
-        assert result == "./voice_reverb.wav"
+        assert result == os.path.join(".", "voice_reverb.wav")
 
 
 # =============================================================================
