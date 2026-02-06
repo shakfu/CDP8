@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.2]
 
 ### Added
+
 - Command-line interface accessible via `cycdp` console script and `python3 -m cycdp`
   - All 100+ audio processing functions exposed as flat subcommands (e.g. `cycdp time-stretch`, `cycdp reverb`)
   - Four input modes: single-file processing, dual-file processing (morph, mix), synthesis (no input), and analysis (text/JSON/CSV output)
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PyPI publication metadata (URLs, classifiers, keywords)
 
 ### Fixed
+
 - Buffer overflow in `cdp_flutter.c` mono-to-stereo conversion causing segfaults
 - Variable Length Array (VLA) compatibility for MSVC in `io.c`
 - `M_PI` undefined error for MSVC in `utils.c`
@@ -33,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added (Demos)
 
 **Synthesis Demos (01-07)** - Generate test sounds and demonstrate API:
+
 - `01_basic_operations.py` - Buffers, gain, fades, panning, mixing
 - `02_effects_and_processing.py` - Delay, reverb, modulation, distortion, filters
 - `03_spectral_processing.py` - Blur, focus, time stretch, pitch shift, freeze
@@ -42,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `07_morphing.py` - Spectral morph, glide, cross-synthesis
 
 **FX Processing Demos (fx01-fx07)** - CLI tools for processing real audio:
+
 - `fx01_time_and_pitch.py` - Time stretch, pitch shift, spectral shift
 - `fx02_spectral_effects.py` - Blur, focus, fold, freeze effects
 - `fx03_granular.py` - Brassage, wrappage, grain operations
@@ -53,23 +57,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 All FX demos accept `input.wav -o output_dir/` arguments.
 
 **Makefile targets:**
+
 - `make demos` - Run all demos, output to `build/`
 - `make demos-clean` - Remove generated WAV files
 
 ### Added (CDP Algorithm Ports)
 
 **Analysis:**
+
 - `pitch` - pitch tracking using YIN algorithm (CDP: pitch)
 - `formants` - formant analysis using LPC (CDP: formants)
 - `get_partials` - partial/harmonic tracking (CDP: get_partials)
 
 **Spectral Processing:**
+
 - `spectral_focus` - super-Gaussian frequency enhancement (CDP: focus)
 - `spectral_hilite` - boost spectral peaks above threshold (CDP: hilite)
 - `spectral_fold` - fold spectrum at frequency for metallic effects (CDP: specfold)
 - `spectral_clean` - spectral noise gate (CDP: speclean)
 
 **Experimental/Chaos:**
+
 - `strange` - Lorenz attractor chaotic modulation (CDP: strange)
 - `brownian` - random walk modulation of pitch/amp/filter (CDP: brownian)
 - `crystal` - crystalline textures with decaying echoes (CDP: crystal)
@@ -82,6 +90,7 @@ All FX demos accept `input.wav -o output_dir/` arguments.
 - `tesselate` - tile-based pattern transformations (CDP: tesselate)
 
 **Playback/Time Manipulation:**
+
 - `zigzag` - alternating forward/backward playback through time points (CDP: zigzag)
 - `iterate` - repeated playback with pitch/gain variations (CDP: iterate)
 - `stutter` - segment-based stuttering with silence inserts (CDP: stutter)
@@ -98,11 +107,13 @@ All FX demos accept `input.wav -o output_dir/` arguments.
 - `wrappage` - granular texture with stereo spatial distribution (CDP: wrappage)
 
 **Spatial Effects:**
+
 - `spin` - rotate audio around stereo field with optional doppler (CDP: spin)
 - `rotor` - dual-rotation modulation creating interference patterns (CDP: rotor)
 - `flutter` - spatial tremolo with loudness modulation alternating L/R (CDP: flutter)
 
 **Extended Granular:**
+
 - `grain_reorder` - reorder detected grains (shuffle, reverse, rotate) (CDP: grain)
 - `grain_rerhythm` - change timing/rhythm of grains (CDP: grain)
 - `grain_reverse` - reverse individual grains in place (CDP: grain)
@@ -113,12 +124,14 @@ All FX demos accept `input.wav -o output_dir/` arguments.
 - `grain_duplicate` - duplicate grains with variations (CDP: grain)
 
 **Granular/Texture:**
+
 - `grain_cloud` - grain cloud generation from amplitude-detected grains (CDP: grain)
 - `grain_extend` - extend duration using grain repetition (CDP: grainex extend)
 - `texture_simple` - simple texture layering (CDP: texture SIMPLE_TEX)
 - `texture_multi` - multi-layer grouped texture (CDP: texture GROUPS)
 
 **Morphing/Cross-synthesis:**
+
 - `morph` - spectral interpolation between two sounds (CDP: SPECMORPH)
 - `morph_glide` - simple spectral glide between two sounds (CDP: SPECGLIDE)
 - `cross_synth` - combine amp from one sound with freq from another (CDP: combine)
@@ -127,24 +140,28 @@ All FX demos accept `input.wav -o output_dir/` arguments.
 - `morph_native` - native CDP specmorph wrapper (original algorithm)
 
 **Synthesis:**
+
 - `synth_wave` - waveform synthesis (sine, square, saw, ramp, triangle) (CDP: wave)
 - `synth_noise` - noise generation (white, pink) (CDP: synth noise)
 - `synth_click` - click/metronome track generation (CDP: click)
 - `synth_chord` - chord synthesis from MIDI pitch list (CDP: multi_syn)
 
 **Pitch-Synchronous Operations (PSOW):**
+
 - `psow_stretch` - time-stretch while preserving pitch using PSOLA (CDP: psow stretch)
 - `psow_grab` - extract pitch-synchronous grains from a position (CDP: psow grab)
 - `psow_dupl` - duplicate grains for time-stretching (CDP: psow dupl)
 - `psow_interp` - interpolate between two grains (CDP: psow interp)
 
 **FOF Extraction and Synthesis (FOFEX):**
+
 - `fofex_extract` - extract single FOF at specified time (CDP: fofex)
 - `fofex_extract_all` - extract all FOFs to uniform-length bank (CDP: fofex)
 - `fofex_synth` - synthesize audio from FOFs at target pitch (CDP: fofex)
 - `fofex_repitch` - repitch audio with optional formant preservation (CDP: fofex)
 
 **Distortion:**
+
 - `distort_cut` - waveset segmentation with decaying envelope (CDP: distcut)
 - `distort_mark` - interpolate between waveset groups at time markers (CDP: distmark)
 - `distort_repeat` - time-stretch by repeating wavecycles (CDP: distrep)
@@ -152,6 +169,7 @@ All FX demos accept `input.wav -o output_dir/` arguments.
 - `distort_warp` - progressive warp distortion with modular sample folding (CDP: distwarp)
 
 **Filtering:**
+
 - `filter_bandpass` - spectral bandpass filter
 - `filter_notch` - spectral notch (band-reject) filter
 
@@ -160,9 +178,11 @@ All FX demos accept `input.wav -o output_dir/` arguments.
 Standard DSP functions not derived from CDP algorithms:
 
 **EQ:**
+
 - `eq_parametric` - parametric equalizer with center frequency, gain, and Q factor
 
 **Dynamics:**
+
 - `gate` - noise gate with attack/release/hold envelope
 - `compressor` - dynamic range compression with threshold, ratio, attack/release
 - `limiter` - peak limiting with attack/release
@@ -170,6 +190,7 @@ Standard DSP functions not derived from CDP algorithms:
 - `envelope_apply` - apply envelope to sound with depth control
 
 **Effects:**
+
 - `bitcrush` - bit depth and sample rate reduction
 - `ring_mod` - ring modulation with carrier frequency
 - `delay` - feedback delay with mix control
@@ -182,12 +203,14 @@ Standard DSP functions not derived from CDP algorithms:
 - Scramble modes: `SCRAMBLE_SHUFFLE`, `SCRAMBLE_REVERSE`, `SCRAMBLE_SIZE_UP`, `SCRAMBLE_SIZE_DOWN`, `SCRAMBLE_LEVEL_UP`, `SCRAMBLE_LEVEL_DOWN`
 
 ### Fixed
+
 - Phase vocoder frequency calculation now uses correct hop size
 - Spectral filters now use bin center frequency for accurate filtering
 
 ## [0.1.0]
 
 ### Added
+
 - Native CDP library integration (no subprocess overhead)
 - **Spectral processing:** `time_stretch`, `spectral_blur`, `modify_speed`, `pitch_shift`, `spectral_shift`, `spectral_stretch`, `filter_lowpass`, `filter_highpass`
 - **Envelope operations:** `dovetail`, `tremolo`, `attack`

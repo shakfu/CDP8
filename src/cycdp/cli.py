@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import sys
+from typing import Any
 
 import cycdp
 
@@ -91,7 +92,7 @@ CATEGORIES = {
 # Parameter names and defaults are matched exactly to the Cython source
 # (_core.pyx), NOT the .pyi stubs which may be inaccurate.
 
-COMMANDS = {
+COMMANDS: dict[str, dict[str, Any]] = {
     # -- spectral --
     "time-stretch": {
         "func": "time_stretch",
@@ -1912,7 +1913,7 @@ def handle_info(args: argparse.Namespace) -> None:
 
     buf = cycdp.read_file(input_path)
     duration = buf.frame_count / buf.sample_rate
-    peak_level, peak_pos = cycdp.peak(buf)
+    peak_level, peak_pos = cycdp.peak(buf)  # type: ignore[arg-type]
 
     print(f"File:        {input_path}")
     print(f"Duration:    {duration:.4f}s")

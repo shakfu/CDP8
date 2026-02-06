@@ -5,13 +5,14 @@ This guide explains how to convert CDP algorithms into native library functions 
 ## Overview
 
 The goal is to implement CDP audio processing algorithms as native C functions that:
+
 - Operate directly on memory buffers (no file I/O)
 - Have zero subprocess overhead
 - Are accessible from Python via Cython bindings
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                        Python API                           │
 │                    cycdp/__init__.py                        │
@@ -72,6 +73,7 @@ cdp_lib_buffer* cdp_lib_my_effect(cdp_lib_ctx* ctx,
 ```
 
 **Conventions:**
+
 - All functions take `cdp_lib_ctx*` as first parameter
 - Input buffers are `const cdp_lib_buffer*`
 - Return a newly allocated buffer (caller frees)
@@ -297,7 +299,7 @@ def my_effect(Buffer buf not None, double param1, int param2=10):
     return result
 ```
 
-### Step 8: Export in __init__.py
+### Step 8: Export in **init**.py
 
 Add to `cycdp/src/cycdp/__init__.py`:
 
@@ -462,6 +464,7 @@ if (output == NULL) {
 ### 2. Using Instantaneous Frequency for Filtering
 
 **Wrong:**
+
 ```c
 if (freq[b] > cutoff) {  // freq[b] is instantaneous frequency
     amp[b] *= attenuation;
@@ -469,6 +472,7 @@ if (freq[b] > cutoff) {  // freq[b] is instantaneous frequency
 ```
 
 **Correct:**
+
 ```c
 float bin_freq = b * freq_per_bin;  // Use bin center frequency
 if (bin_freq > cutoff) {

@@ -4,7 +4,6 @@ import json
 import os
 import subprocess
 import sys
-import textwrap
 
 import pytest
 
@@ -12,7 +11,6 @@ import cycdp
 from cycdp.cli import (
     CATEGORIES,
     COMMANDS,
-    REQUIRED,
     SCRAMBLE_MAP,
     WAVEFORM_MAP,
     build_parser,

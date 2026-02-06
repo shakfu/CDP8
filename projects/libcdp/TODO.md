@@ -11,6 +11,7 @@ This document tracks CDP algorithms to be integrated as native library functions
 Native implementations of actual CDP algorithms (replacing subprocess calls).
 
 **Spectral Processing (CDP: `blur`, `stretch`, `pvoc`, `spec*`):**
+
 - [x] `time_stretch` - Phase vocoder time stretch
 - [x] `spectral_blur` - Spectral averaging/smearing
 - [x] `modify_speed` - Playback speed change (affects pitch)
@@ -19,6 +20,7 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `spectral_stretch` - Differential frequency stretching
 
 **Morphing/Cross-synthesis (CDP: `morph`, `combine`):**
+
 - [x] `morph` - Spectral interpolation between two sounds
 - [x] `morph_glide` - Simple spectral glide between two sounds
 - [x] `cross_synth` - Cross-synthesis (amp from one, freq from other)
@@ -27,6 +29,7 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `morph_native` - Native CDP specmorph wrapper (original algorithm)
 
 **Filtering (CDP: `filter`, `filtrage`, `synfilt`):**
+
 - [x] `filter_lowpass` - Spectral lowpass filter
 - [x] `filter_highpass` - Spectral highpass filter
 - [x] `filter_bandpass` - Spectral bandpass filter
@@ -37,11 +40,13 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `spectral_clean` - Spectral noise gate
 
 **Analysis (CDP: `pitch`, `formants`, `get_partials`):**
+
 - [x] `pitch` - Pitch tracking (YIN algorithm)
 - [x] `formants` - Formant analysis (LPC)
 - [x] `get_partials` - Partial tracking
 
 **Experimental (CDP: `strange`, `brownian`, `crystal`, `fractal`, `quirk`, etc.):**
+
 - [x] `strange` - Lorenz attractor chaotic modulation
 - [x] `brownian` - Random walk modulation (pitch/amp/filter)
 - [x] `crystal` - Crystalline textures with decaying echoes
@@ -54,6 +59,7 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `tesselate` - Tile-based pattern transformations
 
 **Playback/Time Manipulation (CDP: `extend`, `retime`):**
+
 - [x] `zigzag` - Zigzag playback (alternating forward/backward through audio)
 - [x] `iterate` - Iteration with variations (repeated playback with pitch/gain changes)
 - [x] `stutter` - Stutter effect (segment repetition with silence inserts)
@@ -65,11 +71,13 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `splinter` - Waveset splintering/fragmentation effects
 
 **Envelope (CDP: `envel`, `tremolo`, `envcut`):**
+
 - [x] `dovetail` - Fade in/out envelopes (linear/exponential)
 - [x] `tremolo` - LFO amplitude modulation
 - [x] `attack` - Attack transient reshaping
 
 **Distortion (CDP: `distort`, `distortt`, `distcut`, etc.):**
+
 - [x] `distort_overload` - Soft/hard clipping
 - [x] `distort_reverse` - Reverse wavecycles (zero-crossing based)
 - [x] `distort_fractal` - Recursive wavecycle overlay
@@ -81,17 +89,20 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `distort_warp` - Progressive warp distortion with modular sample folding
 
 **Reverb & Spatial (CDP: `reverb`, `rmverb`, `panorama`, `spin`, `rotor`):**
+
 - [x] `reverb` - FDN reverb (8 comb + 4 allpass filters)
 - [x] `spin` - Spatial spinning (rotating stereo position with doppler)
 - [x] `rotor` - Dual-rotation modulation (pitch + amplitude interference patterns)
 
 **Synthesis (CDP: `synth`, `wave`):**
+
 - [x] `synth_wave` - Waveform synthesis (sine, square, saw, ramp, triangle)
 - [x] `synth_noise` - Noise generation (white, pink)
 - [x] `synth_click` - Click track generation
 - [x] `synth_chord` - Chord synthesis from MIDI pitch list
 
 **Granular (CDP: `brassage`, `grain`, `texture`):**
+
 - [x] `brassage` - Granular resynthesis with pitch/time params
 - [x] `freeze` - Segment repetition with crossfade
 - [x] `grain_cloud` - Grain cloud generation from amplitude-detected grains
@@ -100,6 +111,7 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `texture_multi` - Multi-layer grouped texture generation
 
 **Extended Granular (CDP: `grain` modes):**
+
 - [x] `grain_reorder` - Reorder detected grains (shuffle, reverse, rotate)
 - [x] `grain_rerhythm` - Change timing/rhythm of grains
 - [x] `grain_reverse` - Reverse individual grains in place
@@ -110,6 +122,7 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 - [x] `grain_duplicate` - Duplicate grains with variations
 
 **Core (from original libcdp):**
+
 - [x] `gain`, `gain_db` - Amplitude adjustment
 - [x] `normalize`, `normalize_db` - Peak normalization
 - [x] `phase_invert` - Phase inversion
@@ -125,6 +138,7 @@ Native implementations of actual CDP algorithms (replacing subprocess calls).
 Useful audio processing functions not derived from CDP algorithms.
 
 **Dynamics (standard DSP, not in CDP):**
+
 - [x] `gate` - Noise gate with attack/release/hold
 - [x] `compressor` - Dynamic range compression
 - [x] `limiter` - Hard/soft limiting
@@ -132,9 +146,11 @@ Useful audio processing functions not derived from CDP algorithms.
 - [x] `envelope_apply` - Apply envelope to sound
 
 **EQ (standard DSP):**
+
 - [x] `eq_parametric` - Parametric EQ with Q factor
 
 **Effects (standard DSP):**
+
 - [x] `bitcrush` - Bit depth and sample rate reduction
 - [x] `ring_mod` - Ring modulation (carrier multiply)
 - [x] `delay` - Feedback delay with mix control
@@ -286,31 +302,41 @@ Would require a separate subsystem:
 ## Implementation Notes
 
 ### Architecture
+
 Each native function should:
+
 1. Accept `cdp_lib_buffer*` for input/output
 2. Return newly allocated buffer (caller frees)
 3. Set error message in context on failure
 4. Be thread-safe (no global state)
 
 ### FFT Infrastructure
+
 We have `fft_()` from `mxfft.c` available. For spectral operations:
+
 - Use `cdp_spectral_analyze()` for STFT
 - Use `cdp_spectral_synthesize()` for inverse STFT
 - Extend `cdp_spectral_data` structure as needed
 
 ### Testing
+
 Each new algorithm needs:
+
 1. C unit test in `test_cdp_lib.c`
 2. Python test in `tests/test_pycdp.py`
 
 ### Cython Bindings
+
 For each C function:
+
 1. Add declaration to `cdp_lib.pxd`
 2. Add wrapper function to `_core.pyx`
 3. Export in `__init__.py`
 
 ### Porting CDP Algorithms
+
 When porting a CDP algorithm:
+
 1. Study the original CDP source code
 2. Understand the algorithm's parameters and behavior
 3. Implement following the architecture above
@@ -321,49 +347,63 @@ When porting a CDP algorithm:
 ## CDP Executable Reference (220+ total)
 
 ### Spectral Processing
+
 `blur`, `focus`, `hilite`, `spec`, `specanal`, `specav`, `specenv`, `specfnu`,
 `specfold`, `specgrids`, `speclean`, `specnu`, `specross`, `specsphinx`,
 `spectrum`, `spectstr`, `spectune`, `spectwin`, `speculate`, `specvu`
 
 ### Time/Pitch Modification
+
 `modify`, `stretch`, `stretcha`, `pvoc`, `repitch`, `pitch`, `pmodify`,
 `retime`, `ts`, `strans`
 
 ### Time/Playback (dev/extend/)
+
 `zigzag`, `iterate`, `drunk`, `loop`, `scramble`
 
 ### Filtering
+
 `filter`, `filtrage`, `synfilt`, `notchinvert`
 
 ### Distortion
+
 `distort`, `distortt`, `distcut`, `distmark`, `distmore`, `distrep`, `distshift`, `distwarp`
 
 ### Envelope
+
 `envel`, `envcut`, `envnu`, `envspeak`, `tremolo`, `tremenv`
 
 ### Granular/Texture
+
 `grain`, `grainex`, `texture`, `newtex`, `texmchan`, `brassage`
 
 ### Spatial
+
 `reverb`, `rmverb`, `mchanrev`, `panorama`, `abfpan`, `abfpan2`, `mchanpan`, `spin`, `rotor`
 
 ### Synthesis
+
 `synth`, `newsynth`, `multisynth`, `multiosc`, `phasor`, `impulse`, `waveform`
 
 ### Morphing/Combining
+
 `morph`, `newmorph`, `combine`, `submix`, `multimix`, `newmix`, `nmix`
 
 ### Analysis
+
 `pitch`, `pitchinfo`, `formants`, `get_partials`, `features`, `onset`,
 `peak`, `peakfind`, `rmsinfo`, `sndinfo`, `specinfo`
 
 ### Utilities
+
 `housekeep`, `sfedit`, `sfprops`, `channelx`, `tostereo`, `mton`
 
 ### Experimental/Advanced (dev/science/)
+
 `strange`, `fractal`, `frfractal`, `quirk`, `crystal`, `brownian`,
 `chirikov`, `cantor`, `cascade`, `fracture`, `tesselate`, `stutter`,
 `scramble`, `bounce`, `splinter`, `crumble`, `strands`, `tweet`
 
 ### Pitch-Synchronous (dev/standalone/)
+
 `psow`, `fofex`, `flutter`, `hover`, `constrict`, `phase`, `wrappage`
